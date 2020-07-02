@@ -416,7 +416,7 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16PixelData *pixel,
                                                   uint8_t nobordercases)
 {
     FLIF16ColorVal guess, left, top, topleft, gradientTL;
-    int width = pixel->width, height = pixel->height;
+    int width = pixel->width;
     int which = 0;
     int index = 0;
     if (p < 3) {
@@ -732,19 +732,6 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     // Set images to gray
     switch (s->segment) {
         case 0:
-            /*for (int p = 0; p < s->range->num_planes; p++) {
-                if (ff_flif16_ranges_min(s->range, p) < ff_flif16_ranges_max(s->range, p))
-                    for (uint32_t fr = 0; fr < s->frames; fr++) {
-                        for (uint32_t r = 0; r < s->height; r++) { // Handle the 2 pixels per frame stuff here.
-                            for (uint32_t c = 0; c < s->width; c++) {
-                                ff_flif16_pixel_set(&s->out_frames[fr], p, r, c,
-                                                    (ff_flif16_ranges_min(s->range, p) +
-                                                     ff_flif16_ranges_max(s->range, p)) / 2);
-                            }
-                        }
-                    }
-            }*/
-
             s->grays = flif16_compute_grays(s->range); // free later
             s->i = s->i2 = s->i3 = 0;
             ++s->segment;
@@ -760,9 +747,9 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                     continue;
                 }
                // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                s->properties = av_mallocz((s->channels > 3 ? properties_ni_rgba_size[s->curr_plane]:
-                                                              properties_ni_rgb_size[s->curr_plane]) 
-                                                              * sizeof(*s->properties));
+                s->properties = av_mallocz((s->channels > 3 ? properties_ni_rgba_size[s->curr_plane]
+                                                            : properties_ni_rgb_size[s->curr_plane]) 
+                                                            * sizeof(*s->properties));
                 /*printf("sizeof s->properties: %u\n", (s->channels > 3 ? properties_ni_rgba_size[s->curr_plane]:
                                                                         properties_ni_rgb_size[s->curr_plane]));*/
                  //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
@@ -770,6 +757,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                     for (; s->i3 < s->frames; ++s->i3) {
         case 1:
                         //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+                        // TODO maybe put this in dec ctx
                         min_p = ff_flif16_ranges_min(s->range, s->curr_plane);
                         ret = flif16_read_ni_plane(s, s->range, s->properties,
                                                    s->curr_plane,
@@ -792,6 +780,9 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
             } // End for
             
         } // End switch
+
+    if (s->grays)
+            av_freep(&s->grays);
 
     for(int i = 0; i < s->frames; i++){
         for(int j = s->transform_top - 1; j >= 0; --j){
@@ -862,7 +853,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     return ret;
 }
 
-static int flif16_write_frame(AVCodecContext *avctx, AVFrame *p)
+static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
 {
     // Refer to libavcodec/bmp.c for an example.
     // ff_set_dimensions(avctx, width, height );
@@ -874,12 +865,12 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *p)
     // for(...)
     //     p->data[...] = ..
     int ret;
-    printf("<*****> In flif16_write_frame\n");
     FLIF16DecoderContext *s = avctx->priv_data;
     ff_set_dimensions(avctx, s->width, s->height);
-    p->pict_type = AV_PICTURE_TYPE_I;
-    p->key_frame = 1;
-    
+    s->final_out_frame->pict_type = AV_PICTURE_TYPE_I;
+    s->final_out_frame->key_frame = 1;
+
+    printf("<*****> In flif16_write_frame\n");
 
     if (s->channels  == 1 && s->bpc <= 256) {
         printf("gray8\n");
@@ -893,33 +884,33 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *p)
         return AVERROR_PATCHWELCOME;
     }
 
-    if ((ret = ff_get_buffer(avctx, p, 0)) < 0) {
+    if ((ret = ff_reget_buffer(avctx, s->final_out_frame, 0)) < 0) {
         printf(">>>>>>Couldn't allocate buffer.\n");
         return ret;
     }
 
     switch (avctx->pix_fmt) {
         case AV_PIX_FMT_GRAY8:
-            p->linesize[0] = s->width;
+            s->final_out_frame->linesize[0] = s->width;
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
-                    *(p->data[0] + i * p->linesize[0] + j) = \
+                    *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j) = \
                     ff_flif16_pixel_get(&s->out_frames[s->out_frames_count], 0, i, j);
                 }
             }
             break;
 
         case AV_PIX_FMT_RGB24:
-            p->linesize[0] = s->width;
+            s->final_out_frame->linesize[0] = s->width;
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
-                    *(p->data[0] + i * p->linesize[0] * 3 + j * 3 + 0 ) = \
+                    *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] * 3 + j * 3 + 0 ) = \
                     ff_flif16_pixel_get(&s->out_frames[s->out_frames_count], 0, i, j);
                     //printf("%d ", i * p->linesize[0] * 3 + j * 3);
-                    *(p->data[0] + i * p->linesize[0] * 3 + j * 3 + 1) = \
+                    *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] * 3 + j * 3 + 1) = \
                     ff_flif16_pixel_get(&s->out_frames[s->out_frames_count], 1, i, j);
                     //printf("%d ", i * p->linesize[0] * 3+ j * 3 + 1);
-                    *(p->data[0] + i * p->linesize[0] * 3 + j * 3 + 2) = \
+                    *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] * 3 + j * 3 + 2) = \
                     ff_flif16_pixel_get(&s->out_frames[s->out_frames_count], 2, i, j);
                     //printf("%d \n", i * p->linesize[0] * 3 + j * 3 + 2);
 
@@ -932,7 +923,8 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *p)
             printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             break;
     }
-    p->key_frame = 1;
+
+    av_frame_ref(data, s->final_out_frame);
     if ((++s->out_frames_count) >= s->frames)
         s->state = FLIF16_EOS;
         
@@ -944,6 +936,13 @@ static int flif16_read_checksum(AVCodecContext *avctx)
     return AVERROR_EOF;
 }
 
+static int flif16_decode_init(AVCodecContext *avctx)
+{
+    FLIF16DecoderContext *s = avctx->priv_data;
+    s->final_out_frame = av_frame_alloc();
+    return 0;
+}
+
 static int flif16_decode_frame(AVCodecContext *avctx,
                                void *data, int *got_frame,
                                AVPacket *avpkt)
@@ -953,9 +952,10 @@ static int flif16_decode_frame(AVCodecContext *avctx,
     const uint8_t *buf      = avpkt->data;
     int buf_size            = avpkt->size;
     AVFrame *p              = data;
-    // MSG("Packet Size = %d\n", buf_size);
+
     bytestream2_init(&s->gb, buf, buf_size);
     printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
     // Looping is done to change states in between functions.
     // Function will either exit on AVERROR(EAGAIN) or AVERROR_EOF
     do {
@@ -1034,6 +1034,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
             printf("===\n");
         }
     }*/
+    printf("[%s] ret = %d\n", __FILE__, buf_size);
     return ret;
 }
 
@@ -1053,6 +1054,7 @@ AVCodec ff_flif16_decoder = {
     .long_name      = NULL_IF_CONFIG_SMALL("FLIF (Free Lossless Image Format)"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_FLIF16,
+    .init           = flif16_decode_init,
     .close          = flif16_decode_end,
     .priv_data_size = sizeof(FLIF16DecoderContext),
     .decode         = flif16_decode_frame,

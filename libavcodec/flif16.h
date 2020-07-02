@@ -125,6 +125,7 @@ typedef struct FLIF16DecoderContext {
     // For now, we will use this to store output
     FLIF16PixelData  *out_frames;
     uint32_t out_frames_count;
+    AVFrame *final_out_frame;
     
     uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
     uint8_t buf_count;    ///< Count for initial RAC buffer
