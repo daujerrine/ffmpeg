@@ -425,7 +425,8 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
 
     if (!m->forest[channel]->leaves) {
         // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-        m->forest[channel]->leaves = av_mallocz(MANIAC_TREE_BASE_SIZE * sizeof(*m->forest[channel]->leaves));
+        m->forest[channel]->leaves = av_mallocz(MANIAC_TREE_BASE_SIZE *
+                                                sizeof(*m->forest[channel]->leaves));
         m->forest[channel]->leaves_size = MANIAC_TREE_BASE_SIZE;
         if(!m->forest[channel]->leaves)
             return NULL;
@@ -449,7 +450,8 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
             --nodes[pos].count;
             if ((tree->leaves_top) >= tree->leaves_size) {
                 m->forest[channel]->leaves = av_realloc(m->forest[channel]->leaves,
-                                                        sizeof(*m->forest[channel]->leaves) * m->forest[channel]->leaves_size * 2);
+                                                        sizeof(*m->forest[channel]->leaves) *
+                                                        m->forest[channel]->leaves_size * 2);
                 if (!m->forest[channel]->leaves)
                     return NULL;
                 m->forest[channel]->leaves_size *= 2;
@@ -457,7 +459,8 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
             old_leaf = nodes[pos].leaf_id;
             new_leaf = tree->leaves_top;
             printf("findleaf: %u %u %u\n", tree->leaves_top, tree->leaves_size, nodes[pos].leaf_id);
-            memcpy(&m->forest[channel]->leaves[tree->leaves_top], &m->forest[channel]->leaves[nodes[pos].leaf_id],
+            memcpy(&m->forest[channel]->leaves[tree->leaves_top],
+                   &m->forest[channel]->leaves[nodes[pos].leaf_id],
                    sizeof(*m->forest[channel]->leaves));
             ++tree->leaves_top;
             nodes[nodes[pos].child_id].leaf_id = old_leaf;
