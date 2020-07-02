@@ -197,6 +197,11 @@ int32_t (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
                                             uint8_t property,
                                             uint8_t channels))[2];
 
+int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
+                                            FLIF16RangesContext *ranges,
+                                            uint8_t property,
+                                            uint8_t channels))[2];
+
 FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
                                        uint32_t depth, uint32_t width, uint32_t height);
 

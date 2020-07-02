@@ -66,6 +66,55 @@ int32_t  (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
     return prop_ranges;
 }
 
+int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
+                                            FLIF16RangesContext *ranges,
+                                            uint8_t property,
+                                            uint8_t channels))[2]
+{
+    int min = ff_flif16_ranges_min(ranges, property);
+    int max = ff_flif16_ranges_max(ranges, property);
+    unsigned int top = 0, pp;
+    int mind = min - max, maxd = max - min;
+    int32_t (*prop_ranges)[2];
+    unsigned int size = \
+          (((property<3) ? ((ranges->num_planes>3) ? property+1 : property) : 0) \
+         +((property == 1 || property == 2) ? 1 : 0) \
+         +((property != 2) ? 2 : 0) + 1 + 5);
+    prop_ranges = av_mallocz(sizeof(*prop_ranges) * size);
+    *prop_ranges_size = size;
+
+    if (property < 3) {
+      for (pp = 0; pp < property; pp++) {
+        prop_ranges[top][0] = ff_flif16_ranges_min(ranges, pp);
+        prop_ranges[top++][1] = ff_flif16_ranges_max(ranges, pp);
+      }
+      if (ranges->num_planes > 3) {
+          prop_ranges[top][0] = ff_flif16_ranges_min(ranges, 3);
+          prop_ranges[top++][1] = ff_flif16_ranges_max(ranges, 3);;
+      }
+    }
+
+    prop_ranges[top][0] = 0;
+    prop_ranges[top++][0] = 2;
+
+    if (property == 1 || property == 2){
+        prop_ranges[top][0] = ff_flif16_ranges_min(ranges, 0) - ff_flif16_ranges_max(ranges, 0);
+        prop_ranges[top++][1] = ff_flif16_ranges_max(ranges, 0) - ff_flif16_ranges_min(ranges, 0); // luma prediction miss
+    }
+    for (int i = 0; i < 4; ++i) {
+        prop_ranges[top][0] = mind;
+        prop_ranges[top++][1] = maxd;
+    }
+    prop_ranges[top][0] = min;
+    prop_ranges[top++][0] = max;
+
+    if (property != 2) {
+      prop_ranges[top][0] = mind;
+      prop_ranges[top++][1] = maxd;
+    }
+    return prop_ranges;
+}
+
 
 static void ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
                                   uint32_t depth, uint32_t width, uint32_t height,

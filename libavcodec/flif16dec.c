@@ -808,6 +808,43 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     return ret;
 }
 
+/*
+static int flif16_read_interlaced_image(AVCodecContext avctx) {
+    FLIF16DecoderContext *s = avctx->priv_data;
+    int ret;
+    std::vector<Coder> coders;
+    coders.reserve(images[0].numPlanes());
+    for (int p = 0; p < images[0].numPlanes(); p++) {
+        Ranges propRanges;
+        initPropRanges(propRanges, *ranges, p);
+        coders.emplace_back(rac, propRanges, forest[p], 0, options.cutoff, options.alpha);
+    }
+
+    if (beginZL == images[0].zooms() && endZL > 0) {
+      // special case: very left top pixel must be read first to get it all started
+      // SimpleSymbolCoder<FLIFBitChanceMeta, Rac, 24> metaCoder(rac);
+      UniformSymbolCoder<Rac> metaCoder(rac);
+      for (int p = 0; p < images[0].numPlanes(); p++) {
+        if (ranges->min(p) < ranges->max(p)) {
+          for (Image& image : images) {
+             const int minR = ranges->min(p);
+             image.set(p,0,0,0, metaCoder.read_int(minR, ranges->max(p) - minR));
+          }
+          pixels_done++;
+        }
+      }
+    }
+#if LARGE_BINARY > 1
+    // de-virtualize some of those ColorRanges
+    if (const ColorRangesCB * rangesCB = dynamic_cast<const ColorRangesCB*>(ranges))
+        return flif_decode_FLIF2_inner<IO,Rac,Coder,ColorRangesCB>(io, rac, coders, images, rangesCB, beginZL, endZL, options, transforms, callback, user_data, partial_images);
+    if (const ColorRangesBounds * rangesB = dynamic_cast<const ColorRangesBounds*>(ranges))
+        return flif_decode_FLIF2_inner<IO,Rac,Coder,ColorRangesBounds>(io, rac, coders, images, rangesB, beginZL, endZL, options, transforms, callback, user_data, partial_images);
+    else
+#endif
+        return flif_decode_FLIF2_inner<IO,Rac,Coder,ColorRanges>(io, rac, coders, images, ranges, beginZL, endZL, options, transforms, callback, user_data, partial_images);
+}
+*/
 
 static int flif16_read_pixeldata(AVCodecContext *avctx)
 {
@@ -816,6 +853,8 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
+    //else if(s->ia == 2 || s->ia == 4)
+    //    ret = flif16_read_interlaced_image(avctx);
     else
         return AVERROR_EOF;
     if(!ret)
