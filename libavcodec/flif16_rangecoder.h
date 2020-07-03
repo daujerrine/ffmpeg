@@ -167,14 +167,11 @@ typedef struct FLIF16ChanceContext {
     uint16_t data[sizeof(flif16_nz_int_chances)/sizeof(flif16_nz_int_chances[0])];
 } FLIF16ChanceContext;
 
-// rc->renorm may be useless. Check.
-
 typedef struct FLIF16RangeCoder {
     uint_fast32_t range;
     uint_fast32_t low;
     uint16_t chance;
-    uint8_t empty;    ///< Is bytestream empty
-    uint8_t renorm;   ///< Is a renormalisation required
+    uint8_t empty;    ///< Is bytestream emptyW
     uint8_t active;   ///< Is an integer reader currently active (to save/
                       ///  transfer state)
 
@@ -318,17 +315,12 @@ static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
         else
             --left;
     }
-    rc->renorm = 0;
     return 1;
 }
 
 static inline uint8_t ff_flif16_rac_get(FLIF16RangeCoder *rc, uint32_t chance,
                                         uint8_t *target)
 {
-    if (rc->renorm) {
-        printf("Triggered\n");
-        return 0;
-    }
     // printf("low = %lu range = %lu chance = %u renorm = %d\n", rc->low, rc->range, chance, rc->renorm);
     if (rc->low >= rc->range - chance) {
         rc->low -= rc->range - chance;
@@ -338,8 +330,6 @@ static inline uint8_t ff_flif16_rac_get(FLIF16RangeCoder *rc, uint32_t chance,
         rc->range -= chance;
         *target = 0;
     }
-
-    rc->renorm = 1;
 
     return 1;
 }
@@ -354,11 +344,6 @@ static inline uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
                                                  uint16_t b12, uint8_t *target)
 {
     uint32_t ret;
-
-    if (rc->renorm) {
-        printf("Triggered\n");
-        return 0;
-    }
 
     if (sizeof(rc->range) > 4)
         ret = ((rc->range) * b12 + 0x800) >> 12;
@@ -378,11 +363,6 @@ static inline int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
 {
     int med;
     uint8_t bit;
-
-    if (rc->renorm) {
-        printf("Triggered\n");
-        return 0;
-    }
 
     if (!rc->active) {
         rc->min = min;
@@ -470,10 +450,8 @@ static inline int ff_flif16_rac_nz_read_internal(FLIF16RangeCoder *rc,
     // __PLN__
     // Maybe remove the while loop
     while (!flag) {
-        if (rc->renorm) {
-            if(!ff_flif16_rac_renorm(rc))
-                return 0; // EAGAIN condition
-        }
+        if(!ff_flif16_rac_renorm(rc))
+            return 0; // EAGAIN condition
         flag = ff_flif16_rac_read_symbol(rc, ctx, type, target);
     }
     return 1;
@@ -667,10 +645,8 @@ static inline int ff_flif16_rac_nz_read_multiscale_internal(FLIF16RangeCoder *rc
     int flag = 0;
     // Maybe remove the while loop
     while (!flag) {
-        if (rc->renorm) {
-            if(!ff_flif16_rac_renorm(rc))
-                return 0; // EAGAIN condition
-        }
+        if(!ff_flif16_rac_renorm(rc))
+            return 0; // EAGAIN condition
         flag = ff_flif16_rac_read_multiscale_symbol(rc, ctx, type, target);
     }
     return 1;
@@ -833,10 +809,8 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
 {
     int flag = 0;
     while (!flag) {
-        if(rc->renorm) {
-            if(!ff_flif16_rac_renorm(rc))
-                return 0; // EAGAIN condition
-        }
+        if(!ff_flif16_rac_renorm(rc))
+            return 0; // EAGAIN condition
 
         switch (type) {
             case FLIF16_RAC_BIT:
