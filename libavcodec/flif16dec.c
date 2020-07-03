@@ -136,6 +136,7 @@ static int flif16_read_header(AVCodecContext *avctx)
     s->width++;
     s->height++;
     (s->ia > 4) ? (s->frames += 2) : (s->frames = 1);
+    s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->frames);
     
     if (!s->out_frames)
     s->out_frames = ff_flif16_frames_init(s->frames, s->channels, 32,
@@ -213,7 +214,6 @@ static int flif16_read_second_header(AVCodecContext *avctx)
             if (s->frames > 1) {
                 RAC_GET(&s->rc, NULL, 0, 100, (uint32_t *) &s->loops,
                         FLIF16_RAC_UNI_INT);
-                s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->frames);
             }
             ++s->segment;
 
@@ -1070,6 +1070,8 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
         av_freep(&s->framedelay);
     if (s->prop_ranges)
         av_freep(&s->prop_ranges);
+    if (s->out_frames)
+        ff_flif16_frames_free(s->out_frames, s->frames, s->channels);
     return 0;
 }
 

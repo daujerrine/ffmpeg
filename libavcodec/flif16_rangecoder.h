@@ -200,8 +200,8 @@ typedef struct FLIF16RangeCoder {
     FLIF16ChanceTable ct;
 #ifdef MULTISCALE_CHANCES_ENABLED
     FLIF16MultiscaleChanceTable *mct;
-#endif
     FLIF16Log4kTable log4k;
+#endif
     GetByteContext *gb;
 } FLIF16RangeCoder;
 
@@ -430,12 +430,14 @@ static inline void ff_flif16_chancetable_put(FLIF16RangeCoder *rc,
                              : rc->ct.one_state[ctx->data[type]];
 }
 
+#ifdef MULTISCALE_CHANCES_ENABLED
 static inline void ff_flif16_chance_estim(FLIF16RangeCoder *rc,
                                           uint16_t chance, uint8_t bit,
                                           uint64_t *total)
 {
     *total += rc->log4k.table[bit ? chance : 4096 - chance];
 }
+#endif
 
 /**
  * Reads a near-zero encoded symbol into the RAC probability model/chance table

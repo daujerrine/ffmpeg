@@ -152,8 +152,10 @@ typedef struct FLIF16DecoderContext {
     uint32_t alpha;       ///< Chancetable custom alphadivisor
     uint8_t ipp;          ///< Invisible pixel predictor
 
-    uint8_t loops;        ///< Number of times animation loops
-    uint16_t *framedelay; ///< Frame delay for each frame
+    // change to uint8_t
+    uint32_t loops;       ///< Number of times animation loops
+    // change to uint32_t
+    uint32_t *framedelay; ///< Frame delay for each frame
 
     // Transforms
     // Size dynamically maybe
