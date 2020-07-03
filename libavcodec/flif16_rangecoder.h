@@ -493,7 +493,7 @@ static inline int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
     //printf("segment = %d min: %d max: %d\n", rc->segment, min, max);
     if (min == max) {
         // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-        printf("min == max\n");
+        //printf("min == max\n");
         *target = min;
         rc->active = 0;
         return 1;
@@ -513,7 +513,7 @@ static inline int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
             RAC_NZ_GET(rc, ctx, NZ_INT_ZERO, &(temp));
             if (temp) {
                 // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                printf("bit zero\n");
+                //printf("bit zero\n");
                 *target = 0;
                 rc->active = 0;
                 return 1;
@@ -585,7 +585,7 @@ static inline int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
     }
 
     end:
-    printf("%d %d %u %d %d %d %d %d %d %d %d %d \n", min, max, rc->sign, rc->amin, rc->amax, rc->emax, rc->e, rc->minabs1, rc->maxabs0, rc->left, rc->have, rc->pos);
+    //printf("%d %d %u %d %d %d %d %d %d %d %d %d \n", min, max, rc->sign, rc->amin, rc->amax, rc->emax, rc->e, rc->minabs1, rc->maxabs0, rc->left, rc->have, rc->pos);
     *target = ((rc->sign) ? (rc->have) : -(rc->have));
     rc->active = 0;
     return 1;
