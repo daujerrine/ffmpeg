@@ -840,7 +840,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
-    
+    /*
     else if(s->ia == 2 || s->ia == 4){
         switch(s->i){
             case 0:
@@ -860,7 +860,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
             }
         }
     }
-
+    */
     else
         return AVERROR_EOF;
     if(!ret)
