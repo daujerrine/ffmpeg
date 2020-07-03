@@ -365,8 +365,14 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
             printf("channel: %d\n", s->i);
             if (s->i >= s->channels)
                 goto end;
-            s->prop_ranges = ff_flif16_maniac_ni_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                  s->i, s->channels);
+
+            if (!(s->ia % 2))
+                s->prop_ranges = ff_flif16_maniac_prop_ranges_init(&s->prop_ranges_size, s->range,
+                                                                   s->i, s->channels);
+            else
+                s->prop_ranges = ff_flif16_maniac_ni_prop_ranges_init(&s->prop_ranges_size, s->range,
+                                                                      s->i, s->channels);
+
             printf("Prop ranges:\n");
             for(int i = 0; i < s->prop_ranges_size; ++i)
                 printf("(%d, %d)\n", s->prop_ranges[i][0], s->prop_ranges[i][1]);

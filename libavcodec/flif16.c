@@ -76,10 +76,9 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
     unsigned int top = 0, pp;
     int mind = min - max, maxd = max - min;
     int32_t (*prop_ranges)[2];
-    unsigned int size = \
-          (((property<3) ? ((ranges->num_planes>3) ? property+1 : property) : 0) \
-         +((property == 1 || property == 2) ? 1 : 0) \
-         +((property != 2) ? 2 : 0) + 1 + 5);
+    unsigned int size =   (((property < 3) ? ((ranges->num_planes > 3) ? property + 1 : property) : 0) \
+                        + ((property == 1 || property == 2) ? 1 : 0) \
+                        + ((property != 2) ? 2 : 0) + 1 + 5);
     prop_ranges = av_mallocz(sizeof(*prop_ranges) * size);
     *prop_ranges_size = size;
 
