@@ -174,6 +174,7 @@ typedef struct FLIF16DecoderContext {
     FLIF16ColorVal *properties;
     FLIF16ColorVal guess;      ///< State variable. Stores guess
     FLIF16ColorVal min, max;
+    int zooms;
     uint32_t c;                ///< State variable for current column
     
     // Image Properties
@@ -194,6 +195,11 @@ typedef struct FLIF16DecoderContext {
 } FLIF16DecoderContext;
 
 int32_t (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
+                                            FLIF16RangesContext *ranges,
+                                            uint8_t property,
+                                            uint8_t channels))[2];
+
+int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
                                             FLIF16RangesContext *ranges,
                                             uint8_t property,
                                             uint8_t channels))[2];
@@ -234,6 +240,8 @@ static inline void ff_flif16_copy_rows(FLIF16PixelData *dest,
 }
 
 
+#define zoom_rowpixelsize(zoomlevel) 1<<((zoomlevel+1)/2)
+#define zoom_colpixelsize(zoomlevel) 1<<((zoomlevel)/2)
 #define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ? (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
 
 // Must be included here to resolve circular include

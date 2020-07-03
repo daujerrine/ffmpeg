@@ -799,19 +799,76 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     return ret;
 }
 
+/*
+static int flif16_read_interlaced_image(AVCodecContext *avctx, int beginZL, int endZL) {
+    FLIF16DecoderContext *s = avctx->priv_data;
+    int ret;
+    int temp;
+    if (beginZL == s->zooms && endZL > 0) {
+      // special case: very left top pixel must be read first to get it all started
+
+      for (int p = 0; p < s->channels; p++) {
+        if (ff_flif16_ranges_min(s->range, p) < ff_flif16_ranges_max(s->range, p)) {
+             const int minR = ff_flif16_ranges_min(s->range, p);
+             RAC_GET(&s->rc, NULL, minR, ff_flif16_ranges_max(s->range, p) - minR, &temp, FLIF16_RAC_UNI_INT);
+             ff_flif16_pixel_set(s->out_frames, p, 0, 0, 0, temp);
+             // Add support for zoomlevel pixel set(ter).
+        }
+      }
+    }
+#if LARGE_BINARY > 1
+    // de-virtualize some of those ColorRanges
+    if (const ColorRangesCB * rangesCB = dynamic_cast<const ColorRangesCB*>(ranges))
+        return flif_decode_FLIF2_inner<IO,Rac,Coder,ColorRangesCB>(io, rac, coders, images, rangesCB, beginZL, endZL, options, transforms, callback, user_data, partial_images);
+    if (const ColorRangesBounds * rangesB = dynamic_cast<const ColorRangesBounds*>(ranges))
+        return flif_decode_FLIF2_inner<IO,Rac,Coder,ColorRangesBounds>(io, rac, coders, images, rangesB, beginZL, endZL, options, transforms, callback, user_data, partial_images);
+    else
+#endif
+        return flif_decode_FLIF2_inner<IO,Rac,Coder,ColorRanges>(io, rac, coders, images, ranges, beginZL, endZL, options, transforms, callback, user_data, partial_images);
+
+    
+    need_more_data:
+    return AVERROR(EAGAIN);
+}
+*/
 
 static int flif16_read_pixeldata(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
+    int roughZL;
     printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
+    /*
+    else if(s->ia == 2 || s->ia == 4){
+        switch(s->i){
+            case 0:
+            s->zooms = 0;
+            while (zoom_rowpixelsize(s->zooms) < s->height
+                || zoom_colpixelsize(s->zooms) < s->width)
+                s->zooms++;
+            s->i++;
+            
+            case 1:
+            RAC_GET(&s->rc, NULL, 0, s->zooms, &roughZL, FLIF16_RAC_UNI_INT);    
+            s->i++;
+
+            case 2:
+            if(!(ret = flif16_read_interlaced_image(avctx, s->zooms, roughZL+1))){
+
+            }
+        }
+    }
+    */
     else
         return AVERROR_EOF;
     if(!ret)
         s->state = FLIF16_OUTPUT;
     return ret;
+
+    need_more_data:
+    return AVERROR(EAGAIN);
 }
 
 static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
