@@ -42,7 +42,7 @@
 //#define __PLN__ #error remove me
 //#define MSG(fmt,...) #error remove me
 
-#define FF_FLIF16_VARINT_APPEND(a,x) a = (a << 7) | (uint64_t) (x & 127)
+#define FF_FLIF16_VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint64_t) ((x) & 127)
 
 #define MAX_PLANES 5
 
