@@ -978,7 +978,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
     AVFrame *p              = data;
 
     bytestream2_init(&s->gb, buf, buf_size);
-    printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    printf("[%s] Entering decode\n", __func__);
 
     // Looping is done to change states in between functions.
     // Function will either exit on AVERROR(EAGAIN) or AVERROR_EOF
@@ -1082,7 +1082,7 @@ AVCodec ff_flif16_decoder = {
     .close          = flif16_decode_end,
     .priv_data_size = sizeof(FLIF16DecoderContext),
     .decode         = flif16_decode_frame,
-    //.capabilities   = 0,
+    .capabilities   = AV_CODEC_CAP_DELAY,
     //.caps_internal  = 0,
     .priv_class     = NULL,
 };
