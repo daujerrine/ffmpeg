@@ -240,8 +240,8 @@ static inline void ff_flif16_copy_rows(FLIF16PixelData *dest,
 }
 
 
-#define zoom_rowpixelsize(zoomlevel) 1<<((zoomlevel+1)/2)
-#define zoom_colpixelsize(zoomlevel) 1<<((zoomlevel)/2)
+#define ZOOM_ROWPIXELSIZE(zoomlevel) 1<<((zoomlevel+1)/2)
+#define ZOOM_COLPIXELSIZE(zoomlevel) 1<<((zoomlevel)/2)
 #define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ? (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
 
 // Must be included here to resolve circular include

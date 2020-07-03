@@ -173,8 +173,8 @@ static int flif16_read_second_header(AVCodecContext *avctx)
     switch (s->segment) {
         case 0:
             s->buf_count += bytestream2_get_buffer(&s->gb, s->buf + s->buf_count,
-                                               FFMIN(bytestream2_get_bytes_left(&s->gb),
-                                               (FLIF16_RAC_MAX_RANGE_BYTES - s->buf_count)));
+                                                   FFMIN(bytestream2_get_bytes_left(&s->gb),
+                                                   (FLIF16_RAC_MAX_RANGE_BYTES - s->buf_count)));
             // MSG("s->buf_count = %d buf = ", s->buf_count);
             for(int i = 0; i < FLIF16_RAC_MAX_RANGE_BYTES; ++i)
                 printf("%x ", s->buf[i]);
@@ -800,7 +800,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 }
 
 /*
-static int flif16_read_interlaced_image(AVCodecContext *avctx, int beginZL, int endZL) {
+static int flif16_read_image(AVCodecContext *avctx, int beginZL, int endZL) {
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
     int temp;
@@ -841,12 +841,12 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
     /*
-    else if(s->ia == 2 || s->ia == 4){
+    else if(!(s->ia % 2)){
         switch(s->i){
             case 0:
             s->zooms = 0;
-            while (zoom_rowpixelsize(s->zooms) < s->height
-                || zoom_colpixelsize(s->zooms) < s->width)
+            while (   ZOOM_ROWPIXELSIZE(s->zooms) < s->height
+                   || ZOOM_COLPIXELSIZE(s->zooms) < s->width)
                 s->zooms++;
             s->i++;
             
@@ -855,7 +855,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
             s->i++;
 
             case 2:
-            if(!(ret = flif16_read_interlaced_image(avctx, s->zooms, roughZL+1))){
+            if(!(ret = flif16_read_image(avctx, s->zooms, roughZL+1))){
 
             }
         }
