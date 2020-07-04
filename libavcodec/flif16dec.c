@@ -324,7 +324,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             end:
             s->segment = 3;
             printf("[Resultant Ranges]\n");
-            for(int i = 0; i < 5; ++i)
+            for(int i = 0; i < s->channels; ++i)
                 printf("%d: %d, %d\n", i, ff_flif16_ranges_min(s->range, i),
                 ff_flif16_ranges_max(s->range, i));
                 
