@@ -739,7 +739,7 @@ static int8_t transform_ycocg_reverse(FLIF16TransformContext *ctx,
 
 static void transform_ycocg_close(FLIF16TransformContext *ctx){
     transform_priv_ycocg *data = ctx->priv_data;
-    av_freep(data->r_ctx);
+    av_free(data->r_ctx);
 }
 
 /*
@@ -899,6 +899,7 @@ static int8_t transform_permuteplanes_reverse(FLIF16TransformContext *ctx,
 
 static void transform_permuteplanes_close(FLIF16TransformContext *ctx){
     transform_priv_permuteplanes *data = ctx->priv_data;
+    av_free(data->r_ctx);
 }
 
 /*
@@ -1208,7 +1209,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
             RAC_GET(&dec_ctx->rc, &data->ctxY, data->min[0], data->max[0],
                     &data->Y, FLIF16_RAC_GNZ_INT);
             data->pp[0] = data->Y;
-            ff_flif16_ranges_minmax(src_ctx, 1, &data->pp, &data->min[1], &data->max[1]);
+            ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[1], &data->max[1]);
             ctx->i++;
 
         case 3:
@@ -1217,7 +1218,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
                     data->max[1],
                     &data->I, FLIF16_RAC_GNZ_INT);
             data->pp[1] = data->I;
-            ff_flif16_ranges_minmax(src_ctx, 2, &data->pp, &data->min[2], &data->max[2]);
+            ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[2], &data->max[2]);
             ctx->i++;
 
         case 4:
