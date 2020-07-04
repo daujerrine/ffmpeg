@@ -176,18 +176,11 @@ typedef struct FLIF16DecoderContext {
     FLIF16ColorVal *properties;
     FLIF16ColorVal guess;      ///< State variable. Stores guess
     FLIF16ColorVal min, max;
-    int zooms;
     uint32_t c;                ///< State variable for current column
-    
-    // Image Properties
-    /*
-     * 3 output pixel formats are to be supported:
-     *     1. greyscale  AV_PIX_FMT_GRAY16LE 
-     *     2. RGB        AV_PIX_FMT_RGB
-     *     3. RGBA       AV_PIX_FMT_RGBA
-     *
-     * see libavutil/pixfmt.h, libavutil/pixdesc.c
-     */
+
+    // Interlaced Pixeldata
+    int zoomlevels;
+    int rough_zl;
 
     // Dimensions and other things.
     uint32_t width;
