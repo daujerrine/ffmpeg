@@ -813,7 +813,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 
 static inline int get_rough_zl() {
     int z = 0;
-    while (zoom_rowpixelsize(z) < rows() || zoom_colpixelsize(z) < cols())
+    while (ZOOM_ROWPIXELSIZE(z) < rows() || ZOOM_COLPIXELSIZE(z) < cols())
         z++;
     return z;
 }
