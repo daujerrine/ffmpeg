@@ -55,7 +55,7 @@ extern FLIF16Transform *flif16_transforms[13];
 FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
                                                   unsigned int bpc);
 
-static inline void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx){
+static void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx){
     FLIF16Ranges* ranges = flif16_ranges[r_ctx->r_no];
     if(ranges->priv_data_size){
         ranges->close(r_ctx);

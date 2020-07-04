@@ -114,7 +114,7 @@ typedef struct FLIF16TransformContext{
 } FLIF16TransformContext;
 
 typedef struct FLIF16Transform {
-    uint8_t priv_data_size;
+    int16_t priv_data_size;
     //Functions
     int8_t (*init) (FLIF16TransformContext*, FLIF16RangesContext*);
     int8_t (*read) (FLIF16TransformContext*, FLIF16DecoderContext*, FLIF16RangesContext*);
