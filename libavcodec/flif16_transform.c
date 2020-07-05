@@ -246,17 +246,15 @@ static inline int ff_get_max_cg(int origmax4, int yval, int coval){
                       -2*origmax4 - (yval - origmax4)*2 - 1 + (abs(coval)/2)*2);
 }
 
-enum FLIF16_YCoCg_Channels{FLIF16_CHANNEL_Y, FLIF16_CHANNEL_CO, FLIF16_CHANNEL_CG};
-
 static FLIF16ColorVal ff_ycocg_min(FLIF16RangesContext* r_ctx, int p)
 {   
     ranges_priv_ycocg* data = r_ctx->priv_data;
     FLIF16Ranges* ranges = flif16_ranges[data->r_ctx->r_no];
     switch(p) {
-        case FLIF16_CHANNEL_Y:
+        case FLIF16_PLANE_Y:
             return 0;
-        case FLIF16_CHANNEL_CO:
-        case FLIF16_CHANNEL_CG:
+        case FLIF16_PLANE_CO:
+        case FLIF16_PLANE_CG:
             return -4 * data->origmax4 + 1;
         default:
             return ranges->min(data->r_ctx, p);
@@ -268,9 +266,9 @@ static FLIF16ColorVal ff_ycocg_max(FLIF16RangesContext* r_ctx, int p)
     ranges_priv_ycocg* data = r_ctx->priv_data;
     FLIF16Ranges* ranges = flif16_ranges[data->r_ctx->r_no];
     switch(p) {
-        case FLIF16_CHANNEL_Y:
-        case FLIF16_CHANNEL_CO:
-        case FLIF16_CHANNEL_CG:
+        case FLIF16_PLANE_Y:
+        case FLIF16_PLANE_CO:
+        case FLIF16_PLANE_CG:
             return 4 * data->origmax4 - 1;
         default:
             return ranges->max(data->r_ctx, p);
@@ -286,15 +284,15 @@ static void ff_ycocg_minmax(FLIF16RangesContext *r_ctx ,const int p,
     FLIF16Ranges* ranges = flif16_ranges[data->r_ctx->r_no];
     //printf("ycocg_minmax\n");
     switch(p){
-        case FLIF16_CHANNEL_Y:
+        case FLIF16_PLANE_Y:
             *minv = 0;
             *maxv = ff_get_max_y(data->origmax4);
             break;
-        case FLIF16_CHANNEL_CO:
+        case FLIF16_PLANE_CO:
             *minv = ff_get_min_co(data->origmax4, prev_planes[0]);
             *maxv = ff_get_max_co(data->origmax4, prev_planes[0]);
             break;    
-        case FLIF16_CHANNEL_CG:
+        case FLIF16_PLANE_CG:
             *minv = ff_get_min_cg( data->origmax4, prev_planes[0], prev_planes[1]);
             *maxv = ff_get_max_cg( data->origmax4, prev_planes[0], prev_planes[1]);
             break;
@@ -1389,7 +1387,7 @@ FLIF16Transform *flif16_transforms[13] = {
     &flif16_transform_permuteplanes,
     &flif16_transform_bounds,
     NULL, // FLIF16_TRANSFORM_PALETTEALPHA,
-    //&flif16_transform_palette,
+    &flif16_transform_palette,
     NULL, // FLIF16_TRANSFORM_COLORBUCKETS,
     NULL, // FLIF16_TRANSFORM_RESERVED2,
     NULL, // FLIF16_TRANSFORM_RESERVED3,
