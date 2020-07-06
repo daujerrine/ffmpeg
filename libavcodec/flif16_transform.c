@@ -75,7 +75,7 @@ typedef struct transform_priv_palette{
     FLIF16ChanceContext ctxY;
     FLIF16ChanceContext ctxI;
     FLIF16ChanceContext ctxQ;
-    long unsigned int size;
+    long unsigned size;
     uint8_t sorted;
     unsigned int p;       //Iterator
 }transform_priv_palette;
@@ -1164,6 +1164,11 @@ static int8_t transform_palette_init(FLIF16TransformContext *ctx,
     else
         data->has_alpha = 0;
 
+    ff_flif16_chancecontext_init(&data->ctx);
+    ff_flif16_chancecontext_init(&data->ctxY);
+    ff_flif16_chancecontext_init(&data->ctxI);
+    ff_flif16_chancecontext_init(&data->ctxQ);
+
     return 1;
 }
 
@@ -1175,14 +1180,17 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
     switch (ctx->i)
     {
         case 0:
+            printf("Palette Read :\n");
             RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
                     &data->size, FLIF16_RAC_GNZ_INT);
+            printf("size : %d\n", data->size);
             data->Palette = av_mallocz(data->size * sizeof(*data->Palette));
             ctx->i++;
         
         case 1:
             RAC_GET(&dec_ctx->rc, &data->ctx, 0, 1,
                     &data->sorted, FLIF16_RAC_GNZ_INT);
+            printf("sorted : %d\n", data->sorted);
             if(data->sorted){
                 ctx->i = 2;
 
@@ -1209,6 +1217,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
         case 2:
             RAC_GET(&dec_ctx->rc, &data->ctxY, data->min[0], data->max[0],
                     &data->Y, FLIF16_RAC_GNZ_INT);
+            printf("Y : %d\n", data->Y);
             data->pp[0] = data->Y;
             ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[1], &data->max[1]);
             ctx->i++;
@@ -1218,6 +1227,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
                     data->prev[0] == data->Y ? data->prev[1] : data->min[1],
                     data->max[1],
                     &data->I, FLIF16_RAC_GNZ_INT);
+            printf("I : %d\n", data->I);
             data->pp[1] = data->I;
             ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[2], &data->max[2]);
             ctx->i++;
@@ -1225,6 +1235,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
         case 4:
             RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[2], data->max[2],
                     &data->Q, FLIF16_RAC_GNZ_INT);
+            printf("Q : %d\n", data->Q);
             data->Palette[data->p][0] = data->Y;
             data->Palette[data->p][1] = data->I;
             data->Palette[data->p][2] = data->Q;
@@ -1246,6 +1257,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
             ff_flif16_ranges_minmax(src_ctx, 0, data->pp, &data->min[0], &data->max[0]);
             RAC_GET(&dec_ctx->rc, &data->ctxY, data->min[0], data->max[0],
                     &data->Y, FLIF16_RAC_GNZ_INT);
+            printf("Y : %d\n", data->Y);
             data->pp[0] = data->Y;
             ctx->i++;
 
@@ -1253,6 +1265,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
             ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[0], &data->max[0]);
             RAC_GET(&dec_ctx->rc, &data->ctxI, data->min[0], data->max[0],
                     &data->I, FLIF16_RAC_GNZ_INT);
+            printf("I : %d\n", data->I);
             data->pp[1] = data->I;
             ctx->i++;
 
@@ -1260,6 +1273,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
             ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[0], &data->max[0]);
             RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[0], data->max[0],
                     &data->Q, FLIF16_RAC_GNZ_INT);
+            printf("Q : %d\n", data->Q);
             data->Palette[data->p][0] = data->Y;
             data->Palette[data->p][1] = data->I;
             data->Palette[data->p][2] = data->Q;
@@ -1308,19 +1322,22 @@ static int8_t transform_palette_reverse(FLIF16TransformContext* ctx,
     int r, c;
     int P;
     transform_priv_palette *data = ctx->priv_data;
+    printf("Palette inverse: \n");
     for(r = 0; r < frame->height; r++){
         for(c = 0; c < frame->width; r++){
             P = ff_flif16_pixel_get(frame, 1, r, c);
+            printf("%d ", P);
             if(P < 0 || P >= data->size)
                 P = 0;
             av_assert0(P < data->size);
-            av_assert0(P > 0);
+            av_assert0(P >= 0);
             ff_flif16_pixel_set(frame, 0, r, c, data->Palette[P][0]);
             ff_flif16_pixel_set(frame, 1, r, c, data->Palette[P][1]);
             ff_flif16_pixel_set(frame, 2, r, c, data->Palette[P][2]);
         }
         frame->palette = 0;
     }
+    printf("\n");
     return 1;
 }
 
