@@ -43,8 +43,11 @@
 //#define MSG(fmt,...) #error remove me
 
 #define FF_FLIF16_VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint64_t) ((x) & 127)
-#define ZOOM_ROWPIXELSIZE(zoomlevel) 1<<((zoomlevel+1)/2)
-#define ZOOM_COLPIXELSIZE(zoomlevel) 1<<((zoomlevel)/2)
+#define ZOOM_ROWPIXELSIZE(zoomlevel) (1 << (((zoomlevel) + 1) / 2))
+#define ZOOM_COLPIXELSIZE(zoomlevel) (1 << (((zoomlevel)) / 2))
+#define ZOOM_HEIGHT(r, z) ((!z) ? 0 : (1 + ((r) - 1)/ ZOOM_ROWPIXELSIZE(z)))
+#define ZOOM_WIDTH(w, z) ((!z) ? 0 : (1 + ((w) - 1)/ ZOOM_COLPIXELSIZE(z)))
+
 #define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ? (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
 
 #define MAX_PLANES 5

@@ -712,7 +712,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
 }
 
 
-static FLIF16ColorVal *flif16_compute_grays(FLIF16RangesContext *ranges)
+static FLIF16ColorVal *compute_grays(FLIF16RangesContext *ranges)
 {
     FLIF16ColorVal *grays; // a pixel with values in the middle of the bounds
     grays = av_malloc(ranges->num_planes * sizeof(*grays));
@@ -745,7 +745,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     // Set images to gray
     switch (s->segment) {
         case 0:
-            s->grays = flif16_compute_grays(s->range); // free later
+            s->grays = compute_grays(s->range); // free later
             s->i = s->i2 = s->i3 = 0;
             ++s->segment;
             
@@ -813,6 +813,156 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 }
 
 /*
+
+ColorVal predict_and_calcProps_plane(Properties &properties, const ranges_t *ranges, const Image &image, const plane_t &plane, const plane_tY &planeY, const int z, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor)
+{
+    ColorVal guess;
+    //int which = 0;
+    int index = 0;
+
+    if (p < 3) {
+        if (p>0) properties[index++] = PIXELY(z,r,c);
+        if (p>1) properties[index++] = image(1,z,r,c);
+        if (image.numPlanes()>3) properties[index++] = image(3,z,r,c);
+    }
+    ColorVal left;
+    ColorVal top;
+    ColorVal topleft;
+
+    const bool bottomPresent = r+1 < image.rows(z);
+    const bool rightPresent = c+1 < image.cols(z);
+    ColorVal topright;
+    ColorVal bottomleft;
+
+    if (horizontal) { // filling horizontal lines
+        top = PIXEL(z,r-1,c);
+        left = (nobordercases || c>0 ? PIXEL(z,r,c-1) : top);
+        topleft = (nobordercases || c>0 ? PIXEL(z,r-1,c-1) : top);
+        topright = (nobordercases || (rightPresent) ? PIXEL(z,r-1,c+1) : top);
+        bottomleft = (nobordercases || (bottomPresent && c>0) ? PIXEL(z,r+1,c-1) : left);
+        const ColorVal bottom = (nobordercases || bottomPresent ? PIXEL(z,r+1,c) : left);
+        const ColorVal avg = (top + bottom)>>1;
+        const ColorVal topleftgradient = left+top-topleft;
+        const ColorVal median = median3(avg, topleftgradient, (ColorVal)(left+bottom-bottomleft));
+        int which = 2;
+        if (median == avg) which = 0;
+        else if (median == topleftgradient) which = 1;
+        properties[index++]=which;
+        if (p == 1 || p == 2) {
+            properties[index++] = PIXELY(z,r,c) - ((PIXELY(z,r-1,c)+PIXELY(z,(nobordercases || bottomPresent ? r+1 : r-1),c))>>1);
+        }
+        if (predictor == 0) guess = avg;
+        else if (predictor == 1)
+            guess = median;
+        else //if (predictor == 2)
+            guess = median3(top,bottom,left);
+        ranges->snap(p,properties,min,max,guess);
+        properties[index++] = top-bottom;
+        properties[index++]=top-((topleft+topright)>>1);
+        properties[index++]=left-((bottomleft+topleft)>>1);
+        const ColorVal bottomright = (nobordercases || (rightPresent && bottomPresent) ? PIXEL(z,r+1,c+1) : bottom);
+        properties[index++]=bottom-((bottomleft+bottomright)>>1);
+    } else { // filling vertical lines
+        left = PIXEL(z,r,c-1);
+        top = (nobordercases || r>0 ? PIXEL(z,r-1,c) : left);
+        topleft = (nobordercases || r>0 ? PIXEL(z,r-1,c-1) : left);
+        topright = (nobordercases || (r>0 && rightPresent) ? PIXEL(z,r-1,c+1) : top);
+        bottomleft = (nobordercases || (bottomPresent) ? PIXEL(z,r+1,c-1) : left);
+        const ColorVal right = (nobordercases || rightPresent ? PIXEL(z,r,c+1) : top);
+        const ColorVal avg = (left + right)>>1;
+        const ColorVal topleftgradient = left+top-topleft;
+        const ColorVal median = median3(avg, topleftgradient, (ColorVal)(right+top-topright));
+        int which = 2;
+        if (median == avg) which = 0;
+        else if (median == topleftgradient) which = 1;
+        properties[index++]=which;
+        if (p == 1 || p == 2) {
+            properties[index++] = PIXELY(z,r,c) - ((PIXELY(z,r,c-1)+PIXELY(z,r,(nobordercases || rightPresent ? c+1 : c-1)))>>1);
+        }
+        if (predictor == 0) guess = avg;
+        else if (predictor == 1)
+            guess = median;
+        else //if (predictor == 2)
+            guess = median3(top,left,right);
+        ranges->snap(p,properties,min,max,guess);
+        properties[index++] = left-right;
+        properties[index++]=left-((bottomleft+topleft)>>1);
+        properties[index++]=top-((topleft+topright)>>1);
+        const ColorVal bottomright = (nobordercases || (rightPresent && bottomPresent) ? PIXEL(z,r+1,c+1) : right);
+        properties[index++]=right-((bottomright+topright)>>1);
+    }
+    properties[index++]=guess;
+//    if (p < 1 || p > 2) properties[index++]=which;
+
+
+//    properties[index++]=left - topleft;
+//    properties[index++]=topleft - top;
+
+//    if (p == 0 || p > 2) {
+//        if (nobordercases || (c+1 < image.cols(z) && r > 0)) properties[index++]=top - topright;
+//        else properties[index++]=0;
+//    }
+    if (p != 2) {
+        if (nobordercases || r > 1) properties[index++]=PIXEL(z,r-2,c)-top;    // toptop - top
+        else properties[index++]=0;
+        if (nobordercases || c > 1) properties[index++]=PIXEL(z,r,c-2)-left;    // leftleft - left
+        else properties[index++]=0;
+    }
+    return guess;
+}
+
+ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor)
+{
+    image.getPlane(0).prepare_zoomlevel(z);
+    image.getPlane(p).prepare_zoomlevel(z);
+
+#ifdef SUPPORT_HDR
+    if (image.getDepth() > 8) {
+        switch(p) {
+        case 0:
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,true,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,false,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        case 1:
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,true,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,false,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        case 2:
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,true,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_32>,Plane<ColorVal_intern_16u>,false,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_32>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        case 3:
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,true,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_16u>,Plane<ColorVal_intern_16u>,false,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        default:
+            assert(p==4);
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_16u>,true,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_16u>,false,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        }
+    } else
+#endif
+        switch(p) {
+        case 0:
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,true,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,false,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        case 1:
+            if (image.getPlane(0).is_constant()) {
+                if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,ConstantPlane,true,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const ConstantPlane&>(image.getPlane(0)),z,r,c,min,max,predictor);
+                else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,ConstantPlane,false,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const ConstantPlane&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            } else {
+                if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,true,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+                else return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,false,false,1,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            }
+        case 2:
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,true,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_16>,Plane<ColorVal_intern_8>,false,false,2,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_16>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        case 3:
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,true,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,false,false,3,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        default:
+            assert(p==4);
+            if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,true,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+            else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,false,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);
+        }
+}
+
 static inline int plane_zoomlevels(uint8_t num_planes, int begin_zl, int end_zl)
 {
     return num_planes * (begin_zl - end_zl + 1);
@@ -845,7 +995,7 @@ void plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
     if (num_planes > 5) {
         // too many planes, do something simple
         p = i % num_planes;
-        zl = beginZL - (i / num_planes);
+        zl = begin_zl - (i / num_planes);
         *min = p;
         *max = zl;
         return;
@@ -894,19 +1044,20 @@ void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                                             
 {
     ColorVal min, max;
-    uint32_t begin = 0, end = image.cols(z);
+    uint32_t begin = 0, end = ZOOM_WIDTH(s->width, z);
     if (s->out_frames[fr].seen_before >= 0) {
         uint32_t cs = ZOOM_COLPIXELSIZE(z) >> image.getscale();
         uint32_t rs = ZOOM_ROWPIXELSIZE(z) >> image.getscale();
         ff_flif16_copy_rows(&s->out_frames[fr],
                             &s->out_frames[s->out_frames[fr].seen_before],
-                            plane , rs * r, 0, cs * image.cols(z), cs);
+                            plane , rs * r, 0, cs * ZOOM_WIDTH(s->width, z), cs);
         return;
     }
     if (fr > 0) {
+        // Replace entrirely?
         begin = image.col_begin[r * ZOOM_ROWPIXELSIZE(z)]/ZOOM_COLPIXELSIZE(z);
         end = 1 + (image.col_end[r * ZOOM_ROWPIXELSIZE(z)] - 1)/ZOOM_COLPIXELSIZE(z);
-        if (alphazero && p < 3) {
+        if (s->alphazero && plane < 3) {
             for (uint32_t c = 0; c < begin; c++)
                 if (alpha.get(z,r,c) == 0)
                     plane.set(z,r,c, predict_plane_horizontal(plane,z,p,r,c, image.rows(z), invisible_predictor));
@@ -1079,9 +1230,11 @@ void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
     }
 
     if (fr>0 && alphazero && p < 3) {
-        for (uint32_t c = end; c < image.cols(z); c += 2)
-            if (alpha.get(z, r, c) == 0) plane.set(z, r, c, predict_plane_vertical(plane, z, p, r, c, image.cols(z), invisible_predictor));
-            else image.set(p,z,r,c,images[fr-1](p,z,r,c));
+        for (uint32_t c = end; c < ZOOM_WIDTH(s->width, z); c += 2)
+            if (alpha.get(z, r, c) == 0)
+                plane.set(z, r, c, predict_plane_vertical(plane, z, p, r, c, image.cols(z), invisible_predictor));
+            else
+                image.set(p,z,r,c,images[fr-1](p,z,r,c));
     }
 
 }
@@ -1094,10 +1247,10 @@ void flif16_decode_plane_inner_horizontal(FLIF16DecoderContext *s,
                                             uint8_t alphazero, uint8_t lookback,
                                             int predictor, int invisible_predictor)
 {
-    const int nump = images[0].numPlanes();
+    const int nump = s->channels;
     const bool alphazero = images[0].alpha_zero_special;
     const bool lookback = (nump == 5);
-    Properties properties((nump > 3? NB_PROPERTIESA[p] : NB_PROPERTIES[p]));
+    Properties properties((nump > 3 ? properties_rgba_size[p] : properties_rgb_size[p]));
     horizontal_plane_decoder<Coder,alpha_t,ranges_t> rowdecoder(coders[p],images,ranges,properties,z,alphazero,lookback, predictor, invisible_predictor,p);
     for (uint32_t r = 1; r < images[0].rows(z); r += 2) {
         if (images[0].cols() == 0) return false; // decode aborted
