@@ -1483,11 +1483,11 @@ static int flif16_decode_frame(AVCodecContext *avctx,
         printf("\n");
     }
 
-   if(s->maniac_ctx.forest) {
+   /*if(s->maniac_ctx.forest) {
         printf("Tree Size: %d\n", s->maniac_ctx.forest[0]->size);
         printf("MANIAC Tree first node:\n" \
                "property value: %d\n", s->maniac_ctx.forest[0]->data[0].property);
-    }
+    }*/
 
     /*if(s->out_frames) {
         for(int k = 0; k < s->channels; ++k) {
