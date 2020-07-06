@@ -55,8 +55,8 @@ typedef enum FLIF16Plane {
     FLIF16_PLANE_Y = 0,
     FLIF16_PLANE_CO,
     FLIF16_PLANE_CG,
+    FLIF16_PLANE_ALPHA,    // Alpha plane should be here 
     FLIF16_PLANE_LOOKBACK, // Frame lookback
-    FLIF16_PLANE_ALPHA,
     FLIF16_PLANE_GRAY = 0, // Is this needed?
 } FLIF16Plane;
 
