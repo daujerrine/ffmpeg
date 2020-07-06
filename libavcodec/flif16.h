@@ -43,6 +43,9 @@
 //#define MSG(fmt,...) #error remove me
 
 #define FF_FLIF16_VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint64_t) ((x) & 127)
+#define ZOOM_ROWPIXELSIZE(zoomlevel) 1<<((zoomlevel+1)/2)
+#define ZOOM_COLPIXELSIZE(zoomlevel) 1<<((zoomlevel)/2)
+#define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ? (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
 
 #define MAX_PLANES 5
 
@@ -102,6 +105,7 @@ typedef struct FLIF16PixelData {
     uint8_t constant_alpha;
     uint8_t palette;
     int8_t seen_before;
+    int8_t scale;
     void **data;
 } FLIF16PixelData;
 
@@ -232,6 +236,22 @@ static inline FLIF16ColorVal ff_flif16_pixel_get(FLIF16PixelData *frame, uint8_t
         return ((FLIF16ColorVal *) frame->data[plane])[frame->width * row + col];
 }
 
+/*
+static inline void ff_flif16_pixel_setz(FLIF16PixelData *frame, uint8_t plane,
+                                        int z, uint32_t row, uint32_t col,
+                                        FLIF16ColorVal value)
+{
+     ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z) >> frame->scale) * frame->width +
+        (col * ZOOM_COLPIXELSIZE(z) >> frame->scale)] = x;
+}
+
+static inline FLIF16ColorVal ff_flif16_pixel_getz(FLIF16PixelData *frame, uint8_t plane,
+                                                  int z, size_t row, size_t col)
+{
+    return  ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z) >> frame->scale) *
+            width + (col * ZOOM_COLPIXELSIZE(z) >> frame->scale)];
+}
+*/
 static inline void ff_flif16_copy_rows(FLIF16PixelData *dest,
                                        FLIF16PixelData *src, uint8_t plane,
                                        uint32_t row, uint32_t col_start,
@@ -242,11 +262,6 @@ static inline void ff_flif16_copy_rows(FLIF16PixelData *dest,
         ff_flif16_pixel_set(dest, plane, row, col, ff_flif16_pixel_get(src, plane, row, col));
     }
 }
-
-
-#define ZOOM_ROWPIXELSIZE(zoomlevel) 1<<((zoomlevel+1)/2)
-#define ZOOM_COLPIXELSIZE(zoomlevel) 1<<((zoomlevel)/2)
-#define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ? (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
 
 // Must be included here to resolve circular include
 #include "flif16_transform.h"
