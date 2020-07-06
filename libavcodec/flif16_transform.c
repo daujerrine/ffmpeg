@@ -1193,18 +1193,11 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
             printf("sorted : %d\n", data->sorted);
             if(data->sorted){
                 ctx->i = 2;
-
-                //Clean the code below after testing
-
-                data->min[0] = ff_flif16_ranges_min(src_ctx, 0);
-                data->min[1] = ff_flif16_ranges_min(src_ctx, 1);
-                data->min[2] = ff_flif16_ranges_min(src_ctx, 2);
-                data->max[0] = ff_flif16_ranges_max(src_ctx, 0);
-                data->max[1] = ff_flif16_ranges_max(src_ctx, 1);
-                data->max[2] = ff_flif16_ranges_max(src_ctx, 2);
-                data->Palette[0][0] = -1;
-                data->Palette[0][1] = -1;
-                data->Palette[0][2] = -1;
+                for(int i = 0; i < 3; i++){
+                    data->min[i] = ff_flif16_ranges_min(src_ctx, i);
+                    data->max[i] = ff_flif16_ranges_max(src_ctx, i);
+                    data->Palette[0][i] = -1;
+                }
                 data->prev = data->Palette[0];
             }
             else{
