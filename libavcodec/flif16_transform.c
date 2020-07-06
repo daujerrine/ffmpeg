@@ -513,6 +513,53 @@ static void ff_palette_close(FLIF16RangesContext *r_ctx){
     av_free(data->r_ctx);
 }
 
+static FLIF16ColorVal ff_palettealpha_min(FLIF16RangesContext *r_ctx, int p){
+    ranges_priv_palette *data = r_ctx->priv_data;
+    if(p < 3)
+        return 0;
+    else if(p == 3)
+        return 1;
+    else
+        return ff_flif16_ranges_min(data->r_ctx, p); 
+}
+
+static FLIF16ColorVal ff_palettealpha_max(FLIF16RangesContext *r_ctx, int p){
+    ranges_priv_palette *data = r_ctx->priv_data;
+    switch(p){
+        case FLIF16_PLANE_Y:
+            return 0;
+        case FLIF16_PLANE_CO:
+            return data->nb_colors-1;
+        case FLIF16_PLANE_CG:
+            return 0;
+        case FLIF16_PLANE_ALPHA:
+            return 1;
+        default:
+            return ff_flif16_ranges_max(data->r_ctx, p);
+    }
+}
+
+static void ff_palettealpha_minmax(FLIF16RangesContext* r_ctx, 
+                                   int p, FLIF16ColorVal* prev_planes,
+                                   FLIF16ColorVal* minv, FLIF16ColorVal* maxv)
+{
+    ranges_priv_palette *data = r_ctx->priv_data;
+    if(p == 1){
+        *minv = 0;
+        *maxv = data->nb_colors-1;
+    }
+    else if(p < 3){
+        *minv = 0;
+        *maxv = 0;
+    }
+    else if(p == 3){
+        *minv = 1;
+        *maxv = 1;
+    }
+    else
+        ff_flif16_ranges_minmax(data->r_ctx, p, prev_planes, minv, maxv);
+}
+
 FLIF16Ranges flif16_ranges_static = {
     .priv_data_size = sizeof(ranges_priv_static),
     .min            = &ff_static_min,
@@ -578,6 +625,16 @@ FLIF16Ranges flif16_ranges_palette = {
     .min            = &ff_palette_min,
     .max            = &ff_palette_max,
     .minmax         = &ff_palette_minmax,
+    .snap           = &ff_static_snap,
+    .is_static      = 0,
+    .close          = &ff_palette_close 
+};
+
+FLIF16Ranges flif16_ranges_palettealpha = {
+    .priv_data_size = sizeof(ranges_priv_palette),
+    .min            = &ff_palettealpha_min,
+    .max            = &ff_palettealpha_max,
+    .minmax         = &ff_palettealpha_minmax,
     .snap           = &ff_static_snap,
     .is_static      = 0,
     .close          = &ff_palette_close 
