@@ -137,7 +137,9 @@ static int flif16_read_header(AVCodecContext *avctx)
     s->width++;
     s->height++;
     (s->ia > 4) ? (s->frames += 2) : (s->frames = 1);
-    s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->frames);
+
+    if (s->frames > 1)
+        s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->frames);
     
     if (!s->out_frames)
     s->out_frames = ff_flif16_frames_init(s->frames, s->channels, 32,
@@ -1155,10 +1157,7 @@ static int flif16_read_image_inner_vertical(FLIF16DecoderContext *s,
     return true;
 }
 
-template<typename IO, typename Rac, typename Coder, typename ranges_t>
-bool flif16_read_image_inner(IO& io, Rac &rac, std::vector<Coder> &coders, Images &images, const ranges_t *ranges,
-                             const int beginZL, const int endZL, flif_options &options, std::vector<Transform<IO>*> &transforms,
-                             callback_t callback, void *user_data, Images &partial_images)
+static int flif16_read_image_inner(FLIF16DecoderContext *s)
 {
     const int nump = images[0].numPlanes();
     int quality=options.quality, scale=options.scale;
@@ -1194,11 +1193,11 @@ bool flif16_read_image_inner(IO& io, Rac &rac, std::vector<Coder> &coders, Image
             e_printf("Corrupt file: invalid plane/zoomlevel\n");
             return false;
         }
-        /*if (100*pixels_done > quality*pixels_todo && endZL==0) {
+        if (100*pixels_done > quality*pixels_todo && endZL==0) {
             v_printf(5,"%lu subpixels done, %lu subpixels todo, quality target %i%% reached (%i%%)\n",(long unsigned)pixels_done,(long unsigned)pixels_todo,(int)quality,(int)(100*pixels_done/pixels_todo));
             flif_decode_FLIF2_inner_interpol(images, ranges, p, endZL, -1, scale, zoomlevels, transforms);
             return false;
-        }*/
+        }
         if (ff_flif16_ranges_min(p) < ff_flif16_ranges_max(p)) {
             int predictor;
             if (the_predictor[p]<0) predictor = metaCoder.read_int(0, MAX_PREDICTOR);
@@ -1231,86 +1230,18 @@ bool flif16_read_image_inner(IO& io, Rac &rac, std::vector<Coder> &coders, Image
                 if (images[0].getDepth() <= 8) {
                     if (!flif_decode_FLIF2_inner_horizontal<IO,Rac,Coder,Plane<ColorVal_intern_8>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
                 }
-#ifdef SUPPORT_HDR
                 else if (images[0].getDepth() > 8) {
                     if (!flif_decode_FLIF2_inner_horizontal<IO,Rac,Coder,Plane<ColorVal_intern_16u>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
                 }
-#endif
             } else {
                 if (images[0].getDepth() <= 8) {
                     if (!flif_decode_FLIF2_inner_vertical<IO,Rac,Coder,Plane<ColorVal_intern_8>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
                 }
-#ifdef SUPPORT_HDR
                 else if (images[0].getDepth() > 8) {
                     if (!flif_decode_FLIF2_inner_vertical<IO,Rac,Coder,Plane<ColorVal_intern_16u>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
                 }
-#endif
-
-            }
-            if (endZL==0) {
-                v_printf(3,"    read %li bytes   ", io.ftell());
-                v_printf(5,"\n");
             }
             zoomlevels[p]--;
-            int qual = 10000*pixels_done/pixels_todo;
-            if (callback && p<4 && (endZL==0 || i+1 == plane_zoomlevels(images[0], beginZL, endZL)) && qual >= progressive_qual_target) {
-                auto populatePartialImages = [&] () {
-                    std::unique_ptr<bool[]> skipInterpolate(new bool[ranges->numPlanes()]);
-                    for (int pn = 0; pn < ranges->numPlanes(); pn++) {
-                        skipInterpolate[pn] = pn == 4 || ranges->min(pn) >= ranges->max(pn);
-                    }
-                    for (unsigned int n=0; n < images.size(); n++) {
-                        partial_images[n] = Image(images[n], skipInterpolate.get(), zoomlevels); // make a skipped copy to work with
-                    }
-
-                    std::vector<Transform<IO>*> transforms_copy = transforms;
-                    std::vector<int> zoomlevels_copy = zoomlevels;
-
-                    const ColorRanges *rangesCopy = undo_palette(partial_images, scale, transforms_copy, zoomlevels_copy, ranges);
-
-                    if (scale == 1) {
-                        int highestDecodedZL = zoomlevels_copy[0];
-
-                        flif_decode_FLIF2_inner_interpol(partial_images, rangesCopy, 0, highestDecodedZL+1, -1, scale, zoomlevels_copy, transforms_copy);
-
-                        const uint32_t strideRow = 1<<((highestDecodedZL+1+1)/2);
-                        const uint32_t strideCol = 1<<((highestDecodedZL+1)/2);
-
-                        for (int i=transforms_copy.size()-1; i>=0; i--) {
-                            if (transforms_copy[i]->undo_redo_during_decode()) {
-                                transforms_copy[i]->invData(partial_images, strideCol, strideRow);
-                            }
-                        }
-                    }
-
-                    int64_t pixels_really_done = pixels_done;
-
-                    flif_decode_FLIF2_inner_interpol(partial_images, rangesCopy, 0, endZL, -1, scale, zoomlevels_copy, transforms_copy);
-                    if (endZL>0) {
-                        flif_decode_FLIF2_inner_interpol(partial_images, rangesCopy, 0, 0, -1, scale, zoomlevels_copy, transforms_copy);
-                    }
-                    pixels_done = pixels_really_done;
-                    for (Image& image : partial_images) {
-                        image.normalize_scale();
-                    }
-                    if (options.fit) {
-                        downsample(partial_images[0].cols(), partial_images[0].rows(), options.resize_width, options.resize_height, partial_images);
-                    }
-
-                    if (scale != 1) {
-                        for (int i=transforms_copy.size()-1; i>=0; i--) {
-                            if (transforms_copy[i]->undo_redo_during_decode()) {
-                                transforms_copy[i]->invData(partial_images, 1, 1);
-                            }
-                        }
-                    }
-
-                };
-
-                progressive_qual_shown = qual;
-                progressive_qual_target = issue_callback(callback, user_data, qual, io.ftell(), qual == 10000, populatePartialImages);
-                if (qual >= progressive_qual_target) return false;
-            }
         } else
             zoomlevels[p]--;
     }
@@ -1343,8 +1274,7 @@ static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
       }
     }
 
-    flif_decode_FLIF2_inner<IO,Rac,Coder,ColorRanges>(io, rac, coders, images, ranges, beginZL, endZL, options, transforms, callback, user_data, partial_images);
-    
+    flif16_read_image_inner();
     need_more_data:
     return AVERROR(EAGAIN);
 }
