@@ -1324,7 +1324,7 @@ static int8_t transform_palette_reverse(FLIF16TransformContext* ctx,
     transform_priv_palette *data = ctx->priv_data;
     printf("Palette inverse: \n");
     for(r = 0; r < frame->height; r++){
-        for(c = 0; c < frame->width; r++){
+        for(c = 0; c < frame->width; c++){
             P = ff_flif16_pixel_get(frame, 1, r, c);
             printf("%d ", P);
             if(P < 0 || P >= data->size)
