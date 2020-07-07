@@ -80,6 +80,25 @@ typedef struct transform_priv_palette{
     unsigned int p;       //Iterator
 }transform_priv_palette;
 
+typedef struct transform_priv_palettealpha{
+    FLIF16ColorVal (*Palette)[3];
+    unsigned int max_palette_size;
+    uint8_t alpha_zero_special;
+    uint8_t ordered_palette;
+    uint8_t already_has_palette;
+    FLIF16ColorVal min[4], max[4];
+    FLIF16ColorVal *prev;
+    FLIF16ColorVal pp[2];
+    FLIF16ChanceContext ctx;
+    FLIF16ChanceContext ctxY;
+    FLIF16ChanceContext ctxI;
+    FLIF16ChanceContext ctxQ;
+    FLIF16ChanceContext ctxA;
+    unsigned int p;
+    uint8_t sorted;
+    long unsigned int size;
+}transform_priv_palettealpha;
+
 typedef struct ranges_priv_channelcompact {
     int nb_colors[4];
 } ranges_priv_channelcompact;
@@ -647,7 +666,7 @@ FLIF16Ranges* flif16_ranges[] = {
     &flif16_ranges_permuteplanessubtract, // FLIF16_RANGES_PERMUTEPLANESSUBTRACT,
     &flif16_ranges_bounds,                // FLIF16_RANGES_BOUNDS,
     &flif16_ranges_static,                // FLIF16_RANGES_STATIC,
-    NULL,                                 // FLIF16_RANGES_PALETTEALPHA,
+    &flif16_ranges_palettealpha,                                 // FLIF16_RANGES_PALETTEALPHA,
     &flif16_ranges_palette,               // FLIF16_RANGES_PALETTE,
     NULL,                                 // FLIF16_RANGES_COLORBUCKETS,
     NULL,                                 // FLIF16_RANGES_DUPLICATEFRAME,
@@ -1396,6 +1415,31 @@ static void transform_palette_close(FLIF16TransformContext *ctx){
     av_free(data->Palette);
     av_free(data->prev);
 }
+
+static int8_t transform_palettealpha_init(FLIF16TransformContext *ctx, 
+                                                FLIF16RangesContext* src_ctx)
+{
+    int p;
+    transform_priv_palettealpha *data = ctx->priv_data;
+    if(  src_ctx->num_planes < 4
+      || ff_flif16_ranges_min(src_ctx, 3) == ff_flif16_ranges_max(src_ctx, 3))
+        return 0;
+    data->already_has_palette = 0;
+    ff_flif16_chancecontext_init(&data->ctx);
+    ff_flif16_chancecontext_init(&data->ctxY);
+    ff_flif16_chancecontext_init(&data->ctxI);
+    ff_flif16_chancecontext_init(&data->ctxQ);
+    ff_flif16_chancecontext_init(&data->ctxA);
+    return 1;
+}
+
+static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
+                                             FLIF16DecoderContext *dec_ctx,
+                                             FLIF16RangesContext* src_ctx)
+{
+    return 1;
+}
+
 
 FLIF16Transform flif16_transform_channelcompact = {
     .priv_data_size = sizeof(transform_priv_channelcompact),
