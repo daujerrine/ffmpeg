@@ -1439,7 +1439,7 @@ static int8_t transform_palettealpha_init(FLIF16TransformContext *ctx,
 }
 
 static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
-                                             FLIF16DecoderContext *dec_ctx,
+                                             FLIF16Context *dec_ctx,
                                              FLIF16RangesContext* src_ctx)
 {
     transform_priv_palettealpha *data = ctx->priv_data;

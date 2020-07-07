@@ -591,8 +591,8 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16PixelData *pixel,
     //for(int i = 0; i < properties_ni_rgb_size[p]; ++i)
     //    printf("%d ", properties[i]);
     //printf("\n");
-    printf("psl fallback = %d left = %d top = %d topleft = %d gradienttl = %d guess = %d\n", fallback, left, top, topleft, gradientTL, guess);
-    printf("p = %u r = %u c = %u min = %d max = %d\n", p, r, c, *min, *max);
+    //printf("psl fallback = %d left = %d top = %d topleft = %d gradienttl = %d guess = %d\n", fallback, left, top, topleft, gradientTL, guess);
+    //printf("p = %u r = %u c = %u min = %d max = %d\n", p, r, c, *min, *max);
     return guess;
 }
 
@@ -604,7 +604,7 @@ static inline FLIF16ColorVal flif16_ni_predict(FLIF16PixelData *pixel,
     FLIF16ColorVal top = (r > 0 ? ff_flif16_pixel_get(pixel, p, r - 1, c) : left);
     FLIF16ColorVal topleft = (r > 0 && c > 0 ? ff_flif16_pixel_get(pixel, p, r - 1, c - 1) : top);
     FLIF16ColorVal gradientTL = left + top - topleft;
-    printf("sl guess = %d\n", MEDIAN3(gradientTL, left, top));
+    //printf("sl guess = %d\n", MEDIAN3(gradientTL, left, top));
     return MEDIAN3(gradientTL, left, top);
 }
 
@@ -676,7 +676,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                printf("guess: %d curr: %d\n", s->guess, curr);
+                //printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
@@ -702,7 +702,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                printf("guess: %d curr: %d\n", s->guess, curr);
+                //printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
@@ -728,7 +728,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                printf("guess: %d curr: %d\n", s->guess, curr);
+                //printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
@@ -768,7 +768,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                printf("guess: %d curr: %d\n", s->guess, curr);
+                //printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
