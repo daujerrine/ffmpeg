@@ -143,6 +143,7 @@ typedef struct FLIF16Transform {
     int8_t (*forward) (FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
     int8_t (*reverse) (FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
                        uint32_t stride_row, uint32_t stride_col);
+    void (*configure) (FLIF16TransformContext *, const int);
     void (*close) (FLIF16TransformContext *t_ctx);
 } FLIF16Transform;
 

@@ -175,7 +175,7 @@ FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
         frames[i].width      = width;
         frames[i].height     = height;
         frames[i].num_planes = num_planes;
-        frames[i].palette    = 0;
+        //frames[i].palette    = 0;
     }
     return frames;
 }
