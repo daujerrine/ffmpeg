@@ -28,6 +28,7 @@
 
 #include "flif16.h"
 #include "flif16_rangecoder.h"
+#include "flif16_transform.h"
 
 #include "avcodec.h"
 #include "libavutil/common.h"
@@ -52,6 +53,80 @@ for(int k = 0; k < s->channels; ++k) {\
  * data before it can generate any frames. The decoder has to return
  * AVERROR(EAGAIN) as long as the bitstream is incomplete.
  */
+
+typedef struct FLIF16DecoderContext {
+
+    /* Inheritance from FLIF16Context */
+
+    GetByteContext gb;
+    FLIF16MANIACContext maniac_ctx;
+    FLIF16RangeCoder rc;
+
+    // Dimensions and other things.
+    uint32_t width;
+    uint32_t height;
+    uint32_t num_frames;
+    uint32_t meta;      ///< Size of a meta chunk
+
+    // Primary Header     
+    uint8_t  ia;        ///< Is image interlaced or/and animated or not
+    uint32_t bpc;       ///< 2 ^ Bytes per channel
+    uint8_t  num_planes;    ///< Number of planes
+    
+    // change to uint8_t
+    uint32_t loops;       ///< Number of times animation loops
+    // change to uint32_t
+    uint32_t *framedelay; ///< Frame delay for each frame
+
+    /* End Inheritance from FLIF16Context */
+
+    FLIF16PixelData  *out_frames;
+    uint32_t out_frames_count;
+    AVFrame *final_out_frame;
+    
+    uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
+    uint8_t buf_count;    ///< Count for initial RAC buffer
+    int state;            ///< The section of the file the parser is in currently.
+    unsigned int segment; ///< The "segment" the code is supposed to jump to
+    unsigned int segment2;///< The "segment" the code is supposed to jump to
+    int i;                ///< A generic iterator used to save states between for loops.
+    int i2;
+    int i3;
+                          
+    // Secondary Header
+    uint8_t alphazero;    ///< Alphazero Flag
+    uint8_t custombc;     ///< Custom Bitchance Flag
+    uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
+
+    uint32_t cut;         ///< Chancetable custom cutoff
+    uint32_t alpha;       ///< Chancetable custom alphadivisor
+    uint8_t ipp;          ///< Invisible pixel predictor
+
+    // Transforms
+    // Size dynamically maybe
+    FLIF16TransformContext *transforms[13];
+    uint8_t transform_top;
+    FLIF16RangesContext *range; ///< The minimum and maximum values a
+                                ///  channel's pixels can take. Changes
+                                ///  depending on transformations applied
+    FLIF16RangesContext *prev_range;
+
+    // MANIAC Trees
+    int32_t (*prop_ranges)[2]; ///< Property Ranges
+    uint32_t prop_ranges_size;
+    
+    // Pixeldata
+    uint8_t curr_plane;        ///< State variable. Current plane under processing
+    FLIF16ColorVal *grays;
+    FLIF16ColorVal *properties;
+    FLIF16ColorVal guess;      ///< State variable. Stores guess
+    FLIF16ColorVal min, max;
+    uint32_t c;                ///< State variable for current column
+
+    // Interlaced Pixeldata
+    int zoomlevels;
+    int rough_zl;
+} FLIF16DecoderContext;
 
 // Static property values
 static const int properties_ni_rgb_size[] = {7, 8, 9, 7, 7};
@@ -86,7 +161,7 @@ static int flif16_read_header(AVCodecContext *avctx)
     uint8_t temp, count = 3;
     FLIF16DecoderContext *s = avctx->priv_data;
     // TODO Make do without this array
-    uint32_t *vlist[] = { &s->width, &s->height, &s->frames };
+    uint32_t *vlist[] = { &s->width, &s->height, &s->num_frames };
     
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     s->cut   = CHANCETABLE_DEFAULT_CUT;
@@ -110,7 +185,7 @@ static int flif16_read_header(AVCodecContext *avctx)
 
     temp = bytestream2_get_byte(&s->gb);
     s->ia       = temp >> 4;
-    s->channels = (0x0F & temp);
+    s->num_planes = (0x0F & temp);
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     if (!(s->ia % 2)) {
@@ -124,25 +199,25 @@ static int flif16_read_header(AVCodecContext *avctx)
     // Handle dimensions and frames
     for(int i = 0; i < 2 + ((s->ia > 4) ? 1 : 0); ++i) {
         while ((temp = bytestream2_get_byte(&s->gb)) > 127) {
-            FF_FLIF16_VARINT_APPEND(*vlist[i], temp);
+            VARINT_APPEND(*vlist[i], temp);
             if (!(count--)) {
                 av_log(avctx, AV_LOG_ERROR, "image dimensions too big\n");
                 return AVERROR(ENOMEM);
             }
         }
-        FF_FLIF16_VARINT_APPEND(*vlist[i], temp);
+        VARINT_APPEND(*vlist[i], temp);
         count = 4;
     }
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     s->width++;
     s->height++;
-    (s->ia > 4) ? (s->frames += 2) : (s->frames = 1);
+    (s->ia > 4) ? (s->num_frames += 2) : (s->num_frames = 1);
 
-    if (s->frames > 1)
-        s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->frames);
+    if (s->num_frames > 1)
+        s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->num_frames);
     
     if (!s->out_frames)
-    s->out_frames = ff_flif16_frames_init(s->frames, s->channels, 32,
+    s->out_frames = ff_flif16_frames_init(s->num_frames, s->num_planes, 32,
                                           s->width, s->height);
     if (!s->out_frames)
         return AVERROR(ENOMEM);
@@ -153,13 +228,13 @@ static int flif16_read_header(AVCodecContext *avctx)
         bytestream2_seek(&s->gb, 3, SEEK_CUR);
         // Read varint
         while ((temp = bytestream2_get_byte(&s->gb)) > 127) {
-            FF_FLIF16_VARINT_APPEND(s->meta, temp);
+            VARINT_APPEND(s->meta, temp);
             if (!(count--)) {
                 av_log(avctx, AV_LOG_ERROR, "metadata chunk too big \n");
                 return AVERROR(ENOMEM);
             }
         }
-        FF_FLIF16_VARINT_APPEND(s->meta, temp);
+        VARINT_APPEND(s->meta, temp);
         bytestream2_seek(&s->gb, s->meta, SEEK_CUR);
         count = 4;
     }
@@ -191,30 +266,30 @@ static int flif16_read_second_header(AVCodecContext *avctx)
 
         case 1:
             // In original source this is handled in what seems to be a very
-            // bogus manner. It takes all the bpps of all channels and then
+            // bogus manner. It takes all the bpps of all planes and then
             // takes the max.
             if (s->bpc == '0') {
                 s->bpc = 0;
-                for (; s->i < s->channels; ++s->i) {
+                for (; s->i < s->num_planes; ++s->i) {
                     RAC_GET(&s->rc, NULL, 1, 15, &temp, FLIF16_RAC_UNI_INT);
                     s->bpc = FFMAX(s->bpc, (1 << temp) - 1);
                 }
             } else
                 s->bpc = (s->bpc == '1') ? 255 : 65535;
             s->i = 0;
-            s->range = ff_flif16_ranges_static_init(s->channels, s->bpc);
-            // MSG("channels : %d & bpc : %d\n", s->channels, s->bpc);
+            s->range = ff_flif16_ranges_static_init(s->num_planes, s->bpc);
+            // MSG("planes : %d & bpc : %d\n", s->num_planes, s->bpc);
             ++s->segment;
 
         case 2:
-            if (s->channels > 3) {
+            if (s->num_planes > 3) {
                 RAC_GET(&s->rc, NULL, 0, 1, (uint32_t *) &s->alphazero,
                         FLIF16_RAC_UNI_INT);
             }
             ++s->segment;
 
         case 3:
-            if (s->frames > 1) {
+            if (s->num_frames > 1) {
                 RAC_GET(&s->rc, NULL, 0, 100, (uint32_t *) &s->loops,
                         FLIF16_RAC_UNI_INT);
             }
@@ -222,8 +297,8 @@ static int flif16_read_second_header(AVCodecContext *avctx)
 
         case 4:
             printf("s->segment = %d\n", s->segment);
-            if (s->frames > 1) {
-                for (; (s->i) < (s->frames); ++(s->i)) {
+            if (s->num_frames > 1) {
+                for (; (s->i) < (s->num_frames); ++(s->i)) {
                     RAC_GET(&s->rc, NULL, 0, 60000, &(s->framedelay[s->i]),
                             FLIF16_RAC_UNI_INT);
                 }
@@ -270,7 +345,16 @@ static int flif16_read_second_header(AVCodecContext *avctx)
     ff_flif16_build_log4k_table(&s->rc->log4k);
     #endif
 
-    ff_flif16_chancetable_init(&s->rc.ct, s->alpha, s->cut);
+    ff_flif16_chancetable_init(&s->rc.ct, s->alpha, 2);
+
+    printf("<<<<<<<<<< %d %d\n", s->alpha, 2);
+
+    for(int i = 0; i < 4096; ++i)
+        printf("%u ", s->rc.ct.zero_state[i]);
+    printf("\n");
+    for(int i = 0; i < 4096; ++i)
+        printf("%u ", s->rc.ct.one_state[i]);
+    printf("\n");
     return 0;
 
     need_more_data:
@@ -309,7 +393,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
         case 2:
             //printf("%d\n", s->transforms[s->transform_top]->t_no);
-            if(ff_flif16_transform_read(s->transforms[s->transform_top], s, s->range) <= 0)
+            if(ff_flif16_transform_read(s->transforms[s->transform_top], (FLIF16Context *) s, s->range) <= 0)
                 goto need_more_data;
             printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             prev_range = s->range;
@@ -327,12 +411,12 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             end:
             s->segment = 3;
             printf("[Resultant Ranges]\n");
-            for(int i = 0; i < s->channels; ++i)
+            for(int i = 0; i < s->num_planes; ++i)
                 printf("%d: %d, %d\n", i, ff_flif16_ranges_min(s->range, i),
                 ff_flif16_ranges_max(s->range, i));
                 
             // Read invisible pixel predictor
-            if ( s->alphazero && s->channels > 3
+            if ( s->alphazero && s->num_planes > 3
                 && ff_flif16_ranges_min(s->range, 3) <= 0
                 && !(s->ia % 2))
                 RAC_GET(&s->rc, NULL, 0, 2, &s->ipp, FLIF16_RAC_UNI_INT);
@@ -354,7 +438,7 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
     FLIF16DecoderContext *s = avctx->priv_data;
     printf("called\n");
     if (!s->maniac_ctx.forest) {
-        s->maniac_ctx.forest = av_mallocz((s->channels) * sizeof(*(s->maniac_ctx.forest)));
+        s->maniac_ctx.forest = av_mallocz((s->num_planes) * sizeof(*(s->maniac_ctx.forest)));
         if (!s->maniac_ctx.forest) {
             av_log(avctx, AV_LOG_ERROR, "could not allocate \n");
             return AVERROR(ENOMEM);
@@ -366,15 +450,15 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
         case 0:
             loop:
             printf("channel: %d\n", s->i);
-            if (s->i >= s->channels)
+            if (s->i >= s->num_planes)
                 goto end;
 
             if (!(s->ia % 2))
                 s->prop_ranges = ff_flif16_maniac_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                   s->i, s->channels);
+                                                                   s->i, s->num_planes);
             else
                 s->prop_ranges = ff_flif16_maniac_ni_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                      s->i, s->channels);
+                                                                      s->i, s->num_planes);
 
             printf("Prop ranges:\n");
             for(int i = 0; i < s->prop_ranges_size; ++i)
@@ -412,6 +496,12 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
     need_more_data:
     return ret;
 }
+
+/* ============================================================================
+ * Non interlaced plane decoding
+ * ============================================================================
+ */
+
 
 static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16PixelData *pixel,
                                                   FLIF16ColorVal *properties,
@@ -501,8 +591,8 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16PixelData *pixel,
     //for(int i = 0; i < properties_ni_rgb_size[p]; ++i)
     //    printf("%d ", properties[i]);
     //printf("\n");
-    //printf("psl fallback = %d left = %d top = %d topleft = %d gradienttl = %d guess = %d\n", fallback, left, top, topleft, gradientTL, guess);
-    //printf("p = %u r = %u c = %u min = %d max = %d\n", p, r, c, *min, *max);
+    printf("psl fallback = %d left = %d top = %d topleft = %d gradienttl = %d guess = %d\n", fallback, left, top, topleft, gradientTL, guess);
+    printf("p = %u r = %u c = %u min = %d max = %d\n", p, r, c, *min, *max);
     return guess;
 }
 
@@ -514,7 +604,7 @@ static inline FLIF16ColorVal flif16_ni_predict(FLIF16PixelData *pixel,
     FLIF16ColorVal top = (r > 0 ? ff_flif16_pixel_get(pixel, p, r - 1, c) : left);
     FLIF16ColorVal topleft = (r > 0 && c > 0 ? ff_flif16_pixel_get(pixel, p, r - 1, c - 1) : top);
     FLIF16ColorVal gradientTL = left + top - topleft;
-    //printf("sl guess = %d\n", MEDIAN3(gradientTL, left, top));
+    printf("sl guess = %d\n", MEDIAN3(gradientTL, left, top));
     return MEDIAN3(gradientTL, left, top);
 }
 
@@ -586,7 +676,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                //printf("guess: %d curr: %d\n", s->guess, curr);
+                printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
@@ -612,7 +702,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                //printf("guess: %d curr: %d\n", s->guess, curr);
+                printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
@@ -638,7 +728,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                //printf("guess: %d curr: %d\n", s->guess, curr);
+                printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
@@ -678,7 +768,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                //printf("guess: %d curr: %d\n", s->guess, curr);
+                printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
                 __SUBST__
             }
@@ -751,7 +841,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
             
             for (; s->i < 5; ++s->i) {
                 s->curr_plane = plane_ordering[s->i];
-                if (s->curr_plane >= s->channels) {
+                if (s->curr_plane >= s->num_planes) {
                     continue;
                 }
                 //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
@@ -760,14 +850,14 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                     continue;
                 }
                // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                s->properties = av_mallocz((s->channels > 3 ? properties_ni_rgba_size[s->curr_plane]
+                s->properties = av_mallocz((s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]
                                                             : properties_ni_rgb_size[s->curr_plane]) 
                                                             * sizeof(*s->properties));
-                /*printf("sizeof s->properties: %u\n", (s->channels > 3 ? properties_ni_rgba_size[s->curr_plane]:
+                /*printf("sizeof s->properties: %u\n", (s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]:
                                                                         properties_ni_rgb_size[s->curr_plane]));*/
                  //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 for (; s->i2 < s->height; ++s->i2) {
-                    for (; s->i3 < s->frames; ++s->i3) {
+                    for (; s->i3 < s->num_frames; ++s->i3) {
         case 1:
                         //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                         // TODO maybe put this in dec ctx
@@ -797,7 +887,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     if (s->grays)
             av_freep(&s->grays);
 
-    for(int i = 0; i < s->frames; i++){
+    for(int i = 0; i < s->num_frames; i++){
         for(int j = s->transform_top - 1; j >= 0; --j){
             ff_flif16_transform_reverse(s->transforms[j], &s->out_frames[i], 1, 1);
             printf("Transform Step\n===========\n");
@@ -812,17 +902,29 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     return ret;
 }
 
+/* ============================================================================
+ * Interlaced plane decoding
+ * ============================================================================
+ */
 /*
+#define PIXEL(z,r,c) plane.get_fast(r,c)
+#define PIXELY(z,r,c) planeY.get_fast(r,c)
 
-ColorVal predict_and_calcProps_plane(Properties &properties, const ranges_t *ranges, const Image &image, const plane_t &plane, const plane_tY &planeY, const int z, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor)
+FLIF16ColorVal flif16_read_plane(FLIF16PixelData *pixel,
+                                 FLIF16ColorVal *properties,
+                                 FLIF16RangesContext *ranges_ctx,
+                                 int z, uint8_t p, uint32_t r,
+                                 uint32_t c, FLIF16ColorVal *min,
+                                 FLIF16ColorVal *max,
+                                 int predictor)
 {
-    ColorVal guess;
+    FLIF16ColorVal guess;
     //int which = 0;
     int index = 0;
 
     if (p < 3) {
-        if (p>0) properties[index++] = PIXELY(z,r,c);
-        if (p>1) properties[index++] = image(1,z,r,c);
+        if (p > 0) properties[index++] = PIXELY(z,r,c);
+        if (p > 1) properties[index++] = image(1,z,r,c);
         if (image.numPlanes()>3) properties[index++] = image(3,z,r,c);
     }
     ColorVal left;
@@ -1247,7 +1349,7 @@ void flif16_decode_plane_inner_horizontal(FLIF16DecoderContext *s,
                                             uint8_t alphazero, uint8_t lookback,
                                             int predictor, int invisible_predictor)
 {
-    const int nump = s->channels;
+    const int nump = s->num_planes;
     const bool alphazero = images[0].alpha_zero_special;
     const bool lookback = (nump == 5);
     Properties properties((nump > 3 ? properties_rgba_size[p] : properties_rgb_size[p]));
@@ -1416,7 +1518,7 @@ static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
     if (begin_zl == s->zooms && end_zl > 0) {
       // special case: very left top pixel must be read first to get it all started
 
-      for (int p = 0; p < s->channels; p++) {
+      for (int p = 0; p < s->num_planes; p++) {
         if (ff_flif16_ranges_min(s->range, p) < ff_flif16_ranges_max(s->range, p)) {
              minR = ff_flif16_ranges_min(s->range, p);
              RAC_GET(&s->rc, NULL, minR, ff_flif16_ranges_max(s->range, p) - minR,
@@ -1442,7 +1544,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
     /*
-    else if(!(s->ia % 2)){
+    else {
         switch(s->i){
             case 0:
             s->zooms = 0;
@@ -1463,13 +1565,12 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     }
     */
     else
-        return AVERROR_EOF;
+        return AVERROR_INVALIDDATA;
+
     if(!ret)
         s->state = FLIF16_OUTPUT;
-    return ret;
 
-    need_more_data:
-    return AVERROR(EAGAIN);
+    return ret;
 }
 
 static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
@@ -1491,15 +1592,15 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
 
     printf("<*****> In flif16_write_frame\n");
 
-    if (s->channels  == 1 && s->bpc <= 256) {
+    if (s->num_planes  == 1 && s->bpc <= 256) {
         printf("gray8\n");
         avctx->pix_fmt = AV_PIX_FMT_GRAY8;
-    } else if(s->channels  == 3 && s->bpc <= 256) {
+    } else if(s->num_planes  == 3 && s->bpc <= 256) {
         printf("rgb24\n");
         avctx->pix_fmt = AV_PIX_FMT_RGB24;
     } else {
         av_log(avctx, AV_LOG_ERROR, "color depth %u and bpc %u not supported\n",
-               s->channels, s->bpc);
+               s->num_planes, s->bpc);
         return AVERROR_PATCHWELCOME;
     }
 
@@ -1544,7 +1645,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     }
 
     av_frame_ref(data, s->final_out_frame);
-    if ((++s->out_frames_count) >= s->frames)
+    if ((++s->out_frames_count) >= s->num_frames)
         s->state = FLIF16_EOS;
         
     return 0;
@@ -1622,16 +1723,16 @@ static int flif16_decode_frame(AVCodecContext *avctx,
 
     printf("[Decode Result]\n"                  \
            "Width: %u, Height: %u, Frames: %u\n"\
-           "ia: %x bpc: %u channels: %u\n"      \
+           "ia: %x bpc: %u planes: %u\n"      \
            "alphazero: %u custombc: %u\n"       \
            "cutoff: %u alphadiv: %u \n"         \
-           "loops: %u\nl", s->width, s->height, s->frames, s->ia, s->bpc,
-           s->channels, s->alphazero, s->custombc, s->cut,
+           "loops: %u\nl", s->width, s->height, s->num_frames, s->ia, s->bpc,
+           s->num_planes, s->alphazero, s->custombc, s->cut,
            s->alpha, s->loops);
 
     if (s->framedelay) {
         printf("Framedelays:\n");
-        for(uint32_t i = 0; i < s->frames; ++i)
+        for(uint32_t i = 0; i < s->num_frames; ++i)
             printf("%u, ", s->framedelay[i]);
         printf("\n");
     }
@@ -1643,7 +1744,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
     }*/
 
     /*if(s->out_frames) {
-        for(int k = 0; k < s->channels; ++k) {
+        for(int k = 0; k < s->num_planes; ++k) {
             for(int j = 0; j < s->height; ++j) {
                 for(int i = 0; i < s->width; ++i) {
                     printf("%d ", ff_flif16_pixel_get(&s->out_frames[0], k, j, i));
@@ -1666,7 +1767,7 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     if (s->prop_ranges)
         av_freep(&s->prop_ranges);
     if (s->out_frames)
-        ff_flif16_frames_free(s->out_frames, s->frames, s->channels);
+        ff_flif16_frames_free(s->out_frames, s->num_frames, s->num_planes);
     return 0;
 }
 

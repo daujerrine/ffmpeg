@@ -25,6 +25,7 @@
  */
 
 #include "flif16.h"
+#include "flif16_transform.h"
 
 /**
  * Initialise property ranges for non interlaced images.

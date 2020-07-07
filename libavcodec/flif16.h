@@ -32,7 +32,6 @@
 
 #include "avcodec.h"
 #include "libavutil/pixfmt.h"
-
 #include "flif16_rangecoder.h"
 
 // Remove these
@@ -42,15 +41,12 @@
 //#define __PLN__ #error remove me
 //#define MSG(fmt,...) #error remove me
 
-#define FF_FLIF16_VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint64_t) ((x) & 127)
+#define VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint32_t) ((x) & 127)
 #define ZOOM_ROWPIXELSIZE(zoomlevel) (1 << (((zoomlevel) + 1) / 2))
 #define ZOOM_COLPIXELSIZE(zoomlevel) (1 << (((zoomlevel)) / 2))
-#define ZOOM_HEIGHT(r, z) ((!z) ? 0 : (1 + ((r) - 1)/ ZOOM_ROWPIXELSIZE(z)))
-#define ZOOM_WIDTH(w, z) ((!z) ? 0 : (1 + ((w) - 1)/ ZOOM_COLPIXELSIZE(z)))
-
+#define ZOOM_HEIGHT(r, z) ((!z) ? 0 : (1 + ((r) - 1) / ZOOM_ROWPIXELSIZE(z)))
+#define ZOOM_WIDTH(w, z) ((!z) ? 0 : (1 + ((w) - 1) / ZOOM_COLPIXELSIZE(z)))
 #define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ? (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
-
-#define MAX_PLANES 5
 
 static const uint8_t flif16_header[4] = "FLIF";
 
@@ -63,35 +59,6 @@ typedef enum FLIF16Plane {
     FLIF16_PLANE_GRAY = 0, // Is this needed?
 } FLIF16Plane;
 
-struct FLIF16DecoderContext;
-typedef struct FLIF16DecoderContext FLIF16DecoderContext;
-
-typedef int32_t FLIF16ColorVal;
-
-struct FLIF16Ranges;
-typedef struct FLIF16Ranges FLIF16Ranges;
-
-typedef struct FLIF16RangesContext{
-    uint8_t r_no;
-    uint8_t num_planes;
-    void* priv_data;
-} FLIF16RangesContext;
-
-typedef struct FLIF16Ranges {
-    uint8_t priv_data_size;
-
-    FLIF16ColorVal (*min)(FLIF16RangesContext*, int);
-    FLIF16ColorVal (*max)(FLIF16RangesContext*, int);
-    void (*minmax)(FLIF16RangesContext*, const int, FLIF16ColorVal*,
-                   FLIF16ColorVal*, FLIF16ColorVal*);
-    void (*snap)(FLIF16RangesContext*, const int, FLIF16ColorVal*,
-                 FLIF16ColorVal*, FLIF16ColorVal*, FLIF16ColorVal*);
-    uint8_t is_static;
-    void (*close)(FLIF16RangesContext*);
-    void (*previous)(FLIF16RangesContext*);
-} FLIF16Ranges;
-
-
 // Each FLIF16PixelData Struct will contain a single frame
 // This will work similarly to AVFrame.
 // **data will carry an array of planes
@@ -102,7 +69,6 @@ typedef struct FLIF16Ranges {
 
 // TODO replace with AVFrame and av_frame_ref.
 typedef struct FLIF16PixelData {
-    uint8_t initialized;            //FLAG : initialized or not. // See initialisation with NULL check instead
     uint8_t num_planes;
     uint32_t height, width;
     uint8_t constant_alpha;
@@ -111,6 +77,51 @@ typedef struct FLIF16PixelData {
     int8_t scale;
     void **data;
 } FLIF16PixelData;
+
+typedef int32_t FLIF16ColorVal;
+
+typedef struct FLIF16Context {
+        GetByteContext gb;
+    FLIF16MANIACContext maniac_ctx;
+    FLIF16RangeCoder rc;
+
+    // Dimensions and other things.
+    uint32_t width;
+    uint32_t height;
+    uint32_t num_frames;
+    uint32_t meta;      ///< Size of a meta chunk
+
+    // Primary Header     
+    uint8_t  ia;        ///< Is image interlaced or/and animated or not
+    uint32_t bpc;       ///< 2 ^ Bytes per channel
+    uint8_t  num_planes;    ///< Number of planes
+    
+    // change to uint8_t
+    uint32_t loops;       ///< Number of times animation loops
+    // change to uint32_t
+    uint32_t *framedelay; ///< Frame delay for each frame
+} FLIF16Context;
+
+typedef struct FLIF16RangesContext {
+    uint8_t r_no;
+    uint8_t num_planes;
+    void* priv_data;
+} FLIF16RangesContext;
+
+typedef struct FLIF16Ranges {
+    uint8_t priv_data_size;
+
+    FLIF16ColorVal (*min)(FLIF16RangesContext *ranges, int plane);
+    FLIF16ColorVal (*max)(FLIF16RangesContext *ranges, int plane);
+    void (*minmax)(FLIF16RangesContext *ranges, const int plane,
+                   FLIF16ColorVal *prev_planes, FLIF16ColorVal *minv,
+                   FLIF16ColorVal *maxv);
+    void (*snap)(FLIF16RangesContext*, const int, FLIF16ColorVal*,
+                 FLIF16ColorVal*, FLIF16ColorVal*, FLIF16ColorVal*);
+    uint8_t is_static;
+    void (*close)(FLIF16RangesContext*);
+    void (*previous)(FLIF16RangesContext*);
+} FLIF16Ranges;
 
 typedef struct FLIF16TransformContext{
     uint8_t t_no;
@@ -123,92 +134,22 @@ typedef struct FLIF16TransformContext{
 typedef struct FLIF16Transform {
     int16_t priv_data_size;
     //Functions
-    int8_t (*init) (FLIF16TransformContext*, FLIF16RangesContext*);
-    int8_t (*read) (FLIF16TransformContext*, FLIF16DecoderContext*, FLIF16RangesContext*);
-    FLIF16RangesContext* (*meta) (FLIF16PixelData*, uint32_t, 
-                                  FLIF16TransformContext*,
-                                  FLIF16RangesContext*);
-    int8_t (*forward) (FLIF16TransformContext*, FLIF16PixelData*);
-    int8_t (*reverse) (FLIF16TransformContext*, FLIF16PixelData*, uint32_t, uint32_t);
-    void (*close) (FLIF16TransformContext*);
+    int8_t (*init) (FLIF16TransformContext *t_ctx, FLIF16RangesContext *r_ctx);
+    int8_t (*read) (FLIF16TransformContext *t_ctx, FLIF16Context *ctx,
+                    FLIF16RangesContext *r_ctx);
+    FLIF16RangesContext *(*meta) (FLIF16PixelData *frame, uint32_t frame_count,
+                                  FLIF16TransformContext *t_ctx,
+                                  FLIF16RangesContext *r_ctx);
+    int8_t (*forward) (FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
+    int8_t (*reverse) (FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
+                       uint32_t stride_row, uint32_t stride_col);
+    void (*close) (FLIF16TransformContext *t_ctx);
 } FLIF16Transform;
 
-typedef struct FLIF16DecoderContext {
-    GetByteContext gb;
-    FLIF16MANIACContext maniac_ctx;
-    FLIF16RangeCoder rc;
-
-    // For now, we will use this to store output
-    FLIF16PixelData  *out_frames;
-    uint32_t out_frames_count;
-    AVFrame *final_out_frame;
-    
-    uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
-    uint8_t buf_count;    ///< Count for initial RAC buffer
-    int state;            ///< The section of the file the parser is in currently.
-    unsigned int segment; ///< The "segment" the code is supposed to jump to
-    unsigned int segment2;///< The "segment" the code is supposed to jump to
-    int i;                ///< A generic iterator used to save states between for loops.
-    int i2;
-    int i3;
-
-    // Primary Header     
-    uint8_t ia;           ///< Is image interlaced or/and animated or not
-    uint32_t bpc;         ///< 2 ^ Bytes per channel
-    uint8_t channels;     ///< Number of channels
-    uint8_t varint;       ///< Number of varints to process in sequence
-                          
-    // Secondary Header
-    
-    uint8_t alphazero;    ///< Alphazero Flag
-    uint8_t custombc;     ///< Custom Bitchance Flag
-    uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
-
-    uint32_t cut;         ///< Chancetable custom cutoff
-    uint32_t alpha;       ///< Chancetable custom alphadivisor
-    uint8_t ipp;          ///< Invisible pixel predictor
-
-    // change to uint8_t
-    uint32_t loops;       ///< Number of times animation loops
-    // change to uint32_t
-    uint32_t *framedelay; ///< Frame delay for each frame
-
-    // Transforms
-    // Size dynamically maybe
-    FLIF16TransformContext *transforms[13];
-    uint8_t transform_top;
-    FLIF16RangesContext *range; ///< The minimum and maximum values a
-                                ///  channel's pixels can take. Changes
-                                ///  depending on transformations applied
-    FLIF16RangesContext *prev_range;
-
-    // MANIAC Trees
-    int32_t (*prop_ranges)[2]; ///< Property Ranges
-    uint32_t prop_ranges_size;
-    
-    // Pixeldata
-    uint8_t curr_plane;        ///< State variable. Current plane under processing
-    FLIF16ColorVal *grays;
-    FLIF16ColorVal *properties;
-    FLIF16ColorVal guess;      ///< State variable. Stores guess
-    FLIF16ColorVal min, max;
-    uint32_t c;                ///< State variable for current column
-
-    // Interlaced Pixeldata
-    int zoomlevels;
-    int rough_zl;
-
-    // Dimensions and other things.
-    uint32_t width;
-    uint32_t height;
-    uint32_t frames;
-    uint32_t meta;      ///< Size of a meta chunk
-} FLIF16DecoderContext;
-
 int32_t (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
-                                            FLIF16RangesContext *ranges,
-                                            uint8_t property,
-                                            uint8_t channels))[2];
+                                               FLIF16RangesContext *ranges,
+                                               uint8_t property,
+                                               uint8_t channels))[2];
 
 int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
                                             FLIF16RangesContext *ranges,
@@ -265,8 +206,5 @@ static inline void ff_flif16_copy_rows(FLIF16PixelData *dest,
         ff_flif16_pixel_set(dest, plane, row, col, ff_flif16_pixel_get(src, plane, row, col));
     }
 }
-
-// Must be included here to resolve circular include
-#include "flif16_transform.h"
 
 #endif /* AVCODEC_FLIF16_H */

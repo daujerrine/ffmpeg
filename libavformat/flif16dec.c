@@ -52,10 +52,10 @@ static int flif16_probe(const AVProbeData *p)
             if (!(count--)) {
                 return 0;
             }
-            FF_FLIF16_VARINT_APPEND(*vlist[i], p->buf[5 + pos]);
+            VARINT_APPEND(*vlist[i], p->buf[5 + pos]);
             ++pos;
         }
-        FF_FLIF16_VARINT_APPEND(*vlist[i], p->buf[5 + pos]);
+        VARINT_APPEND(*vlist[i], p->buf[5 + pos]);
         count = 0;
     }
 
@@ -92,9 +92,9 @@ static int flif16_read_header(AVFormatContext *s)
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
                 return AVERROR_INVALIDDATA;
-            FF_FLIF16_VARINT_APPEND(*vlist[i], temp);
+            VARINT_APPEND(*vlist[i], temp);
         }
-        FF_FLIF16_VARINT_APPEND(*vlist[i], temp);
+        VARINT_APPEND(*vlist[i], temp);
         count = 3;
     }
 
@@ -113,7 +113,7 @@ static int flif16_read_header(AVFormatContext *s)
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
                 return AVERROR_INVALIDDATA;
-            FF_FLIF16_VARINT_APPEND(meta_size, temp);
+            VARINT_APPEND(meta_size, temp);
         }
         FF_FLIF16_VARINT_APPEND(s->meta, temp);
         count = 3;
