@@ -81,7 +81,7 @@ typedef struct transform_priv_palette{
 }transform_priv_palette;
 
 typedef struct transform_priv_palettealpha{
-    FLIF16ColorVal (*Palette)[3];
+    FLIF16ColorVal (*Palette)[4];
     unsigned int max_palette_size;
     uint8_t alpha_zero_special;
     uint8_t ordered_palette;
@@ -89,6 +89,7 @@ typedef struct transform_priv_palettealpha{
     FLIF16ColorVal min[4], max[4];
     FLIF16ColorVal *prev;
     FLIF16ColorVal pp[2];
+    FLIF16ColorVal Y, I, Q, A;
     FLIF16ChanceContext ctx;
     FLIF16ChanceContext ctxY;
     FLIF16ChanceContext ctxI;
@@ -1244,6 +1245,7 @@ static int8_t transform_palette_init(FLIF16TransformContext *ctx,
     ff_flif16_chancecontext_init(&data->ctxY);
     ff_flif16_chancecontext_init(&data->ctxI);
     ff_flif16_chancecontext_init(&data->ctxQ);
+    data->p = 0;
 
     return 1;
 }
@@ -1424,12 +1426,15 @@ static int8_t transform_palettealpha_init(FLIF16TransformContext *ctx,
     if(  src_ctx->num_planes < 4
       || ff_flif16_ranges_min(src_ctx, 3) == ff_flif16_ranges_max(src_ctx, 3))
         return 0;
+
     data->already_has_palette = 0;
     ff_flif16_chancecontext_init(&data->ctx);
     ff_flif16_chancecontext_init(&data->ctxY);
     ff_flif16_chancecontext_init(&data->ctxI);
     ff_flif16_chancecontext_init(&data->ctxQ);
     ff_flif16_chancecontext_init(&data->ctxA);
+    data->p = 0;
+    
     return 1;
 }
 
@@ -1437,7 +1442,146 @@ static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
                                              FLIF16DecoderContext *dec_ctx,
                                              FLIF16RangesContext* src_ctx)
 {
-    return 1;
+    transform_priv_palettealpha *data = ctx->priv_data;
+    switch (ctx->i)
+    {
+        case 0:
+            printf("Palette Alpha Read :\n");
+            RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
+                    &data->size, FLIF16_RAC_GNZ_INT);
+            printf("size : %d\n", data->size);
+            data->Palette = av_mallocz(data->size * sizeof(*data->Palette));
+            ctx->i++;
+        
+        case 1:
+            RAC_GET(&dec_ctx->rc, &data->ctx, 0, 1,
+                    &data->sorted, FLIF16_RAC_GNZ_INT);
+            printf("sorted : %d\n", data->sorted);
+            if(data->sorted){
+                ctx->i = 2;
+                data->min[0] = ff_flif16_ranges_min(src_ctx, 3);
+                data->max[0] = ff_flif16_ranges_min(src_ctx, 3);
+                for(int i = 1; i < 4; i++){
+                    data->min[i] = ff_flif16_ranges_min(src_ctx, i-1);
+                    data->max[i] = ff_flif16_ranges_max(src_ctx, i-1);
+                    data->Palette[0][i] = -1;
+                }
+                data->prev = data->Palette[0];
+            }
+            else{
+                ctx->i = 6;
+                goto unsorted;
+            }
+        
+        loop:
+        if(data->p < data->size){
+        case 2:
+            RAC_GET(&dec_ctx->rc, &data->ctxA, data->min[0], data->max[0],
+                    &data->A, FLIF16_RAC_GNZ_INT);
+            printf("A : %d\n", data->A);
+            if(data->alpha_zero_special && data->A == 0){
+                for(int i = 0; i < 4; i++)
+                    data->Palette[data->p][i] = 0;
+                data->p++;
+                goto loop;
+            }
+            ctx->i++;
+
+        case 3:
+            RAC_GET(&dec_ctx->rc, &data->ctxY, 
+                    data->prev[0] == data->A ? data->prev[1] : data->min[1],
+                    data->max[1],
+                    &data->Y, FLIF16_RAC_GNZ_INT);
+            printf("Y : %d\n", data->Y);
+            data->pp[0] = data->Y;
+            ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[2], &data->max[2]);
+            ctx->i++;
+
+        case 4:
+            RAC_GET(&dec_ctx->rc, &data->ctxI, 
+                    data->min[2], data->max[2],
+                    &data->I, FLIF16_RAC_GNZ_INT);
+            printf("I : %d\n", data->I);
+            data->pp[1] = data->Y;
+            ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[3], &data->max[3]);
+            ctx->i++;
+
+        case 5:
+            RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[3], data->max[3],
+                    &data->Q, FLIF16_RAC_GNZ_INT);
+            printf("Q : %d\n", data->Q);
+            data->Palette[data->p][0] = data->A;
+            data->Palette[data->p][1] = data->Y;
+            data->Palette[data->p][2] = data->I;
+            data->Palette[data->p][3] = data->Q;
+            data->min[0] = data->A;
+            data->prev = data->Palette[data->p];
+            data->p++;
+            ctx->i = 2;
+            goto loop;
+        }
+        else{
+            ctx->i = 0;
+            data->p = 0;
+            goto end;
+        }
+        
+        unsorted:
+        if(data->p < data->size){
+        case 6:
+            RAC_GET(&dec_ctx->rc, &data->ctxA,
+            ff_flif16_ranges_min(src_ctx, 3), ff_flif16_ranges_max(src_ctx, 3),
+            &data->A, FLIF16_RAC_GNZ_INT);
+            printf("A : %d\n", data->A);
+            if(data->alpha_zero_special && data->A == 0){
+                for(int i = 0; i < 4; i++)
+                    data->Palette[data->p][i] = 0;
+                data->p++;
+                goto loop;
+            }
+            ctx->i++;
+        
+        case 7:
+            ff_flif16_ranges_minmax(src_ctx, 0, data->pp, &data->min[0], &data->max[0]);
+            RAC_GET(&dec_ctx->rc, &data->ctxY, data->min[0], data->max[0],
+                    &data->Y, FLIF16_RAC_GNZ_INT);
+            printf("Y : %d\n", data->Y);
+            data->pp[0] = data->Y;
+            ctx->i++;
+
+        case 8:
+            ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[0], &data->max[0]);
+            RAC_GET(&dec_ctx->rc, &data->ctxI, data->min[0], data->max[0],
+                    &data->I, FLIF16_RAC_GNZ_INT);
+            printf("I : %d\n", data->I);
+            data->pp[1] = data->I;
+            ctx->i++;
+
+        case 9:
+            ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[0], &data->max[0]);
+            RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[0], data->max[0],
+                    &data->Q, FLIF16_RAC_GNZ_INT);
+            printf("Q : %d\n", data->Q);
+            data->Palette[data->p][0] = data->A;
+            data->Palette[data->p][1] = data->Y;
+            data->Palette[data->p][2] = data->I;
+            data->Palette[data->p][3] = data->Q;
+            data->p++;
+            ctx->i = 6;
+            goto unsorted;
+        }
+        else{
+            data->p = 0;
+            ctx->i = 0;
+            goto end;
+        }
+    
+    }
+    end:
+        return 1;
+
+    need_more_data:
+        return AVERROR(EAGAIN);
 }
 
 
