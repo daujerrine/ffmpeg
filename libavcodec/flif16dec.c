@@ -54,6 +54,8 @@ for(int k = 0; k < s->channels; ++k) {\
  * AVERROR(EAGAIN) as long as the bitstream is incomplete.
  */
 
+
+// TODO make variable size UNI_INT readers
 typedef struct FLIF16DecoderContext {
 
     /* Inheritance from FLIF16Context */
@@ -92,15 +94,16 @@ typedef struct FLIF16DecoderContext {
     int i;                ///< A generic iterator used to save states between for loops.
     int i2;
     int i3;
-                          
+
     // Secondary Header
-    uint8_t alphazero;    ///< Alphazero Flag
-    uint8_t custombc;     ///< Custom Bitchance Flag
-    uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
+    // Should all be uint8_t
+    uint32_t alphazero;    ///< Alphazero Flag
+    uint32_t custombc;     ///< Custom Bitchance Flag
+    uint32_t customalpha;  ///< Custom alphadiv & cutoff flag
 
     uint32_t cut;         ///< Chancetable custom cutoff
     uint32_t alpha;       ///< Chancetable custom alphadivisor
-    uint8_t ipp;          ///< Invisible pixel predictor
+    uint32_t ipp;          ///< Invisible pixel predictor
 
     // Transforms
     // Size dynamically maybe
@@ -314,7 +317,7 @@ static int flif16_read_second_header(AVCodecContext *avctx)
 
         case 6:
             if (s->customalpha) {
-                printf("custom cut\n");
+                printf(">>>>>>>>>>>>>>custom cut\n");
                 RAC_GET(&s->rc, NULL, 1, 128, &s->cut, FLIF16_RAC_UNI_INT);
             }
             ++s->segment;
@@ -345,9 +348,9 @@ static int flif16_read_second_header(AVCodecContext *avctx)
     ff_flif16_build_log4k_table(&s->rc->log4k);
     #endif
 
-    ff_flif16_chancetable_init(&s->rc.ct, s->alpha, 2);
+    ff_flif16_chancetable_init(&s->rc.ct, s->alpha, s->cut);
 
-    printf("<<<<<<<<<< %d %d\n", s->alpha, 2);
+    printf("<<<<<<<<<< %d %d\n", s->alpha, s->cut);
 
     for(int i = 0; i < 4096; ++i)
         printf("%u ", s->rc.ct.zero_state[i]);
