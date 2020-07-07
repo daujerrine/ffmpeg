@@ -52,6 +52,7 @@ typedef struct transform_priv_channelcompact {
     unsigned int CPalette_inv_size[4];
 
     FLIF16ColorVal min;
+    int remaining;
     unsigned int i;                   //Iterator for nested loop.
     FLIF16ChanceContext ctx_a;
 } transform_priv_channelcompact;
@@ -1004,7 +1005,6 @@ static int8_t transform_channelcompact_read(FLIF16TransformContext * ctx,
                                              FLIF16RangesContext* src_ctx)
 {
     unsigned int nb;
-    int remaining;
     transform_priv_channelcompact *data = ctx->priv_data;
     FLIF16Ranges* ranges = flif16_ranges[src_ctx->r_no];
     start:
@@ -1019,7 +1019,7 @@ static int8_t transform_channelcompact_read(FLIF16TransformContext * ctx,
                 data->min = ranges->min(src_ctx, ctx->i);
                 data->CPalette[ctx->i] = av_mallocz(nb*sizeof(FLIF16ColorVal));
                 data->CPalette_size[ctx->i] = nb;
-                remaining = nb-1;
+                data->remaining = nb-1;
                 ++ctx->segment;
                 goto next_case;
             }
@@ -1028,16 +1028,14 @@ static int8_t transform_channelcompact_read(FLIF16TransformContext * ctx,
         
         next_case:
         case 1:
-            for (; data->i < nb; ++data->i) {
+            for (; data->i < data->CPalette_size[ctx->i]; ++data->i) {
                 RAC_GET(&dec_ctx->rc, &data->ctx_a,
-                        0, ranges->max(src_ctx, ctx->i)-data->min-remaining,
+                        0, ranges->max(src_ctx, ctx->i)-data->min-data->remaining,
                         &data->CPalette[ctx->i][data->i], 
                         FLIF16_RAC_NZ_INT);
                 data->CPalette[ctx->i][data->i] += data->min;
-                //Basically I want to perform this operation :
-                //CPalette[p][i] = min + read_nz_int(0, 255-min-remaining);
                 data->min = data->CPalette[ctx->i][data->i]+1;
-                remaining--;
+                data->remaining--;
             }
             data->i = 0;
             ctx->segment--;
@@ -1092,8 +1090,8 @@ static int8_t transform_channelcompact_reverse(FLIF16TransformContext* ctx,
         palette      = data->CPalette[p];
         palette_size = data->CPalette_size[p];
 
-        for(r=0; r < frame->height; r++){
-            for(c=0; c < frame->width; c++){
+        for(r=0; r < frame->height; r += stride_row){
+            for(c=0; c < frame->width; c += stride_col){
                 P = ff_flif16_pixel_get(frame, p, r, c);
                 if (P < 0 || P >= (int) palette_size)
                     P = 0;
@@ -1394,8 +1392,8 @@ static int8_t transform_palette_reverse(FLIF16TransformContext* ctx,
     int P;
     transform_priv_palette *data = ctx->priv_data;
     printf("Palette inverse: \n");
-    for(r = 0; r < frame->height; r++){
-        for(c = 0; c < frame->width; c++){
+    for(r = 0; r < frame->height; r += stride_row){
+        for(c = 0; c < frame->width; c += stride_col){
             P = ff_flif16_pixel_get(frame, 1, r, c);
             printf("%d ", P);
             if(P < 0 || P >= data->size)
@@ -1619,6 +1617,39 @@ static FLIF16RangesContext* transform_palettealpha_meta(FLIF16PixelData *frame,
     return r_ctx;
 }
 
+static int8_t transform_palettealpha_reverse(FLIF16TransformContext* ctx,
+                                             FLIF16PixelData* frame,
+                                             uint32_t stride_row,
+                                             uint32_t stride_col)
+{
+    int r, c;
+    int P;
+    transform_priv_palettealpha *data = ctx->priv_data;
+    printf("Palette inverse: \n");
+    for(r = 0; r < frame->height; r += stride_row){
+        for(c = 0; c < frame->width; c += stride_col){
+            P = ff_flif16_pixel_get(frame, 1, r, c);
+            printf("%d ", P);
+            if(P < 0 || P >= data->size)
+                P = 0;
+            av_assert0(P < data->size);
+            av_assert0(P >= 0);
+            ff_flif16_pixel_set(frame, 0, r, c, data->Palette[P][1]);
+            ff_flif16_pixel_set(frame, 1, r, c, data->Palette[P][2]);
+            ff_flif16_pixel_set(frame, 2, r, c, data->Palette[P][3]);
+            ff_flif16_pixel_set(frame, 3, r, c, data->Palette[P][0]);
+        }
+        //frame->palette = 0;
+    }
+    printf("\n");
+    return 1;
+}
+
+static void transform_palettealpha_close(FLIF16TransformContext *ctx){
+    transform_priv_palettealpha *data = ctx->priv_data;
+    av_free(data->Palette);
+    av_free(data->prev);
+}
 
 FLIF16Transform flif16_transform_channelcompact = {
     .priv_data_size = sizeof(transform_priv_channelcompact),
@@ -1675,10 +1706,10 @@ FLIF16Transform flif16_transform_palettealpha = {
     .init           = &transform_palettealpha_init,
     .read           = &transform_palettealpha_read,
     .meta           = &transform_palettealpha_meta,
-    .configure      = &transform_palettealpha_configure
+    .configure      = &transform_palettealpha_configure,
     //.forward
-    //.reverse      = &transform_palettealpha_reverse,
-    //.close        = &transform_palettealpha_close
+    .reverse        = &transform_palettealpha_reverse,
+    .close          = &transform_palettealpha_close
 };
 
 FLIF16Transform *flif16_transforms[13] = {
@@ -1687,7 +1718,7 @@ FLIF16Transform *flif16_transforms[13] = {
     NULL, // FLIF16_TRANSFORM_RESERVED1,
     &flif16_transform_permuteplanes,
     &flif16_transform_bounds,
-    NULL, // FLIF16_TRANSFORM_PALETTEALPHA,
+    &flif16_transform_palettealpha,
     &flif16_transform_palette,
     NULL, // FLIF16_TRANSFORM_COLORBUCKETS,
     NULL, // FLIF16_TRANSFORM_RESERVED2,
