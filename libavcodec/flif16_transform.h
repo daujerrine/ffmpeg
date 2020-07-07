@@ -28,9 +28,8 @@
 #define FLIF16_TRANSFORM_H
 
 #include "avcodec.h"
-#include "flif16.h"
 #include "libavutil/common.h"
-
+#include "flif16.h"
 #define MAX_PLANES 5
 
 typedef enum FLIF16RangesTypes{
@@ -116,7 +115,7 @@ FLIF16TransformContext *ff_flif16_transform_init(int, FLIF16RangesContext *);
 
 void ff_flif16_transform_configure(FLIF16TransformContext *, const int);
 
-int8_t ff_flif16_transform_read(FLIF16TransformContext *, FLIF16DecoderContext *,
+int8_t ff_flif16_transform_read(FLIF16TransformContext *, FLIF16Context *,
                                  FLIF16RangesContext *);
 
 FLIF16RangesContext* ff_flif16_transform_meta(FLIF16PixelData *,

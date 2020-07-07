@@ -79,15 +79,15 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
 
                 switch (f->varint) {
                     case 1:
-                        FF_FLIF16_VARINT_APPEND(f->width, buf[index]);
+                        VARINT_APPEND(f->width, buf[index]);
                         break;
                     
                     case 2:
-                        FF_FLIF16_VARINT_APPEND(f->height, buf[index]);
+                        VARINT_APPEND(f->height, buf[index]);
                         break;
                     
                     case 3:
-                        FF_FLIF16_VARINT_APPEND(f->frames, buf[index]);
+                        VARINT_APPEND(f->frames, buf[index]);
                         break;
                 }
                 if (buf[index] < 128) {
@@ -135,7 +135,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                     f->varint = 0;
                     f->count = 0;
                 }
-                FF_FLIF16_VARINT_APPEND(f->meta, buf[index]);
+                VARINT_APPEND(f->meta, buf[index]);
                 f->count++;
             } else if (f->meta > 1) {
                 // increment varint until equal to size
