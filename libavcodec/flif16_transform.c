@@ -1677,8 +1677,8 @@ FLIF16Transform flif16_transform_palettealpha = {
     .meta           = &transform_palettealpha_meta,
     .configure      = &transform_palettealpha_configure
     //.forward
-    //.reverse        = &transform_palette_reverse,
-    //.close          = &transform_palette_close
+    //.reverse      = &transform_palettealpha_reverse,
+    //.close        = &transform_palettealpha_close
 };
 
 FLIF16Transform *flif16_transforms[13] = {

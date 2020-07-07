@@ -72,7 +72,7 @@ typedef struct FLIF16PixelData {
     uint8_t num_planes;
     uint32_t height, width;
     uint8_t constant_alpha;
-    //uint8_t palette;              // Maybe this flag is not useful // Will delete it later
+    //uint8_t palette;              // Maybe this flag is not useful. Will delete it later
     int8_t seen_before;
     int8_t scale;
     void **data;
@@ -120,7 +120,7 @@ typedef struct FLIF16Ranges {
                  FLIF16ColorVal*, FLIF16ColorVal*, FLIF16ColorVal*);
     uint8_t is_static;
     void (*close)(FLIF16RangesContext*);
-    void (*previous)(FLIF16RangesContext*);
+    void (*previous)(FLIF16RangesContext*);  //TODO : Maybe remove it later
 } FLIF16Ranges;
 
 typedef struct FLIF16TransformContext{
