@@ -667,7 +667,7 @@ FLIF16Ranges* flif16_ranges[] = {
     &flif16_ranges_permuteplanessubtract, // FLIF16_RANGES_PERMUTEPLANESSUBTRACT,
     &flif16_ranges_bounds,                // FLIF16_RANGES_BOUNDS,
     &flif16_ranges_static,                // FLIF16_RANGES_STATIC,
-    &flif16_ranges_palettealpha,                                 // FLIF16_RANGES_PALETTEALPHA,
+    &flif16_ranges_palettealpha,          // FLIF16_RANGES_PALETTEALPHA,
     &flif16_ranges_palette,               // FLIF16_RANGES_PALETTE,
     NULL,                                 // FLIF16_RANGES_COLORBUCKETS,
     NULL,                                 // FLIF16_RANGES_DUPLICATEFRAME,
@@ -743,7 +743,7 @@ static int8_t transform_ycocg_init(FLIF16TransformContext *ctx,
 }
 
 static FLIF16RangesContext* transform_ycocg_meta(FLIF16PixelData *frame,
-                                                uint32_t frame_count,
+                                                 uint32_t frame_count,
                                                  FLIF16TransformContext* ctx,
                                                  FLIF16RangesContext* src_ctx)
 {   
@@ -1582,6 +1582,28 @@ static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
 
     need_more_data:
         return AVERROR(EAGAIN);
+}
+
+static FLIF16RangesContext* transform_palettealpha_meta(FLIF16PixelData *frame,
+                                                         uint32_t frame_count,
+                                                         FLIF16TransformContext* ctx,
+                                                         FLIF16RangesContext* src_ctx)
+{
+    FLIF16RangesContext *r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
+    transform_priv_palettealpha *data = ctx->priv_data;
+    ranges_priv_palette *priv_data = av_mallocz(sizeof(ranges_priv_permuteplanes));
+    r_ctx->r_no = FLIF16_RANGES_PALETTEALPHA;
+    r_ctx->num_planes = src_ctx->num_planes;
+    priv_data->nb_colors = data->size;
+    priv_data->r_ctx = src_ctx;
+    r_ctx->priv_data = priv_data;
+
+    for(int i = 0; i < frame_count; i++){
+        frame[i].palette = 1;
+        // TODO : alpha_zero_special modifications
+        //frame->alpha_zero_special = 
+    }
+    return r_ctx;
 }
 
 
