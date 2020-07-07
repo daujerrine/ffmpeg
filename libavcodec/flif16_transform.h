@@ -49,6 +49,22 @@ typedef enum FLIF16RangesTypes{
     FLIF16_RANGES_DUP
 } FLIF16RangesTypes;
 
+typedef enum FLIF16TransformsTypes{
+    FLIF16_TRANSFORM_CHANNELCOMPACT,
+    FLIF16_TRANSFORM_YCOCG,
+    FLIF16_TRANSFORM_RESERVED1,
+    FLIF16_TRANSFORM_PERMUTEPLANES,
+    FLIF16_TRANSFORM_BOUNDS,
+    FLIF16_TRANSFORM_PALETTEALPHA,
+    FLIF16_TRANSFORM_PALETTE,
+    FLIF16_TRANSFORM_COLORBUCKETS,
+    FLIF16_TRANSFORM_RESERVED2,
+    FLIF16_TRANSFORM_RESERVED3,
+    FLIF16_TRANSFORM_DUPLICATEFRAME,
+    FLIF16_TRANSFORM_FRAMESHAPE,
+    FLIF16_TRANSFORM_FRAMELOOKBACK,
+}FLIF16TransformsTypes;
+
 extern FLIF16Ranges *flif16_ranges[14];
 extern FLIF16Transform *flif16_transforms[13];
 
@@ -97,6 +113,8 @@ static inline void ff_flif16_ranges_snap(FLIF16RangesContext *r_ctx, int p,
 }
 
 FLIF16TransformContext *ff_flif16_transform_init(int, FLIF16RangesContext *);
+
+void ff_flif16_transform_configure(FLIF16TransformContext *, const int);
 
 int8_t ff_flif16_transform_read(FLIF16TransformContext *, FLIF16DecoderContext *,
                                  FLIF16RangesContext *);

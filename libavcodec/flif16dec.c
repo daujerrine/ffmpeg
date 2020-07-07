@@ -305,6 +305,8 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             s->transforms[s->transform_top] = ff_flif16_transform_init(temp, s->range);
             if(!s->transforms[s->transform_top])
                 return AVERROR(ENOMEM);
+            if(temp == FLIF16_RANGES_PALETTEALPHA)
+                ff_flif16_transform_configure(s->transforms[s->transform_top], s->alphazero);
             ++s->segment;
 
         case 2:

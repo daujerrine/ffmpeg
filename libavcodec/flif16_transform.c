@@ -1375,8 +1375,8 @@ static FLIF16RangesContext* transform_palette_meta(FLIF16PixelData *frame,
     transform_priv_palette *trans_data = ctx->priv_data;
     ranges_priv_palette *data = av_mallocz(sizeof(ranges_priv_palette));
     int i;
-    for(i = 0; i < frame_count; i++)
-        frame[i].palette = 1;
+    // for(i = 0; i < frame_count; i++)
+    //     frame[i].palette = 1;
     data->r_ctx = src_ctx;
     data->nb_colors = trans_data->size;
     r_ctx->r_no = FLIF16_RANGES_PALETTE;
@@ -1406,7 +1406,7 @@ static int8_t transform_palette_reverse(FLIF16TransformContext* ctx,
             ff_flif16_pixel_set(frame, 1, r, c, data->Palette[P][1]);
             ff_flif16_pixel_set(frame, 2, r, c, data->Palette[P][2]);
         }
-        frame->palette = 0;
+        //frame->palette = 0;
     }
     printf("\n");
     return 1;
@@ -1584,6 +1584,21 @@ static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
         return AVERROR(EAGAIN);
 }
 
+static void transform_palettealpha_configure(FLIF16TransformContext *ctx,
+                                      const int setting)
+{
+    transform_priv_palettealpha *data = ctx->priv_data;
+    data->alpha_zero_special = setting;
+    if(setting > 0){
+        data->ordered_palette = 1;
+        data->max_palette_size = setting;
+    }
+    else{
+        data->ordered_palette = 0;
+        data->max_palette_size = -setting;
+    }
+}
+
 static FLIF16RangesContext* transform_palettealpha_meta(FLIF16PixelData *frame,
                                                          uint32_t frame_count,
                                                          FLIF16TransformContext* ctx,
@@ -1598,11 +1613,9 @@ static FLIF16RangesContext* transform_palettealpha_meta(FLIF16PixelData *frame,
     priv_data->r_ctx = src_ctx;
     r_ctx->priv_data = priv_data;
 
-    for(int i = 0; i < frame_count; i++){
-        frame[i].palette = 1;
-        // TODO : alpha_zero_special modifications
-        //frame->alpha_zero_special = 
-    }
+    // for(int i = 0; i < frame_count; i++)
+    //     frame[i].palette = 1;
+
     return r_ctx;
 }
 
@@ -1655,6 +1668,17 @@ FLIF16Transform flif16_transform_palette = {
     //.forward
     .reverse        = &transform_palette_reverse,
     .close          = &transform_palette_close
+};
+
+FLIF16Transform flif16_transform_palettealpha = {
+    .priv_data_size = sizeof(transform_priv_palettealpha),
+    .init           = &transform_palettealpha_init,
+    .read           = &transform_palettealpha_read,
+    .meta           = &transform_palettealpha_meta,
+    .configure      = &transform_palettealpha_configure
+    //.forward
+    //.reverse        = &transform_palette_reverse,
+    //.close          = &transform_palette_close
 };
 
 FLIF16Transform *flif16_transforms[13] = {
@@ -1721,6 +1745,12 @@ FLIF16RangesContext *ff_flif16_transform_meta(FLIF16PixelData *frames,
         return trans->meta(frames, frames_count, ctx, r_ctx);
     else
         return r_ctx;
+}
+
+void ff_flif16_transform_configure(FLIF16TransformContext *ctx, const int setting){
+    FLIF16Transform *trans = flif16_transforms[ctx->t_no];
+    if(trans->configure)
+        trans->configure(ctx, setting);
 }
 
 int8_t ff_flif16_transform_reverse(FLIF16TransformContext* ctx,
