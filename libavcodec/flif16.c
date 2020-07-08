@@ -35,35 +35,42 @@
  */
 int32_t  (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
                                                 FLIF16RangesContext *ranges,
-                                                uint8_t property,
+                                                uint8_t plane,
                                                 uint8_t channels))[2]
 {
-    int min = ff_flif16_ranges_min(ranges, property);
-    int max = ff_flif16_ranges_max(ranges, property);
+    int min = ff_flif16_ranges_min(ranges, plane);
+    int max = ff_flif16_ranges_max(ranges, plane);
     int mind = min - max, maxd = max - min;
     int32_t (*prop_ranges)[2];
     unsigned int top = 0;
-    unsigned int size = (((property < 3) ? property : 0) + 2 + 5);
+    unsigned int size = (((plane < 3) ? plane : 0) + 2 + 5) + (ranges->num_planes > 3);
     *prop_ranges_size = size;
     prop_ranges = av_mallocz(sizeof(*prop_ranges) * size);
-    if (property < 3) {
-        for (int i = 0; i < property; i++) {
+    printf("%u size: %u top: %u\n", __LINE__, size, top);
+    if (plane < 3) {
+        for (int i = 0; i < plane; i++) {
             prop_ranges[top][0]   = ff_flif16_ranges_min(ranges, i);
             prop_ranges[top++][1] = ff_flif16_ranges_max(ranges, i);  // pixels on previous planes
+            printf("%u size: %u top: %u\n", __LINE__, size, top);
         }
         if (ranges->num_planes > 3)  {
             prop_ranges[top][0]   = ff_flif16_ranges_min(ranges, 3);
             prop_ranges[top++][1] = ff_flif16_ranges_max(ranges, 3);  // pixel on alpha plane
+            printf("%u size: %u top: %u\n", __LINE__, size, top);
         }
     }
     prop_ranges[top][0]   = min;
     prop_ranges[top++][1] = max;  // guess (median of 3)
+    printf("%u size: %u top: %u\n", __LINE__, size, top);
     prop_ranges[top][0]   = 0;
     prop_ranges[top++][1] = 2;      // which predictor was it
+    printf("%u size: %u top: %u\n", __LINE__, size, top);
     for (int i = 0; i < 5; ++i) {
         prop_ranges[top][0] = mind;
         prop_ranges[top++][1] = maxd;
+        printf("%u size: %u top: %u\n", __LINE__, size, top);
     }
+    printf("%u size: %u top: %u\n", __LINE__, size, top);
     return prop_ranges;
 }
 

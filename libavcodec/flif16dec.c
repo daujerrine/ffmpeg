@@ -350,13 +350,14 @@ static int flif16_read_second_header(AVCodecContext *avctx)
     ff_flif16_chancetable_init(&s->rc.ct, s->alpha, s->cut);
 
     printf("<<<<<<<<<< %d %d\n", s->alpha, s->cut);
-
+    /*
     for(int i = 0; i < 4096; ++i)
         printf("%u ", s->rc.ct.zero_state[i]);
     printf("\n");
     for(int i = 0; i < 4096; ++i)
         printf("%u ", s->rc.ct.one_state[i]);
     printf("\n");
+    */
     return 0;
 
     need_more_data:
