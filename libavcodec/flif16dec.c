@@ -96,14 +96,13 @@ typedef struct FLIF16DecoderContext {
     int i3;
 
     // Secondary Header
-    // Should all be uint8_t
-    uint32_t alphazero;    ///< Alphazero Flag
-    uint32_t custombc;     ///< Custom Bitchance Flag
-    uint32_t customalpha;  ///< Custom alphadiv & cutoff flag
+    uint8_t alphazero;    ///< Alphazero Flag
+    uint8_t custombc;     ///< Custom Bitchance Flag
+    uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
 
-    uint32_t cut;         ///< Chancetable custom cutoff
+    uint8_t cut;         ///< Chancetable custom cutoff
     uint32_t alpha;       ///< Chancetable custom alphadivisor
-    uint32_t ipp;          ///< Invisible pixel predictor
+    uint8_t ipp;          ///< Invisible pixel predictor
 
     // Transforms
     // Size dynamically maybe
@@ -274,7 +273,7 @@ static int flif16_read_second_header(AVCodecContext *avctx)
             if (s->bpc == '0') {
                 s->bpc = 0;
                 for (; s->i < s->num_planes; ++s->i) {
-                    RAC_GET(&s->rc, NULL, 1, 15, &temp, FLIF16_RAC_UNI_INT);
+                    RAC_GET(&s->rc, NULL, 1, 15, &temp, FLIF16_RAC_UNI_INT8);
                     s->bpc = FFMAX(s->bpc, (1 << temp) - 1);
                 }
             } else
@@ -286,15 +285,15 @@ static int flif16_read_second_header(AVCodecContext *avctx)
 
         case 2:
             if (s->num_planes > 3) {
-                RAC_GET(&s->rc, NULL, 0, 1, (uint32_t *) &s->alphazero,
-                        FLIF16_RAC_UNI_INT);
+                RAC_GET(&s->rc, NULL, 0, 1, &s->alphazero,
+                        FLIF16_RAC_UNI_INT8);
             }
             ++s->segment;
 
         case 3:
             if (s->num_frames > 1) {
-                RAC_GET(&s->rc, NULL, 0, 100, (uint32_t *) &s->loops,
-                        FLIF16_RAC_UNI_INT);
+                RAC_GET(&s->rc, NULL, 0, 100, &s->loops,
+                        FLIF16_RAC_UNI_INT8);
             }
             ++s->segment;
 
@@ -303,7 +302,7 @@ static int flif16_read_second_header(AVCodecContext *avctx)
             if (s->num_frames > 1) {
                 for (; (s->i) < (s->num_frames); ++(s->i)) {
                     RAC_GET(&s->rc, NULL, 0, 60000, &(s->framedelay[s->i]),
-                            FLIF16_RAC_UNI_INT);
+                            FLIF16_RAC_UNI_INT16);
                 }
                 s->i = 0;
             }
@@ -311,27 +310,27 @@ static int flif16_read_second_header(AVCodecContext *avctx)
 
         case 5:
             // Has custom alpha flag
-            RAC_GET(&s->rc, NULL, 0, 1, &s->customalpha, FLIF16_RAC_UNI_INT);
+            RAC_GET(&s->rc, NULL, 0, 1, &s->customalpha, FLIF16_RAC_UNI_INT8);
             printf("has_custom_cutoff_alpha = %d\n", s->customalpha);
             ++s->segment;
 
         case 6:
             if (s->customalpha) {
                 printf(">>>>>>>>>>>>>>custom cut\n");
-                RAC_GET(&s->rc, NULL, 1, 128, &s->cut, FLIF16_RAC_UNI_INT);
+                RAC_GET(&s->rc, NULL, 1, 128, &s->cut, FLIF16_RAC_UNI_INT8);
             }
             ++s->segment;
 
         case 7:
             if (s->customalpha) {
-                RAC_GET(&s->rc, NULL, 2, 128, &s->alpha, FLIF16_RAC_UNI_INT);
+                RAC_GET(&s->rc, NULL, 2, 128, &s->alpha, FLIF16_RAC_UNI_INT8);
                 s->alpha = 0xFFFFFFFF / s->alpha;
             }
             ++s->segment;
 
         case 8:
             if (s->customalpha)
-                RAC_GET(&s->rc, NULL, 0, 1, &s->custombc, FLIF16_RAC_UNI_INT);
+                RAC_GET(&s->rc, NULL, 0, 1, &s->custombc, FLIF16_RAC_UNI_INT8);
             if (s->custombc) {
                 av_log(avctx, AV_LOG_ERROR, "custom bitchances not implemented\n");
                 return AVERROR_PATCHWELCOME;
@@ -383,7 +382,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             ++s->segment;
 
         case 1:
-            RAC_GET(&s->rc, NULL, 0, 13, &temp, FLIF16_RAC_UNI_INT);
+            RAC_GET(&s->rc, NULL, 0, 13, &temp, FLIF16_RAC_UNI_INT8);
             printf("Transform : %d\n", temp);
             if (!flif16_transforms[temp]) {
                 av_log(avctx, AV_LOG_ERROR, "transform %u not implemented\n", temp);
@@ -424,7 +423,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             if ( s->alphazero && s->num_planes > 3
                 && ff_flif16_ranges_min(s->range, 3) <= 0
                 && !(s->ia % 2))
-                RAC_GET(&s->rc, NULL, 0, 2, &s->ipp, FLIF16_RAC_UNI_INT);
+                RAC_GET(&s->rc, NULL, 0, 2, &s->ipp, FLIF16_RAC_UNI_INT8);
     }
 
     s->segment = 0;
@@ -1600,7 +1599,8 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     if (s->num_planes  == 1 && s->bpc <= 256) {
         printf("gray8\n");
         avctx->pix_fmt = AV_PIX_FMT_GRAY8;
-    } else if(s->num_planes  == 3 && s->bpc <= 256) {
+    } else if(   (s->num_planes  == 3 && s->bpc <= 256)
+              || (s->num_planes  == 4 && s->bpc <= 256)) {
         printf("rgb24\n");
         avctx->pix_fmt = AV_PIX_FMT_RGB24;
     } else {
@@ -1645,7 +1645,6 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
                 }
                 //printf("\n");
             }
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             break;
     }
 

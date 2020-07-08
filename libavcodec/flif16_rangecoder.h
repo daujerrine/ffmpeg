@@ -60,9 +60,11 @@
 #define MANIAC_TREE_MIN_COUNT 1
 #define MANIAC_TREE_MAX_COUNT 512
 
-typedef enum FLIF16RACTypes {
+typedef enum FLIF16RACReader {
     FLIF16_RAC_BIT = 0,
-    FLIF16_RAC_UNI_INT,
+    FLIF16_RAC_UNI_INT8,
+    FLIF16_RAC_UNI_INT16,
+    FLIF16_RAC_UNI_INT32,
     FLIF16_RAC_CHANCE,
     FLIF16_RAC_NZ_INT,
     FLIF16_RAC_GNZ_INT,
@@ -70,7 +72,7 @@ typedef enum FLIF16RACTypes {
     FLIF16_RAC_NZ_MULTISCALE_INT,
     FLIF16_RAC_GNZ_MULTISCALE_INT
 #endif
-} FLIF16RACReaders;
+} FLIF16RACReader;
 
 typedef struct FLIF16ChanceTable {
     uint16_t zero_state[4096];
@@ -359,7 +361,8 @@ static inline uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
  */
 static inline int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
                                              uint32_t min, uint32_t len,
-                                             uint32_t *target)
+                                             int type,
+                                             void *target)
 {
     int med;
     uint8_t bit;
@@ -382,7 +385,19 @@ static inline int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
         // MSG("min = %d , len = %d\n", rc->min, rc->len);
         return 0;
     } else {
-        *target = rc->min;
+        switch (type) {
+            case FLIF16_RAC_UNI_INT8:
+                *((uint8_t *) target) = rc->min;
+                break;
+
+            case FLIF16_RAC_UNI_INT16:
+                *((uint16_t *) target) = rc->min;
+                break;
+
+            case FLIF16_RAC_UNI_INT32:
+                *((uint32_t *) target) = rc->min;
+                break;
+        }
         // MSG("target = %d\n", rc->min);
         rc->active = 0;
         return 1;
@@ -390,12 +405,13 @@ static inline int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
 }
 
 // Overload of above function in original code
-
+/*
 static inline int ff_flif16_rac_read_uni_int_bits(FLIF16RangeCoder *rc,
                                                   int bits, uint32_t *target)
 {
     return ff_flif16_rac_read_uni_int(rc, 0, (1 << bits) - 1, target);
 }
+*/
 
 // Nearzero integer definitions
 
@@ -817,9 +833,10 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
                 flag = ff_flif16_rac_read_bit(rc, (uint8_t *) target);
                 break;
 
-            case FLIF16_RAC_UNI_INT:
-                flag = ff_flif16_rac_read_uni_int(rc, val1, val2,
-                                                  (uint32_t *) target);
+            case FLIF16_RAC_UNI_INT8:
+            case FLIF16_RAC_UNI_INT16:
+            case FLIF16_RAC_UNI_INT32:
+                flag = ff_flif16_rac_read_uni_int(rc, val1, val2, type, target);
                 break;
 
             case FLIF16_RAC_CHANCE:

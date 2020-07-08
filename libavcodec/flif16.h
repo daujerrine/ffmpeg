@@ -81,7 +81,7 @@ typedef struct FLIF16PixelData {
 typedef int32_t FLIF16ColorVal;
 
 typedef struct FLIF16Context {
-        GetByteContext gb;
+    GetByteContext gb;
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
 
@@ -97,9 +97,9 @@ typedef struct FLIF16Context {
     uint8_t  num_planes;    ///< Number of planes
     
     // change to uint8_t
-    uint32_t loops;       ///< Number of times animation loops
-    // change to uint32_t
-    uint32_t *framedelay; ///< Frame delay for each frame
+    uint8_t loops;       ///< Number of times animation loops
+    // change to uint16_t
+    uint16_t *framedelay; ///< Frame delay for each frame
 } FLIF16Context;
 
 typedef struct FLIF16RangesContext {
