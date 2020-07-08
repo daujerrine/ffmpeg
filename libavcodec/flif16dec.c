@@ -745,7 +745,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 //predict pixel for alphazero and get a previous pixel for lookback
                 if (s->alphazero && p < 3 &&
-                    ff_flif16_pixel_get(&s->out_frames[fr], 4, r, s->c) == 0) {
+                    ff_flif16_pixel_get(&s->out_frames[fr], 3, r, s->c) == 0) {
                     //printf("<<>> 1\n");
                     ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c,
                     flif16_ni_predict(&s->out_frames[fr], p, r, s->c, gray));
