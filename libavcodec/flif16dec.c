@@ -38,7 +38,7 @@
 
 #define __SUBST__
 /*\
-for(int k = 0; k < s->channels; ++k) {\
+for(int k = 0; k < s->num_planess; ++k) {\
     for(int j = 0; j < s->height; ++j) {\
         for(int i = 0; i < s->width; ++i) {\
             printf("%d ", ff_flif16_pixel_get(&s->out_frames[0], k, j, i));\
@@ -683,7 +683,6 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 curr += s->guess;
                 //printf("guess: %d curr: %d\n", s->guess, curr);
                 ff_flif16_pixel_set(&s->out_frames[fr], p, r, s->c, curr);
-                __SUBST__
             }
             ++s->segment2;
 
@@ -1715,6 +1714,17 @@ static int flif16_decode_frame(AVCodecContext *avctx,
                 if (!ret) {
                     *got_frame = 1;
                     printf("[%s] ret = %d\n", __FILE__, buf_size);
+                    if(s->out_frames) {
+                        for(int k = 0; k < s->num_planes; ++k) {
+                            for(int j = 0; j < s->height; ++j) {
+                                for(int i = 0; i < s->width; ++i) {
+                                    printf("%d ", ff_flif16_pixel_get(&s->out_frames[0], k, j, i));
+                                }
+                                printf("\n");
+                            }
+                            printf("===\n");
+                        }
+                    }
                     return buf_size;
                 }
                 break;
@@ -1748,7 +1758,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
                "property value: %d\n", s->maniac_ctx.forest[0]->data[0].property);
     }*/
 
-    /*if(s->out_frames) {
+    if(s->out_frames) {
         for(int k = 0; k < s->num_planes; ++k) {
             for(int j = 0; j < s->height; ++j) {
                 for(int i = 0; i < s->width; ++i) {
@@ -1758,7 +1768,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
             }
             printf("===\n");
         }
-    }*/
+    }
     printf("[%s] ret = %d\n", __FILE__, buf_size);
     return ret;
 }
