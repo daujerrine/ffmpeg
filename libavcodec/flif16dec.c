@@ -891,11 +891,19 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     if (s->grays)
             av_freep(&s->grays);
 
-    for(int i = 0; i < s->num_frames; i++){
-        for(int j = s->transform_top - 1; j >= 0; --j){
+    for(int i = 0; i < s->num_frames; i++) {
+        for(int j = s->transform_top - 1; j >= 0; --j) {
             ff_flif16_transform_reverse(s->transforms[j], &s->out_frames[i], 1, 1);
             printf("Transform Step\n===========\n");
-            __SUBST__
+            for(int k = 0; k < s->num_planes; ++k) {
+                for(int j = 0; j < s->height; ++j) {
+                    for(int i = 0; i < s->width; ++i) {
+                        printf("%d ", ff_flif16_pixel_get(&s->out_frames[0], k, j, i));
+                    }
+                    printf("\n");
+                }
+                printf("===\n");
+            }
         }
     }
     s->state = FLIF16_OUTPUT;

@@ -163,6 +163,9 @@ FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
 void ff_flif16_frames_free(FLIF16PixelData *frames, uint32_t num_frames,
                            uint32_t num_planes);
 
+
+// Soon we will be fassing around FLIF16Context in these functions
+
 static inline void ff_flif16_pixel_set(FLIF16PixelData *frame, uint8_t plane,
                                        uint32_t row, uint32_t col,
                                        FLIF16ColorVal value)
@@ -195,6 +198,20 @@ static inline FLIF16ColorVal ff_flif16_pixel_getz(FLIF16PixelData *frame, uint8_
 {
     return  ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z) >> frame->scale) *
             width + (col * ZOOM_COLPIXELSIZE(z) >> frame->scale)];
+}
+
+void prepare_zoomlevel(const int z) const override
+{
+    s_r = (zoom_rowpixelsize(z)>>s)*width;
+    s_c = (zoom_colpixelsize(z)>>s);
+}
+ColorVal get_fast(size_t r, size_t c) const override
+{
+    return data[r*s_r+c*s_c];
+}
+void set_fast(size_t r, size_t c, ColorVal x) override
+{
+    data[r*s_r+c*s_c] = x;
 }
 */
 static inline void ff_flif16_copy_rows(FLIF16PixelData *dest,
