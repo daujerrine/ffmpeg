@@ -41,6 +41,8 @@
 //#define __PLN__ #error remove me
 //#define MSG(fmt,...) #error remove me
 
+#define MAX_PLANES 5
+
 #define VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint32_t) ((x) & 127)
 #define ZOOM_ROWPIXELSIZE(zoomlevel) (1 << (((zoomlevel) + 1) / 2))
 #define ZOOM_COLPIXELSIZE(zoomlevel) (1 << (((zoomlevel)) / 2))
@@ -59,6 +61,13 @@ typedef enum FLIF16Plane {
     FLIF16_PLANE_GRAY = 0, // Is this needed?
 } FLIF16Plane;
 
+typedef enum FLIF16PixelSize {
+    FLIF16_PIXEL_8        = 1,
+    FLIF16_PIXEL_16       = 2,
+    FLIF16_PIXEL_32       = 3,
+    FLIF16_PIXEL_CONSTANT = 0
+} FLIF16PixelSize;
+
 // Each FLIF16PixelData Struct will contain a single frame
 // This will work similarly to AVFrame.
 // **data will carry an array of planes
@@ -69,9 +78,9 @@ typedef enum FLIF16Plane {
 
 // TODO replace with AVFrame and av_frame_ref.
 typedef struct FLIF16PixelData {
-    uint8_t num_planes;
-    uint32_t height, width;
-    uint8_t constant_alpha;
+    uint8_t num_planes;      // Will Remove Shortly
+    uint32_t height, width;  // Will Remove Shortly
+    uint8_t constant_alpha;  // Will Remove Shortly
     //uint8_t palette;              // Maybe this flag is not useful. Will delete it later
     int8_t seen_before;
     int8_t scale;
@@ -92,14 +101,13 @@ typedef struct FLIF16Context {
     uint32_t meta;      ///< Size of a meta chunk
 
     // Primary Header     
-    uint8_t  ia;        ///< Is image interlaced or/and animated or not
-    uint32_t bpc;       ///< 2 ^ Bytes per channel
-    uint8_t  num_planes;    ///< Number of planes
+    uint8_t  ia;         ///< Is image interlaced or/and animated or not
+    uint32_t bpc;        ///< 2 ^ Bytes per channel
+    uint8_t  num_planes; ///< Number of planes
     
-    // change to uint8_t
-    uint8_t loops;       ///< Number of times animation loops
-    // change to uint16_t
+    uint8_t loops;        ///< Number of times animation loops
     uint16_t *framedelay; ///< Frame delay for each frame
+    FLIF16PixelSize pixel_size[MAX_PLANES];
 } FLIF16Context;
 
 typedef struct FLIF16RangesContext {

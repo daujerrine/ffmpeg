@@ -922,70 +922,77 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 #define PIXEL(z,r,c) plane.get_fast(r,c)
 #define PIXELY(z,r,c) planeY.get_fast(r,c)
 
-FLIF16ColorVal flif16_read_plane(FLIF16PixelData *pixel,
-                                 FLIF16ColorVal *properties,
-                                 FLIF16RangesContext *ranges_ctx,
-                                 int z, uint8_t p, uint32_t r,
-                                 uint32_t c, FLIF16ColorVal *min,
-                                 FLIF16ColorVal *max,
-                                 int predictor)
+FLIF16ColorVal flif16_predict_calcprops(FLIF16PixelData *pixel,
+                                        FLIF16ColorVal *properties,
+                                        FLIF16RangesContext *ranges,
+                                        int z, uint8_t p, uint32_t r,
+                                        uint32_t c, FLIF16ColorVal *min,
+                                        FLIF16ColorVal *max,
+                                        int predictor, uint8_t horizontal,
+                                        uint8_t nobordercases)
 {
     FLIF16ColorVal guess;
     //int which = 0;
     int index = 0;
 
     if (p < 3) {
-        if (p > 0) properties[index++] = PIXELY(z,r,c);
-        if (p > 1) properties[index++] = image(1,z,r,c);
-        if (image.numPlanes()>3) properties[index++] = image(3,z,r,c);
+        if (p > 0)
+            properties[index++] = PIXELY(z,r,c);
+        if (p > 1)
+            properties[index++] = image(1,z,r,c);
+        if (s->num_planes > 3)
+            properties[index++] = image(3,z,r,c);
     }
-    ColorVal left;
-    ColorVal top;
-    ColorVal topleft;
+    FLIF16ColorVal left;
+    FLIF16ColorVal top;
+    FLIF16ColorVal topleft;
 
-    const bool bottomPresent = r+1 < image.rows(z);
-    const bool rightPresent = c+1 < image.cols(z);
-    ColorVal topright;
-    ColorVal bottomleft;
+    const bool bottomPresent = r + 1 < ZOOM_HEIGHT(s->height, z);
+    const bool rightPresent = c + 1 < ZOOM_WIDTH(s->width, z);
+    FLIF16ColorVal topright;
+    FLIF16ColorVal bottomleft;
 
     if (horizontal) { // filling horizontal lines
         top = PIXEL(z,r-1,c);
-        left = (nobordercases || c>0 ? PIXEL(z,r,c-1) : top);
-        topleft = (nobordercases || c>0 ? PIXEL(z,r-1,c-1) : top);
-        topright = (nobordercases || (rightPresent) ? PIXEL(z,r-1,c+1) : top);
-        bottomleft = (nobordercases || (bottomPresent && c>0) ? PIXEL(z,r+1,c-1) : left);
-        const ColorVal bottom = (nobordercases || bottomPresent ? PIXEL(z,r+1,c) : left);
-        const ColorVal avg = (top + bottom)>>1;
-        const ColorVal topleftgradient = left+top-topleft;
-        const ColorVal median = median3(avg, topleftgradient, (ColorVal)(left+bottom-bottomleft));
+        left = (nobordercases || c > 0 ? PIXEL(z, r, c - 1) : top);
+        topleft = (nobordercases || c > 0 ? PIXEL(z, r - 1, c - 1) : top);
+        topright = (nobordercases || (rightPresent) ? PIXEL(z, r - 1, c + 1) : top);
+        bottomleft = (nobordercases || (bottomPresent && c > 0) ? PIXEL(z,r + 1, c - 1) : left);
+        FLIF16ColorVal bottom = (nobordercases || bottomPresent ? PIXEL(z,r + 1, c) : left);
+        FLIF16ColorVal avg = (top + bottom) >> 1;
+        FLIF16ColorVal topleftgradient = left + top - stopleft;
+        FLIF16ColorVal median = median3(avg, topleftgradient, (FLIF16ColorVal)(left+bottom-bottomleft));
         int which = 2;
-        if (median == avg) which = 0;
-        else if (median == topleftgradient) which = 1;
-        properties[index++]=which;
+        if (median == avg)
+            which = 0;
+        else if (median == topleftgradient)
+            which = 1;
+        properties[index++] = which;
         if (p == 1 || p == 2) {
-            properties[index++] = PIXELY(z,r,c) - ((PIXELY(z,r-1,c)+PIXELY(z,(nobordercases || bottomPresent ? r+1 : r-1),c))>>1);
+            properties[index++] = PIXELY(z,r,c) - ((PIXELY(z, r - 1, c) +
+                                  PIXELY(z,(nobordercases || bottomPresent ? r + 1 : r - 1), c)) >> 1);
         }
         if (predictor == 0) guess = avg;
         else if (predictor == 1)
             guess = median;
         else //if (predictor == 2)
             guess = median3(top,bottom,left);
-        ranges->snap(p,properties,min,max,guess);
+        ff_flif16_ranges_snap(ranges_ctx, p, properties, min, max, &guess);
         properties[index++] = top-bottom;
-        properties[index++]=top-((topleft+topright)>>1);
-        properties[index++]=left-((bottomleft+topleft)>>1);
-        const ColorVal bottomright = (nobordercases || (rightPresent && bottomPresent) ? PIXEL(z,r+1,c+1) : bottom);
-        properties[index++]=bottom-((bottomleft+bottomright)>>1);
+        properties[index++] = top-((topleft+topright)>>1);
+        properties[index++] = left-((bottomleft+topleft)>>1);
+        FLIF16ColorVal bottomright = (nobordercases || (rightPresent && bottomPresent) ? PIXEL(z,r+1,c+1) : bottom);
+        properties[index++] = bottom-((bottomleft+bottomright)>>1);
     } else { // filling vertical lines
         left = PIXEL(z,r,c-1);
         top = (nobordercases || r>0 ? PIXEL(z,r-1,c) : left);
         topleft = (nobordercases || r>0 ? PIXEL(z,r-1,c-1) : left);
         topright = (nobordercases || (r>0 && rightPresent) ? PIXEL(z,r-1,c+1) : top);
         bottomleft = (nobordercases || (bottomPresent) ? PIXEL(z,r+1,c-1) : left);
-        const ColorVal right = (nobordercases || rightPresent ? PIXEL(z,r,c+1) : top);
-        const ColorVal avg = (left + right)>>1;
-        const ColorVal topleftgradient = left+top-topleft;
-        const ColorVal median = median3(avg, topleftgradient, (ColorVal)(right+top-topright));
+        FLIF16ColorVal right = (nobordercases || rightPresent ? PIXEL(z,r,c+1) : top);
+        FLIF16ColorVal avg = (left + right)>>1;
+        FLIF16ColorVal topleftgradient = left+top-topleft;
+        FLIF16ColorVal median = median3(avg, topleftgradient, (ColorVal)(right+top-topright));
         int which = 2;
         if (median == avg) which = 0;
         else if (median == topleftgradient) which = 1;
@@ -1000,10 +1007,10 @@ FLIF16ColorVal flif16_read_plane(FLIF16PixelData *pixel,
             guess = median3(top,left,right);
         ranges->snap(p,properties,min,max,guess);
         properties[index++] = left-right;
-        properties[index++]=left-((bottomleft+topleft)>>1);
-        properties[index++]=top-((topleft+topright)>>1);
-        const ColorVal bottomright = (nobordercases || (rightPresent && bottomPresent) ? PIXEL(z,r+1,c+1) : right);
-        properties[index++]=right-((bottomright+topright)>>1);
+        properties[index++] = left-((bottomleft+topleft)>>1);
+        properties[index++] = top-((topleft+topright)>>1);
+        FLIF16ColorVal bottomright = (nobordercases || (rightPresent && bottomPresent) ? PIXEL(z,r+1,c+1) : right);
+        properties[index++] = right-((bottomright+topright)>>1);
     }
     properties[index++]=guess;
 //    if (p < 1 || p > 2) properties[index++]=which;
@@ -1025,12 +1032,12 @@ FLIF16ColorVal flif16_read_plane(FLIF16PixelData *pixel,
     return guess;
 }
 
-ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor)
+// We most likely do not need this function
+FLIF16ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor)
 {
     image.getPlane(0).prepare_zoomlevel(z);
     image.getPlane(p).prepare_zoomlevel(z);
 
-#ifdef SUPPORT_HDR
     if (image.getDepth() > 8) {
         switch(p) {
         case 0:
@@ -1051,7 +1058,6 @@ ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges
             else return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_16u>,false,false,4,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_16u>&>(image.getPlane(0)),z,r,c,min,max,predictor);
         }
     } else
-#endif
         switch(p) {
         case 0:
             if (z%2==0) return predict_and_calcProps_plane<Plane<ColorVal_intern_8>,Plane<ColorVal_intern_8>,true,false,0,ColorRanges>(properties,ranges,image,static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(p)),static_cast<const Plane<ColorVal_intern_8>&>(image.getPlane(0)),z,r,c,min,max,predictor);

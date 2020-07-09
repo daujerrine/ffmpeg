@@ -30,7 +30,6 @@
 #include "avcodec.h"
 #include "libavutil/common.h"
 #include "flif16.h"
-#define MAX_PLANES 5
 
 typedef enum FLIF16RangesTypes{
     FLIF16_RANGES_CHANNELCOMPACT,
