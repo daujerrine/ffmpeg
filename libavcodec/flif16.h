@@ -145,11 +145,12 @@ typedef struct FLIF16Transform {
     int8_t (*init) (FLIF16TransformContext *t_ctx, FLIF16RangesContext *r_ctx);
     int8_t (*read) (FLIF16TransformContext *t_ctx, FLIF16Context *ctx,
                     FLIF16RangesContext *r_ctx);
-    FLIF16RangesContext *(*meta) (FLIF16PixelData *frame, uint32_t frame_count,
+    FLIF16RangesContext *(*meta) (FLIF16Context *ctx,
+                                  FLIF16PixelData *frame, uint32_t frame_count,
                                   FLIF16TransformContext *t_ctx,
                                   FLIF16RangesContext *r_ctx);
-    int8_t (*forward) (FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
-    int8_t (*reverse) (FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
+    int8_t (*forward) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
+    int8_t (*reverse) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
                        uint32_t stride_row, uint32_t stride_col);
     void (*configure) (FLIF16TransformContext *, const int);
     void (*close) (FLIF16TransformContext *t_ctx);
@@ -174,22 +175,24 @@ void ff_flif16_frames_free(FLIF16PixelData *frames, uint32_t num_frames,
 
 // Soon we will be fassing around FLIF16Context in these functions
 
-static inline void ff_flif16_pixel_set(FLIF16PixelData *frame, uint8_t plane,
-                                       uint32_t row, uint32_t col,
+static inline void ff_flif16_pixel_set(FLIF16Context *s, FLIF16PixelData *frame,
+                                       uint8_t plane, uint32_t row, uint32_t col,
                                        FLIF16ColorVal value)
 {
     //printf("w: plane = %u row = %u col = %u value = %d\n", plane, row, col, value);
-    ((FLIF16ColorVal *) frame->data[plane])[frame->width * row + col] = value;
+    ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col] = value;
 }
 
-static inline FLIF16ColorVal ff_flif16_pixel_get(FLIF16PixelData *frame, uint8_t plane,
-                                                 uint32_t row, uint32_t col)
+static inline FLIF16ColorVal ff_flif16_pixel_get(FLIF16Context *s,
+                                                 FLIF16PixelData *frame,
+                                                 uint8_t plane, uint32_t row,
+                                                 uint32_t col)
 {
     //printf("r: plane = %u row = %u col = %u\n", plane, row, col);
     if(frame->constant_alpha && (plane == 3))
         return ((FLIF16ColorVal *) frame->data[3])[0];
     else
-        return ((FLIF16ColorVal *) frame->data[plane])[frame->width * row + col];
+        return ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col];
 }
 
 /*
@@ -222,14 +225,15 @@ void set_fast(size_t r, size_t c, ColorVal x) override
     data[r*s_r+c*s_c] = x;
 }
 */
-static inline void ff_flif16_copy_rows(FLIF16PixelData *dest,
+static inline void ff_flif16_copy_rows(FLIF16Context *s,
+                                       FLIF16PixelData *dest,
                                        FLIF16PixelData *src, uint8_t plane,
                                        uint32_t row, uint32_t col_start,
                                        uint32_t col_end)
 {
     for(uint32_t col = col_start; col < col_end; ++col) {
         //printf("[%s] col_start = %u col_end = %u plane = %u row = %u\n", __func__, col_start, col_end, plane, row);
-        ff_flif16_pixel_set(dest, plane, row, col, ff_flif16_pixel_get(src, plane, row, col));
+        ff_flif16_pixel_set(s, dest, plane, row, col, ff_flif16_pixel_get(s, src, plane, row, col));
     }
 }
 
