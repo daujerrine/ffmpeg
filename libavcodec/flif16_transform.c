@@ -950,6 +950,7 @@ static int8_t transform_permuteplanes_reverse(FLIF16TransformContext *ctx,
     FLIF16Ranges* ranges = flif16_ranges[data->r_ctx->r_no];
     int height = frame->height;
     int width  = frame->width;
+    printf("Permute Planes Reverse\n");
     for (r=0; r<height; r+=stride_row) {
         for (c=0; c<width; c+=stride_col) {
             for (p=0; p<data->r_ctx->num_planes; p++)
@@ -971,6 +972,14 @@ static int8_t transform_permuteplanes_reverse(FLIF16TransformContext *ctx,
                     ff_flif16_pixel_set(frame, data->permutation[p], r, c, pixel[p]);
             }
         }
+    }
+    for(int p=0; p<data->r_ctx->num_planes; p++){
+    for(r=0; r<height; r++){
+        for(c=0; c<width; c++){
+            printf("%d ", ff_flif16_pixel_get(frame, p, r, c));
+        }
+        printf("\n");
+    }
     }
     return 1;
 }
@@ -1445,6 +1454,7 @@ static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
     {
         case 0:
             printf("Palette Alpha Read :\n");
+            printf("alpha_zero_special : %d", data->alpha_zero_special);
             RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
                     &data->size, FLIF16_RAC_GNZ_INT);
             printf("size : %d\n", data->size);
@@ -1458,7 +1468,7 @@ static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
             if(data->sorted){
                 ctx->i = 2;
                 data->min[0] = ff_flif16_ranges_min(src_ctx, 3);
-                data->max[0] = ff_flif16_ranges_min(src_ctx, 3);
+                data->max[0] = ff_flif16_ranges_max(src_ctx, 3);
                 for(int i = 1; i < 4; i++){
                     data->min[i] = ff_flif16_ranges_min(src_ctx, i-1);
                     data->max[i] = ff_flif16_ranges_max(src_ctx, i-1);
@@ -1500,7 +1510,7 @@ static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
                     data->min[2], data->max[2],
                     &data->I, FLIF16_RAC_GNZ_INT);
             printf("I : %d\n", data->I);
-            data->pp[1] = data->Y;
+            data->pp[1] = data->I;
             ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[3], &data->max[3]);
             ctx->i++;
 
@@ -1625,15 +1635,12 @@ static int8_t transform_palettealpha_reverse(FLIF16TransformContext* ctx,
     int r, c;
     int P;
     transform_priv_palettealpha *data = ctx->priv_data;
-    printf("Palette inverse: \n");
+    printf("Palette Alpha inverse: \n");
     for(r = 0; r < frame->height; r += stride_row){
         for(c = 0; c < frame->width; c += stride_col){
             P = ff_flif16_pixel_get(frame, 1, r, c);
             printf("%d ", P);
-            if(P < 0 || P >= data->size)
-                P = 0;
             av_assert0(P < data->size);
-            av_assert0(P >= 0);
             ff_flif16_pixel_set(frame, 0, r, c, data->Palette[P][1]);
             ff_flif16_pixel_set(frame, 1, r, c, data->Palette[P][2]);
             ff_flif16_pixel_set(frame, 2, r, c, data->Palette[P][3]);
