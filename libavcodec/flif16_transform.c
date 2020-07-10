@@ -1670,6 +1670,43 @@ static void transform_palettealpha_close(FLIF16TransformContext *ctx){
     av_free(data->prev);
 }
 
+/*
+ * ColorBuckets
+ */
+
+/*
+typedef int16_t ColorValCB;
+
+typedef struct ColorBucket{
+    ColorValCB *snapvalues;
+    unsigned int snapvalues_size;
+    ColorValCB *values;
+    unsigned int values_size;
+    ColorValCB min, max;
+    uint8_t discrete;
+}ColorBucket;
+
+void colorbucket_addcolor(ColorBucket *cb, const FLIF16ColorVal c, const unsigned int max_per_bucket)
+{
+    if(c < cb->min)
+        cb->min = c;
+    if(c > cb->max)
+        cb->max = c;
+    if(cb->discrete){
+        unsigned int pos = 0;
+        for(; pos < cb->values_size; pos++){
+            if(c == cb->values[pos])
+                return;
+            if(cb->values[pos] > c)
+                break;
+        }
+        if(cb->values_size < max_per_bucket){
+            cb->values[cb->values_size] = 
+        }
+    }
+}
+*/
+
 FLIF16Transform flif16_transform_channelcompact = {
     .priv_data_size = sizeof(transform_priv_channelcompact),
     .init           = &transform_channelcompact_init,
