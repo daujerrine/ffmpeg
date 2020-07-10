@@ -982,7 +982,7 @@ static int8_t transform_permuteplanes_reverse(FLIF16Context *ctx,
     for(int p=0; p<data->r_ctx->num_planes; p++){
     for(r=0; r<height; r++){
         for(c=0; c<width; c++){
-            printf("%d ", ff_flif16_pixel_get(frame, p, r, c));
+            printf("%d ", ff_flif16_pixel_get(ctx, frame, p, r, c));
         }
         printf("\n");
     }
@@ -1205,7 +1205,7 @@ static FLIF16RangesContext* transform_bounds_meta(FLIF16Context *ctx,
                                                   FLIF16RangesContext* src_ctx)
 {
     FLIF16RangesContext* r_ctx;
-    transform_priv_bounds* trans_data = ctx->priv_data;
+    transform_priv_bounds* trans_data = t_ctx->priv_data;
     ranges_priv_static* data;
     ranges_priv_bounds* dataB;
 
@@ -1646,11 +1646,11 @@ static int8_t transform_palettealpha_reverse(FLIF16Context *ctx,
 {
     int r, c;
     int P;
-    transform_priv_palettealpha *data = ctx->priv_data;
+    transform_priv_palettealpha *data = t_ctx->priv_data;
     printf("Palette Alpha inverse: \n");
-    for(r = 0; r < frame->height; r += stride_row){
-        for(c = 0; c < frame->width; c += stride_col){
-            P = ff_flif16_pixel_get(frame, 1, r, c);
+    for(r = 0; r < ctx->height; r += stride_row){
+        for(c = 0; c < ctx->width; c += stride_col){
+            P = ff_flif16_pixel_get(ctx, frame, 1, r, c);
             printf("%d ", P);
             av_assert0(P < data->size);
             ff_flif16_pixel_set(ctx, frame, 0, r, c, data->Palette[P][1]);
