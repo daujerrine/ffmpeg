@@ -36,9 +36,8 @@
 #include "avcodec.h"
 #include "internal.h"
 
-#define __SUBST__
-/*\
-for(int k = 0; k < s->num_planess; ++k) {\
+#define __SUBST__ \
+for(int k = 0; k < s->num_planes; ++k) {\
     for(int j = 0; j < s->height; ++j) {\
         for(int i = 0; i < s->width; ++i) {\
             printf("%d ", ff_flif16_pixel_get(CTX(s), &s->out_frames[0], k, j, i));\
@@ -46,7 +45,7 @@ for(int k = 0; k < s->num_planess; ++k) {\
         printf("\n");\
     }\
     printf("===\n");\
-}*/
+}
 
 /*
  * Due to the nature of the format, the decoder has to take the entirety of the
@@ -80,6 +79,7 @@ typedef struct FLIF16DecoderContext {
     // change to uint32_t
     uint32_t *framedelay; ///< Frame delay for each frame
 
+    FLIF16PixelSize pixel_size[MAX_PLANES];
     /* End Inheritance from FLIF16Context */
 
     FLIF16PixelData  *out_frames;
@@ -222,8 +222,8 @@ static int flif16_read_header(AVCodecContext *avctx)
         s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->num_frames);
     
     if (!s->out_frames)
-    s->out_frames = ff_flif16_frames_init(s->num_frames, s->num_planes, 32,
-                                          s->width, s->height);
+        s->out_frames = ff_flif16_frames_init(s->num_frames, s->num_planes, 32,
+                                              s->width, s->height, !(s->num_planes > 2));
     if (!s->out_frames)
         return AVERROR(ENOMEM);
     
@@ -748,6 +748,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 for (s->c = begin; s->c < end; s->c++) {
                     // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                     //predict pixel for alphazero and get a previous pixel for lookback
+                    printf("<><><><>%d %d %d\n",  s->alphazero, p, ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c));
                     if (s->alphazero && p < 3 &&
                         ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c) == 0) {
                         printf("<<>> 1\n");

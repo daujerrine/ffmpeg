@@ -443,7 +443,7 @@ static void ff_bounds_minmax(FLIF16RangesContext* r_ctx,
     if(*minv > *maxv){
         *minv = data->bounds[p][0];
         *maxv = data->bounds[p][1];
-        printf("b5 min = %d max = %d\n", *minv, *maxv);
+        //printf("b5 min = %d max = %d\n", *minv, *maxv);
     }
     //printf("b6 min = %d max = %d\n", *minv, *maxv);
     av_assert0(*minv <= *maxv);

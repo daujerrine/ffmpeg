@@ -167,13 +167,12 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
                                             uint8_t channels))[2];
 
 FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
-                                       uint32_t depth, uint32_t width, uint32_t height);
+                                       uint32_t depth, uint32_t width, uint32_t height,
+                                       uint8_t constant_alpha);
 
 void ff_flif16_frames_free(FLIF16PixelData *frames, uint32_t num_frames,
                            uint32_t num_planes);
 
-
-// Soon we will be fassing around FLIF16Context in these functions
 
 static inline void ff_flif16_pixel_set(FLIF16Context *s, FLIF16PixelData *frame,
                                        uint8_t plane, uint32_t row, uint32_t col,
