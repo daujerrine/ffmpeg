@@ -155,7 +155,6 @@ static void ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
                 frame->data[3] = av_mallocz(sizeof(int32_t));
             else
                 frame->data[3] = av_mallocz(sizeof(int32_t) * width * height);
-                
         }
     }
     if (num_planes> 4)
@@ -183,9 +182,6 @@ FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
         ff_flif16_plane_alloc(&frames[i], num_planes, depth, width, height, constant_alpha);
         frames[i].seen_before = -1;
         frames[i].constant_alpha = constant_alpha;
-        frames[i].width      = width;
-        frames[i].height     = height;
-        frames[i].num_planes = num_planes;
         //frames[i].palette    = 0;
     }
     return frames;

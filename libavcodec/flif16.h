@@ -78,8 +78,6 @@ typedef enum FLIF16PixelSize {
 
 // TODO replace with AVFrame and av_frame_ref.
 typedef struct FLIF16PixelData {
-    uint8_t num_planes;      // Will Remove Shortly
-    uint32_t height, width;  // Will Remove Shortly
     uint8_t constant_alpha;  // Will Remove Shortly
     //uint8_t palette;              // Maybe this flag is not useful. Will delete it later
     int8_t seen_before;

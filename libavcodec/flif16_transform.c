@@ -961,8 +961,8 @@ static int8_t transform_ycocg_forward(FLIF16Context *ctx,
     int r, c;
     FLIF16ColorVal RGB[3], YCOCG[3];
 
-    int height = pixel_data->height;
-    int width = pixel_data->width;
+    int height = ctx->height;
+    int width  = ctx->width;
 
     for (r=0; r<height; r++) {
         for (c=0; c<width; c++) {
