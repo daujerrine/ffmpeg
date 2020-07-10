@@ -150,11 +150,12 @@ static void ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
             frame->data[1] = av_mallocz(sizeof(int32_t) * width * height);
         if (num_planes > 2)
             frame->data[2] = av_mallocz(sizeof(int32_t) * width * height);
-        if (num_planes > 3 ) {
+        if (num_planes > 3) {
             if(constant_alpha)
-                frame->data[3] = av_mallocz(sizeof(int32_t) * width * height);
-            else
                 frame->data[3] = av_mallocz(sizeof(int32_t));
+            else
+                frame->data[3] = av_mallocz(sizeof(int32_t) * width * height);
+                
         }
     }
     if (num_planes> 4)
@@ -164,21 +165,24 @@ static void ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
 
 static void ff_flif16_plane_free(FLIF16PixelData *frame, uint8_t num_planes)
 {
-    for(uint8_t i = 0; i < num_planes; ++i)
+    for(uint8_t i = 0; i < num_planes; ++i) {
+        printf("freeing: %d\n", i);
         av_free(frame->data[i]);
+    }
     av_free(frame->data);
 }
 
 FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
-                                       uint32_t depth, uint32_t width, uint32_t height)
+                                       uint32_t depth, uint32_t width, uint32_t height,
+                                       uint8_t constant_alpha)
 {
     FLIF16PixelData *frames = av_mallocz(sizeof(*frames) * num_frames);
     if (!frames)
         return NULL;
     for (int i = 0; i < num_frames; ++i) {
-        ff_flif16_plane_alloc(&frames[i], num_planes, depth, width, height, 1);
+        ff_flif16_plane_alloc(&frames[i], num_planes, depth, width, height, constant_alpha);
         frames[i].seen_before = -1;
-        frames[i].constant_alpha = 1;
+        frames[i].constant_alpha = constant_alpha;
         frames[i].width      = width;
         frames[i].height     = height;
         frames[i].num_planes = num_planes;
