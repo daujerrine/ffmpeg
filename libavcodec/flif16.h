@@ -80,7 +80,7 @@ typedef enum FLIF16PixelSize {
 // TODO replace with AVFrame and av_frame_ref.
 typedef struct FLIF16PixelData {
     uint8_t constant_alpha;  // Will Remove Shortly
-    //uint8_t palette;              // Maybe this flag is not useful. Will delete it later
+    //uint8_t palette;       // Maybe this flag is not useful. Will delete it later
     int8_t seen_before;
     int8_t scale;
     int s_r[MAX_PLANES];
@@ -195,40 +195,48 @@ static inline FLIF16ColorVal ff_flif16_pixel_get(FLIF16Context *s,
         return ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col];
 }
 
-/*
-static inline void ff_flif16_pixel_setz(FLIF16PixelData *frame, uint8_t plane,
-                                        int z, uint32_t row, uint32_t col,
-                                        FLIF16ColorVal value)
+
+static inline void ff_flif16_pixel_setz(FLIF16Context *ctx,
+                                        FLIF16PixelData *frame,
+                                        uint8_t plane, int z, uint32_t row,
+                                        uint32_t col, FLIF16ColorVal value)
 {
-     ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z)) * frame->width +
-        (col * ZOOM_COLPIXELSIZE(z))] = x;
+     ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z)) * ctx->width + (col * ZOOM_COLPIXELSIZE(z))] = value;
 }
 
-static inline FLIF16ColorVal ff_flif16_pixel_getz(FLIF16PixelData *frame, uint8_t plane,
-                                                  int z, size_t row, size_t col)
+static inline FLIF16ColorVal ff_flif16_pixel_getz(FLIF16Context *ctx,
+                                                  FLIF16PixelData *frame,
+                                                  uint8_t plane, int z,
+                                                  size_t row, size_t col)
 {
     return  ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z)) *
-            width + (col * ZOOM_COLPIXELSIZE(z)];
+            ctx->width + (col * ZOOM_COLPIXELSIZE(z))];
 }
 
-static inline void prepare_zoomlevel(FLIF16Context *ctx, FLIF16PixelData *frame, uint8_t plane, int z)
+static inline void ff_flif16_prepare_zoomlevel(FLIF16Context *ctx,
+                                               FLIF16PixelData *frame,
+                                               uint8_t plane, int z)
 {
     frame->s_r[plane] = ZOOM_ROWPIXELSIZE(z) * ctx->width;
     frame->s_c[plane] = ZOOM_COLPIXELSIZE(z);
 }
 
-static inline void ff_flif16_pixel_get_fast(FLIF16Context *ctx,
-                                            FLIF16PixelData *frame, uint8_t plane,
-                                            uint32_t row, uint32_t col)
+static inline FLIF16ColorVal ff_flif16_pixel_get_fast(FLIF16Context *ctx,
+                                                      FLIF16PixelData *frame,
+                                                      uint8_t plane, uint32_t row,
+                                                      uint32_t col)
 {
-    return ((FLIF16ColorVal *) frame->data[plane])[r * s_r + c * s_c];
+    return ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]];
 }
 
-static inline FLIF16ColorVal ff_flif16_pixel_set_fast(size_t r, size_t c, ColorVal x)
+static inline void ff_flif16_pixel_set_fast(FLIF16Context *ctx,
+                                            FLIF16PixelData *frame,
+                                            uint8_t plane, uint32_t row,
+                                            uint32_t col, FLIF16ColorVal value)
 {
-    ((FLIF16ColorVal *) frame->data[plane])[r * s_r + c * s_c]) = x;
+    ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]] = value;
 }
-*/
+
 static inline void ff_flif16_copy_rows(FLIF16Context *s,
                                        FLIF16PixelData *dest,
                                        FLIF16PixelData *src, uint8_t plane,

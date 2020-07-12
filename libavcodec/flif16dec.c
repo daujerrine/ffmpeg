@@ -767,7 +767,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                         ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c,
                                             ff_flif16_pixel_get(CTX(s), &s->out_frames[fr -
                                             ff_flif16_pixel_get(CTX(s), &s->out_frames[fr],
-                                            4, r, s->c)], p, r, s->c));
+                                            FLIF16_PLANE_LOOKBACK, r, s->c)], p, r, s->c));
                         continue;
                     }
                     //calculate properties and use them to decode the next pixel
@@ -934,12 +934,11 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  * ============================================================================
  */
 /*
-
 #define PIXEL(z,r,c) ff_flif16_pixel_getz(s, frame, p, z, r, c)
 #define PIXELY(z,r,c) ff_flif16_pixel_getz(s, frame, FLIF16_PLANE_Y, z, r, c)
 
 // TODO combine these 2 funcs
-inline ColorVal flif16_predict_horizontal(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, uint32_t rows, const int predictor)
+static inline ColorVal flif16_predict_horizontal(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, uint32_t rows, const int predictor)
 {
     if (p == FLIF16_PLANE_LOOKBACK)
         return 0;
@@ -953,7 +952,7 @@ inline ColorVal flif16_predict_horizontal(FLIF16Context *ctx, FLIF16PixelData *f
         FLIF16ColorVal avg = (top + bottom)>>1;
         FLIF16ColorVal left = (c>0 ? ff_flif16_pixel_getz(ctx, frame, p, z,r,c-1) : top);
         FLIF16ColorVal topleft = (c>0 ? ff_flif16_pixel_getz(ctx, frame, p, z,r-1,c-1) : top);
-        FLIF16ColorVal bottomleft = (c>0 && r+1 < rows ? plane.get(z,r+1,c-1) : left);
+        FLIF16ColorVal bottomleft = (c>0 && r+1 < rows ? ff_flif16_pixel_getz(ctx, frame, p, z,r+1,c-1) : left);
         return MEDIAN3(avg, (FLIF16ColorVal)(left+top-topleft), (FLIF16ColorVal)(left+bottom-bottomleft));
     } else { // if (predictor == 2) {
         FLIF16ColorVal left = (c>0 ? ff_flif16_pixel_getz(ctx, frame, p, z,r,c-1) : top);
@@ -961,7 +960,7 @@ inline ColorVal flif16_predict_horizontal(FLIF16Context *ctx, FLIF16PixelData *f
     }
 }
 
-inline ColorVal flif16_predict_vertical(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, uint32_t cols, const int predictor)
+static inline ColorVal flif16_predict_vertical(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, uint32_t cols, const int predictor)
 {
     if (p == FLIF16_PLANE_LOOKBACK)
         return 0;
@@ -975,7 +974,7 @@ inline ColorVal flif16_predict_vertical(FLIF16Context *ctx, FLIF16PixelData *fra
         FLIF16ColorVal avg = (left + right)>>1;
         FLIF16ColorVal top = (r>0 ? ff_flif16_pixel_getz(ctx, frame, p, z, r - 1, c) : left);
         FLIF16ColorVal topleft = (r>0 ? ff_flif16_pixel_getz(ctx, frame, p, z , r - 1, c - 1) : left);
-        FLIF16ColorVal topright = (r>0 && c+1 < cols ? plane.get(z,r-1,c+1) : top);
+        FLIF16ColorVal topright = (r>0 && c+1 < cols ? ff_flif16_pixel_getz(ctx, frame, p, z,r-1,c+1) : top);
         return MEDIAN3(avg, (FLIF16ColorVal)(left+top-topleft), (FLIF16ColorVal)(right+top-topright));
     } else { // if (predictor == 2) {
         FLIF16ColorVal top = (r>0 ? ff_flif16_pixel_getz(ctx, frame, p, z, r - 1, c) : left);
@@ -983,15 +982,15 @@ inline ColorVal flif16_predict_vertical(FLIF16Context *ctx, FLIF16PixelData *fra
     }
 }
 
-inline FLIF16ColorVal flif16_predict(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, const int predictor)
+static inline FLIF16ColorVal flif16_predict(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, const int predictor)
 {
     if (p == FLIF16_PLANE_LOOKBACK)
         return 0;
     FLIF16ColorVal prediction;
     if (z%2 == 0) { // filling horizontal lines
-        prediction = predict_plane_horizontal(image.getPlane(p),z,p,r,c,image.rows(z),predictor);
+        prediction = flif16_predict_horizontal(ctx, frame,z,p,r,c,ZOOM_HEIGHT(s->height, z),predictor);
     } else { // filling vertical lines
-        prediction = predict_plane_vertical(image.getPlane(p),z,p,r,c,image.cols(z),predictor);
+        prediction = flif16_predict_vertical(ctx, frame,z,p,r,c,ZOOM_WIDTH(s->width, z),predictor);
     }
 
     // accurate snap-to-ranges: too expensive?
@@ -1005,19 +1004,22 @@ inline FLIF16ColorVal flif16_predict(FLIF16Context *ctx, FLIF16PixelData *frame,
 
 }
 
-FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
-                                        FLIF16PixelData *frame,
-                                        FLIF16ColorVal *properties,
-                                        FLIF16RangesContext *ranges,
-                                        int z, uint8_t p, uint32_t r,
-                                        uint32_t c, FLIF16ColorVal *min,
-                                        FLIF16ColorVal *max,
-                                        int predictor, uint8_t horizontal,
-                                        uint8_t nobordercases)
+static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
+                                               FLIF16PixelData *frame,
+                                               FLIF16ColorVal *properties,
+                                               FLIF16RangesContext *ranges,
+                                               int z, uint8_t p, uint32_t r,
+                                               uint32_t c, FLIF16ColorVal *min,
+                                               FLIF16ColorVal *max,
+                                               int predictor, uint8_t horizontal,
+                                               uint8_t nobordercases)
 {
     FLIF16ColorVal guess;
     //int which = 0;
     int index = 0;
+
+    ff_flif16_prepare_zoomlevel(ctx, frame, 0, z);
+    ff_flif16_prepare_zoomlevel(ctx, frame, p, z);
 
     if (p < 3) {
         if (p > 0)
@@ -1123,21 +1125,13 @@ FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
     return guess;
 }
 
-// We most likely do not need this function
-FLIF16ColorVal predict_and_calcProps(Properties &properties, const ColorRanges *ranges, const Image &image, const int z, const int p, const uint32_t r, const uint32_t c, ColorVal &min, ColorVal &max, const int predictor)
-{
-    // Add these 2 lines where appropriate.
-    image.getPlane(0).prepare_zoomlevel(z);
-    image.getPlane(p).prepare_zoomlevel(z);
-}
-
 static inline int plane_zoomlevels(uint8_t num_planes, int begin_zl, int end_zl)
 {
     return num_planes * (begin_zl - end_zl + 1);
 }
 
-void plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
-                     int i, FLIF16RangesContext *ranges, int *min, int *max)
+static void plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
+                            int i, FLIF16RangesContext *ranges, int *min, int *max)
 {
     int zl_list[num_planes];
     int nextp, p, zl, highest_priority_plane;
@@ -1202,16 +1196,16 @@ void plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
 
 // specialized decode functions (for speed)
 // assumption: plane and alpha are prepare_zoomlevel(z)
-void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
-                                            FLIF16RangesContext *ranges,
-                                            // PlaneY, alpha
-                                            FLIF16ColorVal *properties,
-                                            int plane, int z, uint32_t fr, uint32_t r,
-                                            uint8_t alphazero, uint8_t lookback,
-                                            int predictor, int invisible_predictor)
+static void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
+                                                   FLIF16RangesContext *ranges,
+                                                   // PlaneY, alpha
+                                                   FLIF16ColorVal *properties,
+                                                   int plane, int z, uint32_t fr, uint32_t r,
+                                                   uint8_t alphazero, uint8_t lookback,
+                                                   int predictor, int invisible_predictor)
                                             
 {
-    ColorVal min, max;
+    FLIF16ColorVal min, max, guess, curr;
     uint32_t begin = 0, end = ZOOM_WIDTH(s->width, z);
     switch (s->segment2) {
         case 0:
@@ -1225,97 +1219,105 @@ void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
             }
             if (fr > 0) {
                 // Replace entrirely?
-                begin = image.col_begin[r * ZOOM_ROWPIXELSIZE(z)]/ZOOM_COLPIXELSIZE(z);
-                end = 1 + (image.col_end[r * ZOOM_ROWPIXELSIZE(z)] - 1)/ZOOM_COLPIXELSIZE(z);
+                begin = (0)/ZOOM_COLPIXELSIZE(z);
+                end = 1 + (s->width - 1)/ZOOM_COLPIXELSIZE(z);
                 if (s->alphazero && plane < 3) {
                     for (uint32_t c = 0; c < begin; c++)
-                        if (alpha.get(z,r,c) == 0)
-                            plane.set(z,r,c, ff_flif16_(plane,z,p,r,c, image.rows(z), invisible_predictor));
+                        if (ff_flif16_pixel_getz(ctx, &s->outframes[fr], FLIF16_PLANE_ALPHA, z,r,c) == 0)
+                            ff_flif16_pixel_setz(ctx, &s->outframes[fr], plane,  z,r,c,
+                            flif16_predict_horizontal(ctx, &s->outframes[fr], plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         else
-                            image.set(p,z,r,c,images[fr-1](p,z,r,c));
+                            ff_flif16_pixel_setz(ctx, &s->outframes[fr],p,z,r,c,
+                            ff_flif16_pixel_getz(ctx, &s->outframes[fr - 1], p,z,r,c));
         // have to wait with the end of the row until the part between begin and end is decoded
-        //            for (uint32_t c = end; c < image.cols(z); c++)
-        //                if (alpha.get(z,r,c) == 0) plane.set(z,r,c, predict_plane_horizontal(plane,z,p,r,c, image.rows(z), invisible_predictor));
+        //            for (uint32_t c = end; c < ZOOM_WIDTH(s->width, z); c++)
+        //                if (alpha.get(z,r,c) == 0) plane.set(z,r,c, predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
         //                else image.set(p,z,r,c,images[fr-1](p,z,r,c));
                 } else if (p != 4) {
-                    const uint32_t cs = image.zoom_colpixelsize(z)>>image.getscale(), rs = image.zoom_rowpixelsize(z)>>image.getscale();
-                    copy_row_range(plane, images[fr - 1].getPlane(p), rs*r, cs*0, cs*begin, cs);
-                    copy_row_range(plane, images[fr - 1].getPlane(p), rs*r, cs*end, cs*image.cols(z), cs);
+                    const uint32_t cs =ZOOM_COLPIXELSIZE(z), rs = ZOOM_ROWPIXELSIZE(z);
+                    ff_flif16_copy_rows(&s->out_frames[fr],
+                                    &s->out_frames[fr - 1], plane, rs*r, cs*0, cs*begin, cs);
+                    ff_flif16_copy_rows(&s->out_frames[fr],
+                                    &s->out_frames[fr - 1], plane, rs*r, cs*end, cs*ZOOM_WIDTH(s->width, z), cs);
                 }
             }
 
             // avoid branching for border cases
-            if (r > 1 && r < image.rows(z)-1 && !lookback && begin == 0 && end > 3) {
-                for (uint32_t c = begin; c < 2; c++) {
+            if (r > 1 && r < ZOOM_HEIGHT(s->height, z)-1 && !lookback && begin == 0 && end > 3) {
+                for (s->c = begin; c < 2; c++) {
                     if (alphazero && p<3 && alpha.get_fast(r,c) == 0) {
-                        plane.set_fast(r,c,predict_plane_horizontal(plane,z,p,r,c, image.rows(z), invisible_predictor));
+                        ff_flif16_pixel_set_fast(ctx. r,c,predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,true,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = flif16_predict_calcprops(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 1:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
-                    plane.set_fast(r,c, curr);
+                    MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
+                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
                 }
                 for (uint32_t c = 2; c < end-2; c++) {
                     if (alphazero && p<3 && alpha.get_fast(r,c) == 0) {
-                        plane.set_fast(r,c,predict_plane_horizontal(plane,z,p,r,c, image.rows(z), invisible_predictor));
+                        plane.set_fast(r,c,predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,true,true,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = predict_and_calcProps_plane<plane_t,alpha_t,true,true,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 2:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
-                    plane.set_fast(r,c, curr);
+                    MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
+                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
                 }
                 for (uint32_t c = end-2; c < end; c++) {
                     if (alphazero && p<3 && alpha.get_fast(r,c) == 0) {
-                        plane.set_fast(r,c,predict_plane_horizontal(plane,z,p,r,c, image.rows(z), invisible_predictor));
+                        plane.set_fast(r,c,predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,true,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = predict_and_calcProps_plane<plane_t,alpha_t,true,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 3:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
-                    plane.set_fast(r,c, curr);
+                    MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
+                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
                 }
             } else {
                 for (uint32_t c = begin; c < end; c++) {
                     if (alphazero && p<3 && alpha.get_fast(r,c) == 0) {
-                        plane.set_fast(r,c,predict_plane_horizontal(plane,z,p,r,c, image.rows(z), invisible_predictor));
+                        ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r, c, predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
                     if (lookback && p<4 && image.getlookback(z,r,c) > 0) {
-                        plane.set_fast(r,c,images[fr-image.getlookback(z,r,c)](p,z,r,c));
+                        ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, ff_flif16_pixel_getz(s, &s->outframes[fr],[fr-image.getlookback(z,r,c)](p,z,r,c));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,true,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = predict_and_calcProps_plane<plane_t,alpha_t,true,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
                     if (lookback && p == 4 && max > fr)
                         max = fr;
                     if (lookback && (guess > max || guess < min))
                         guess = min;
         case 4:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
-                    assert(curr >= ranges->min(p) && curr <= ranges->max(p));
-                    assert(curr >= min && curr <= max);
-                    plane.set_fast(r,c, curr);
+                    MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
+                    //assert(curr >= ranges->min(p) && curr <= ranges->max(p));
+                    //assert(curr >= min && curr <= max);
+                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
                 }
             }
 
             if (fr>0 && alphazero && p < 3) {
-                for (uint32_t c = end; c < image.cols(z); c++)
-                    if (alpha.get(z,r,c) == 0) plane.set(z,r,c, predict_plane_horizontal(plane,z,p,r,c, image.rows(z), invisible_predictor));
+                for (uint32_t c = end; c < ZOOM_WIDTH(s->width, z); c++)
+                    if (alpha.get(z,r,c) == 0) plane.set(z,r,c, predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                     else image.set(p,z,r,c,images[fr-1](p,z,r,c));
             }
     }
 }
 
-void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
-                                          FLIF16RangesContext *ranges,
-                                          // PlaneY, alpha
-                                          FLIF16ColorVal *properties,
-                                          int plane, int z, uint32_t fr, uint32_t r,
-                                          uint8_t alphazero, uint8_t lookback,
-                                          int predictor, int invisible_predictor)
+static void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
+                                                 FLIF16RangesContext *ranges,
+                                                 // PlaneY, alpha
+                                                 FLIF16FLIF16ColorVal *properties,
+                                                 int plane, int z, uint32_t fr, uint32_t r,
+                                                 uint8_t alphazero, uint8_t lookback,
+                                                 int predictor, int invisible_predictor)
 {
-    ColorVal min,max;
+    FLIF16ColorVal min,max;
     uint32_t begin = 1, end = ZOOM_WIDTH(s->width, z);
 
     switch (s->segment2) {
@@ -1323,7 +1325,7 @@ void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
             if (image.seen_before >= 0) {
                 const uint32_t cs = ZOOM_COLPIXELSIZE(z) >> image.getscale();
                 const uint32_t rs = ZOOM_ROWPIXELSIZE(z) >> image.getscale();
-                copy_row_range(plane, images[image.seen_before].getPlane(p),rs*r,cs*1,cs*image.cols(z),cs*2);
+                copy_row_range(plane, images[image.seen_before].getPlane(p),rs*r,cs*1,cs*ZOOM_WIDTH(s->width, z),cs*2);
                 return;
             }
             if (fr > 0) {
@@ -1336,85 +1338,90 @@ void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                 if (alphazero && p < 3) {
                     for (uint32_t c = 1; c < begin; c += 2)
                         if (alpha.get(z, r, c) == 0)
-                            plane.set(z, r, c, predict_plane_vertical(plane, z, p, r, c, image.cols(z), invisible_predictor));
+                            plane.set(z, r, c, predict_plane_vertical(plane, z, p, r, c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         else
                             image.set(p,z,r,c,images[fr-1](p,z,r,c));
         // have to wait with the end of the row until the part between begin and end is decoded
-        //            for (uint32_t c = end; c < image.cols(z); c += 2)
-        //                if (alpha.get(z, r, c) == 0) plane.set(z, r, c, predict_plane_vertical(plane, z, p, r, c, image.cols(z), invisible_predictor));
+        //            for (uint32_t c = end; c < ZOOM_WIDTH(s->width, z); c += 2)
+        //                if (alpha.get(z, r, c) == 0) plane.set(z, r, c, predict_plane_vertical(plane, z, p, r, c, ZOOM_WIDTH(s->width, z), invisible_predictor));
         //                else image.set(p,z,r,c,images[fr-1](p,z,r,c));
                 } else if (p != 4) {
                     const uint32_t cs = ZOOM_COLPIXELSIZE(z) >> image.getscale();
                     const uint32_t rs = ZOOM_ROWPIXELSIZE(z) >> image.getscale();
                     copy_row_range(plane, images[fr - 1].getPlane(p), rs*r, cs*1, cs*begin, cs*2);
-                    copy_row_range(plane, images[fr - 1].getPlane(p), rs*r, cs*end, cs*image.cols(z), cs*2);
+                    copy_row_range(plane, images[fr - 1].getPlane(p), rs*r, cs*end, cs*ZOOM_WIDTH(s->width, z), cs*2);
                 }
             }
             // avoid branching for border cases
-            if (r > 1 && r < image.rows(z)-1 && !lookback && end == image.cols(z) && end > 5 && begin == 1) {
+            if (r > 1 && r < ZOOM_HEIGHT(s->height, z)-1 && !lookback && end == ZOOM_WIDTH(s->width, z) && end > 5 && begin == 1) {
                 uint32_t c = begin;
                 for (; s->c < 3; s->c += 2) {
                     if (alphazero && p < 3 && alpha.get_fast(r,c) == 0) {
-                        plane.set_fast(r,c,predict_plane_vertical(plane, z, p, r, c, image.cols(z), invisible_predictor));
+                        plane.set_fast(r,c,predict_plane_vertical(plane, z, p, r, c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 1:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
-                    plane.set_fast(r, c, curr);
+                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    //\plane.set_fast(r, c, curr);
+                    ff_flif16_pixel_set_fast(ctx, &s->outframes[fr], p, r, s->c, curr);
                 }
                 for (; s->c < end - 2; s->c += 2) {
                     if (alphazero && p < 3 && alpha.s->get_fast(r, s->c) == 0) {
-                        plane.set_fast(r, c,predict_plane_vertical(plane, z, p, r, s->c, image.cols(z), invisible_predictor));
+                        plane.set_fast(r, c,predict_plane_vertical(plane, z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,false,true,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = predict_and_calcProps_plane<plane_t,alpha_t,false,true,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 2:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
-                    plane.set_fast(r,c, curr);
+                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    //\plane.set_fast(r,c, curr);
+                    ff_flif16_pixel_set_fast(ctx, &s->outframes[fr], p, r, s->c, curr);
                 }
                 for (; c < end; c+=2) {
                     if (alphazero && p < 3 && alpha.get_fast(r, s->c) == 0) {
-                        plane.set_fast(r,c,predict_plane_vertical(plane, z, p, r, s->c, image.cols(z), invisible_predictor));
+                        plane.set_fast(r,c,predict_plane_vertical(plane, z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 3:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
-                    plane.set_fast(r, s->c, curr);
+                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    //\plane.set_fast(r, s->c, curr);
+                    ff_flif16_pixel_set_fast(ctx, &s->outframes[fr], p, r, s->c, curr);
                 }
             } else {
                 for (uint32_t s->c = begin; s->c < end; s->c += 2) {
                     if (alphazero && p < 3 && alpha.get_fast(r, s->c) == 0) {
-                        plane.set_fast(r,c,predict_plane_vertical(plane, z, p, r, s->c, image.cols(z), invisible_predictor));
+                        plane.set_fast(r,c,predict_plane_vertical(plane, z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
                     if (lookback && p < 4 && image.getlookback(z, r, s->c) > 0) {
                         plane.set_fast(r, s->c, images[fr-image.getlookback(z, r, s->c)](p, z, r, s->c));
                         continue;
                     }
-                    ColorVal guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
                     if (lookback && p == 4 && max > fr)
                         max = fr;
                     if (lookback && (guess > max || guess < min))
                         guess = min;
         case 4:
-                    ColorVal curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
                     
                     ////plane.set(z,r,c, curr);
                     // assert(curr >= ranges->min(p) && curr <= ranges->max(p));
                     // assert(curr >= min && curr <= max);
-                    plane.set_fast(r, s->c, curr);
+                    //\plane.set_fast(r, s->c, curr);
+                    ff_flif16_pixel_set_fast(ctx, &s->outframes[fr], p, r, s->c, curr);
                 }
             }
     }
 
     if (fr>0 && alphazero && p < 3) {
         for (uint32_t s->c = end; s->c < ZOOM_WIDTH(s->width, z); s->c += 2)
-            if (alpha.get(z, r, s->c) == 0)
-                plane.set(z, r, s->c, predict_plane_vertical(plane, z, p, r, s->c, image.cols(z), invisible_predictor));
+            if (ff_flif16_pixel_getz(s, &s->outframes[fr - 1], FLIF16_PLANE_ALPHA,z,r,c) == 0)
+                ff_flif16_pixel_setz(s, &s->outframes[fr], p, z, r, s->c, flif16_predict_vertical(s, &s->outframes[fr], z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
             else
-                image.set(p, z, r, s->c, images[fr-1](p, z, r, s->c));
+                ff_flif16_pixel_setz(s, &s->outframes[fr],p,z,r,c,
+                ff_flif16_pixel_getz(s, &s->outframes[fr - 1], p,z,r,c));
     }
 
 
@@ -1427,13 +1434,13 @@ void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
 }
 
 // TODO remove these functions altogether
-void flif16_decode_plane_inner_horizontal(FLIF16DecoderContext *s,
-                                            FLIF16RangesContext *ranges,
-                                            // PlaneY, alpha
-                                            FLIF16ColorVal *properties,
-                                            int plane, int z, uint32_t fr, uint32_t r,
-                                            uint8_t alphazero, uint8_t lookback,
-                                            int predictor, int invisible_predictor)
+static void flif16_decode_plane_inner_horizontal(FLIF16DecoderContext *s,
+                                                 FLIF16RangesContext *ranges,
+                                                 // PlaneY, alpha
+                                                 FLIF16ColorVal *properties,
+                                                 int plane, int z, uint32_t fr, uint32_t r,
+                                                 uint8_t alphazero, uint8_t lookback,
+                                                 int predictor, int invisible_predictor)
 {
     const int nump = s->num_planes;
     const bool alphazero = images[0].alpha_zero_special;
@@ -1466,7 +1473,7 @@ void flif16_decode_plane_inner_horizontal(FLIF16DecoderContext *s,
 */
 
 /*
-void prepare_row(uint32_t row, int frame, const alpha_t *a, const alpha_t *pY)
+static void prepare_row(uint32_t row, int frame, const alpha_t *a, const alpha_t *pY)
 {
     r = row;
     fr = frame;
