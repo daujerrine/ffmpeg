@@ -41,7 +41,7 @@
 for(int k = 0; k < s->num_planes; ++k) {\
     for(int j = 0; j < s->height; ++j) {\
         for(int i = 0; i < s->width; ++i) {\
-            printf("%d ", ff_flif16_pixel_get(CTX(s), &s->out_frames[0], k, j, i));\
+            printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[0], k, j, i));\
         }\
         printf("\n");\
     }\
@@ -136,7 +136,16 @@ typedef struct FLIF16DecoderContext {
 } FLIF16DecoderContext;
 
 // Cast values to FLIF16Context
-#define CTX(x) ((FLIF16Context *) (x))
+#define CTX_CAST(x) ((FLIF16Context *) (x))
+// TODO Remove PIXEL and PIXELY
+#define PIXEL(z,r,c) ff_flif16_pixel_getz(CTX_CAST(s), frame, p, z, r, c)
+#define PIXELY(z,r,c) ff_flif16_pixel_getz(CTX_CAST(s), frame, FLIF16_PLANE_Y, z, r, c)
+#define PIXEL_SET(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, r, c, val)
+#define PIXEL_GET(ctx, fr, p, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, r, c)
+#define PIXEL_SETZ(ctx, fr, p, z, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, z, r, c, val)
+#define PIXEL_GETZ(ctx, fr, p, z, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, z, r, c)
+#define PIXEL_GETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, r, c)
+#define PIXEL_SETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, r, c, val)
 
 // Static property values
 static const int properties_ni_rgb_size[] = {7, 8, 9, 7, 7};
@@ -406,11 +415,11 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
         case 2:
             //printf("%d\n", s->transforms[s->transform_top]->t_no);
-            if(ff_flif16_transform_read(s->transforms[s->transform_top], CTX(s), s->range) <= 0)
+            if(ff_flif16_transform_read(s->transforms[s->transform_top], CTX_CAST(s), s->range) <= 0)
                 goto need_more_data;
             printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             prev_range = s->range;
-            s->range = ff_flif16_transform_meta(CTX(s), s->out_frames, s->out_frames_count,
+            s->range = ff_flif16_transform_meta(CTX_CAST(s), s->out_frames, s->out_frames_count,
                                                 s->transforms[s->transform_top],
                                                 prev_range);
             if(!s->range)
@@ -532,20 +541,20 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
     int index = 0;
     if (p < 3) {
         for (int pp = 0; pp < p; pp++) {
-            //printf("&a %d %d\n", index, ff_flif16_pixel_get(CTX(s), pixel, pp, r, c));
-            properties[index++] = ff_flif16_pixel_get(CTX(s), pixel, pp, r, c); //image(pp,r,c);
+            //printf("&a %d %d\n", index, ff_flif16_pixel_get(CTX_CAST(s), pixel, pp, r, c));
+            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, pp, r, c); //image(pp,r,c);
         }
         if (ranges_ctx->num_planes > 3) {
-            //printf("&b %d %d\n", index, ff_flif16_pixel_get(CTX(s), pixel, 3, r, c));
-            //printf("&b %d %d\n", index, ff_flif16_pixel_get(CTX(s), pixel, 3, r, c));
-            properties[index++] = ff_flif16_pixel_get(CTX(s), pixel, 3, r, c); //image(3,r,c);
+            //printf("&b %d %d\n", index, ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c));
+            //printf("&b %d %d\n", index, ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c));
+            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c); //image(3,r,c);
         }
     }
-    left = (nobordercases || c>0 ? ff_flif16_pixel_get(CTX(s), pixel, p, r, c-1) : 
-           (r > 0 ? ff_flif16_pixel_get(CTX(s), pixel, p, r-1, c) : fallback));
-    top = (nobordercases || r>0 ? ff_flif16_pixel_get(CTX(s), pixel, p, r-1, c) : left);
+    left = (nobordercases || c>0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r, c-1) : 
+           (r > 0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c) : fallback));
+    top = (nobordercases || r>0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c) : left);
     topleft = (nobordercases || (r>0 && c>0) ? 
-              ff_flif16_pixel_get(CTX(s), pixel, p, r-1, c-1) : (r > 0 ? top : left));
+              ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c-1) : (r > 0 ? top : left));
     gradientTL = left + top - topleft;
     guess = MEDIAN3(gradientTL, left, top);
 
@@ -579,24 +588,24 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
     }
 
     if (nobordercases || (c+1 < width && r > 0)) {
-        //printf("&3a %d %d\n", index, top - ff_flif16_pixel_get(CTX(s), pixel, p, r-1, c+1));
-        properties[index++] = top - ff_flif16_pixel_get(CTX(s), pixel, p, r-1, c+1); // top - topright 
+        //printf("&3a %d %d\n", index, top - ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c+1));
+        properties[index++] = top - ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c+1); // top - topright 
     } else {
         //printf("&3b %d 0\n", index);
         properties[index++] = 0;
     }
 
     if (nobordercases || r > 1) {
-        //printf("&4a %d %d\n", index, ff_flif16_pixel_get(CTX(s), pixel, p, r-2, c) - top);
-        properties[index++] = ff_flif16_pixel_get(CTX(s), pixel, p, r-2, c) - top;  // toptop - top
+        //printf("&4a %d %d\n", index, ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-2, c) - top);
+        properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-2, c) - top;  // toptop - top
     } else {
         //printf("&4b %d 0\n", index);
         properties[index++] = 0;
     }
 
     if (nobordercases || c > 1) {
-        //printf("&5a %d %d\n", index, ff_flif16_pixel_get(CTX(s), pixel, p, r, c-2) - left);
-        properties[index++] = ff_flif16_pixel_get(CTX(s), pixel, p, r, c-2) - left;  // leftleft - left
+        //printf("&5a %d %d\n", index, ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r, c-2) - left);
+        properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r, c-2) - left;  // leftleft - left
     } else {
         //printf("&5b %d 0\n", index);
         properties[index++] = 0;
@@ -614,10 +623,10 @@ static inline FLIF16ColorVal flif16_ni_predict(FLIF16DecoderContext *s,
                                                FLIF16PixelData *pixel,
                                                uint32_t p, uint32_t r, uint32_t c,
                                                FLIF16ColorVal gray) {
-    FLIF16ColorVal left = (c > 0 ? ff_flif16_pixel_get(CTX(s), pixel, p, r, c-1) :
-                          (r > 0 ? ff_flif16_pixel_get(CTX(s), pixel, p, r-1, c) : gray));
-    FLIF16ColorVal top = (r > 0 ? ff_flif16_pixel_get(CTX(s), pixel, p, r - 1, c) : left);
-    FLIF16ColorVal topleft = (r > 0 && c > 0 ? ff_flif16_pixel_get(CTX(s), pixel, p, r - 1, c - 1) : top);
+    FLIF16ColorVal left = (c > 0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r, c-1) :
+                          (r > 0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c) : gray));
+    FLIF16ColorVal top = (r > 0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r - 1, c) : left);
+    FLIF16ColorVal topleft = (r > 0 && c > 0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r - 1, c - 1) : top);
     FLIF16ColorVal gradientTL = left + top - topleft;
     //printf("sl guess = %d\n", MEDIAN3(gradientTL, left, top));
     return MEDIAN3(gradientTL, left, top);
@@ -639,7 +648,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
             //printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             // if this is a duplicate frame, copy the row from the frame being duplicated
             if (s->out_frames[fr].seen_before >= 0) {
-                ff_flif16_copy_rows(CTX(s), &s->out_frames[fr], &s->out_frames[fr - 1], p, r, 0, s->width);
+                ff_flif16_copy_rows(CTX_CAST(s), &s->out_frames[fr], &s->out_frames[fr - 1], p, r, 0, s->width);
                 return 0;
             }
             // if this is not the first or only frame, fill the beginning of the row
@@ -652,14 +661,12 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 // end = image.col_end[r];
                 if (s->alphazero && p < 3) {
                     for (uint32_t c = 0; c < begin; c++)
-                        if (ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, c) == 0)
-                            ff_flif16_pixel_set(CTX(s), &s->out_frames[fr], p, r, c,
-                            flif16_ni_predict(s, &s->out_frames[fr], p, r, c, gray));
+                        if (PIXEL_GET(s, fr, 3, r, c) == 0)
+                            PIXEL_SET(s, fr, p, r, c, flif16_ni_predict(s, &s->out_frames[fr], p, r, c, gray));
                         else
-                            ff_flif16_pixel_set(CTX(s), &s->out_frames[fr], p, r, c,
-                            ff_flif16_pixel_get(CTX(s), &s->out_frames[fr - 1], p, r, c)); 
+                            PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, fr - 1, p, r, c)); 
                 } else if (p!=4) {
-                    ff_flif16_copy_rows(CTX(s), &s->out_frames[fr],
+                    ff_flif16_copy_rows(CTX_CAST(s), &s->out_frames[fr],
                                         &s->out_frames[fr - 1], p, r, 0, begin);
                 }
             }
@@ -674,9 +681,9 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
             
             for (; s->c < 2; s->c++) {
                 if (s->alphazero && p<3 &&
-                    ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c) == 0) {
+                    PIXEL_GET(s, fr, 3, r, s->c) == 0) {
                     //printf("<aa> 1\n");
-                    ff_flif16_pixel_set(CTX(s), &s->out_frames[fr], p, r, s->c,
+                    PIXEL_SET(s, fr, p, r, s->c,
                     flif16_ni_predict(s, &s->out_frames[fr], p, r, s->c, gray));
                     continue;
                 }
@@ -692,16 +699,16 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
                 //printf("guess: %d curr: %d\n", s->guess, curr);
-                ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c, curr);
+                ff_flif16_pixel_set(CTX_CAST(s), &s->out_frames[fr], p, r, s->c, curr);
             }
             ++s->segment2;
 
             // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             for (; s->c < end-1; s->c++) {
                 if (s->alphazero && p < 3 &&
-                    ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c) == 0) {
+                    ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[fr], 3, r, s->c) == 0) {
                     //printf("<aa> 2\n");
-                    ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c,
+                    ff_flif16_pixel_set(CTX_CAST(s),&s->out_frames[fr], p, r, s->c,
                     flif16_ni_predict(s, &s->out_frames[fr], p, r, s->c, gray));
                     continue;
                 }
@@ -717,7 +724,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
                 //printf("guess: %d curr: %d\n", s->guess, curr);
-                ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c, curr);
+                PIXEL_SET(s, fr, p, r, s->c, curr);
                 __SUBST__
             }
             ++s->segment2;
@@ -725,10 +732,9 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
             // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             for (; s->c < end; s->c++) {
                 if (s->alphazero && p < 3 &&
-                    ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c) == 0) {
+                    PIXEL_GET(s, fr, 3, r, s->c) == 0) {
                     //printf("<aa> 3\n");
-                    ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c,
-                    flif16_ni_predict(s, &s->out_frames[fr], p, r, s->c, gray));
+                    PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, &s->out_frames[fr], p, r, s->c, gray));
                     continue;
                 }
                //printf("<a> 5\n");
@@ -743,7 +749,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
                 //printf("guess: %d curr: %d\n", s->guess, curr);
-                ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c, curr);
+                PIXEL_SET(s, fr, p, r, s->c, curr);
                 __SUBST__
             }
             ++s->segment2;
@@ -753,21 +759,19 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 for (s->c = begin; s->c < end; s->c++) {
                     // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                     //predict pixel for alphazero and get a previous pixel for lookback
-                    //printf("<><><><>%d %d %d\n",  s->alphazero, p, ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c));
+                    //printf("<><><><>%d %d %d\n",  s->alphazero, p, ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[fr], 3, r, s->c));
                     if (s->alphazero && p < 3 &&
-                        ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c) == 0) {
+                        ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[fr], 3, r, s->c) == 0) {
                         //printf("<<>> 1\n");
-                        ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c,
+                        PIXEL_SET(s, fr, p, r, s->c,
                         flif16_ni_predict(s, &s->out_frames[fr], p, r, s->c, gray));
                         continue;
                     }
                     if (lookback && p < 4 &&
-                        ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 4, r, s->c) > 0) {
+                        PIXEL_GET(s, fr, 4, r, s->c) > 0) {
                         //printf("<<>> 2\n");
-                        ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c,
-                                            ff_flif16_pixel_get(CTX(s), &s->out_frames[fr -
-                                            ff_flif16_pixel_get(CTX(s), &s->out_frames[fr],
-                                            FLIF16_PLANE_LOOKBACK, r, s->c)], p, r, s->c));
+                        PIXEL_SET(s, fr, p, r, s->c,
+                        PIXEL_GET(s, fr - PIXEL_GET(s, fr, FLIF16_PLANE_LOOKBACK, r, s->c), p, r, s->c));
                         continue;
                     }
                     //calculate properties and use them to decode the next pixel
@@ -784,7 +788,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                                s->min - s->guess, s->max - s->guess, &curr);
                     curr += s->guess;
                     //printf("guess: %d curr: %d\n", s->guess, curr);
-                    ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c, curr);
+                    PIXEL_SET(s, fr, p, r, s->c, curr);
                     __SUBST__
                 }
             } /* end if */
@@ -795,14 +799,13 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 //if alphazero is on, fill with a predicted value, otherwise copy pixels from the previous frame
                 if (s->alphazero && p < 3) {
                     for (uint32_t c = end; c < s->width; c++)
-                        if (ff_flif16_pixel_get(CTX(s), &s->out_frames[fr], 3, r, s->c) == 0)
-                            ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c,
+                        if (PIXEL_GET(s, fr, 3, r, s->c) == 0)
+                            PIXEL_SET(s, fr,  p, r, s->c,
                             flif16_ni_predict(s, &s->out_frames[fr], p, r, s->c, gray));
                         else
-                            ff_flif16_pixel_set(CTX(s),&s->out_frames[fr], p, r, s->c,
-                            ff_flif16_pixel_get(CTX(s), &s->out_frames[fr - 1], p, r, s->c));
+                            PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, fr - 1, p, r, s->c));
                 } else if(p != 4) {
-                     ff_flif16_copy_rows(CTX(s), &s->out_frames[fr],
+                     ff_flif16_copy_rows(CTX_CAST(s), &s->out_frames[fr],
                      &s->out_frames[fr - 1], p, r, end, s->width);
                 }
             }
@@ -908,12 +911,12 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 
     for(int i = 0; i < s->num_frames; i++) {
         for(int j = s->transform_top - 1; j >= 0; --j) {
-            ff_flif16_transform_reverse(CTX(s), s->transforms[j], &s->out_frames[i], 1, 1);
+            ff_flif16_transform_reverse(CTX_CAST(s), s->transforms[j], &s->out_frames[i], 1, 1);
             /*printf("Transform Step\n===========\n");
             for(int k = 0; k < s->num_planes; ++k) {
                 for(int j = 0; j < s->height; ++j) {
                     for(int i = 0; i < s->width; ++i) {
-                        printf("%d ", ff_flif16_pixel_get(CTX(s), &s->out_frames[0], k, j, i));
+                        printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[0], k, j, i));
                     }
                     printf("\n");
                 }
@@ -933,9 +936,6 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  * Interlaced plane decoding
  * ============================================================================
  */
-/*
-#define PIXEL(z,r,c) ff_flif16_pixel_getz(s, frame, p, z, r, c)
-#define PIXELY(z,r,c) ff_flif16_pixel_getz(s, frame, FLIF16_PLANE_Y, z, r, c)
 
 // TODO combine these 2 funcs
 static inline ColorVal flif16_predict_horizontal(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, uint32_t rows, const int predictor)
@@ -1223,18 +1223,17 @@ static void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                 end = 1 + (s->width - 1)/ZOOM_COLPIXELSIZE(z);
                 if (s->alphazero && plane < 3) {
                     for (uint32_t c = 0; c < begin; c++)
-                        if (ff_flif16_pixel_getz(ctx, &s->outframes[fr], FLIF16_PLANE_ALPHA, z,r,c) == 0)
-                            ff_flif16_pixel_setz(ctx, &s->outframes[fr], plane,  z,r,c,
+                        if (PIXEL_GETZ(s, fr, FLIF16_PLANE_ALPHA, z,r,c) == 0)
+                            PIXEL_SETZ(s, fr, plane,  z,r,c,
                             flif16_predict_horizontal(ctx, &s->outframes[fr], plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         else
-                            ff_flif16_pixel_setz(ctx, &s->outframes[fr],p,z,r,c,
-                            ff_flif16_pixel_getz(ctx, &s->outframes[fr - 1], p,z,r,c));
+                            PIXEL_SETZ(s, fr, p, z, r, c, PIXEL_GETZ(s, fr - 1, p, z, r, c));
         // have to wait with the end of the row until the part between begin and end is decoded
         //            for (uint32_t c = end; c < ZOOM_WIDTH(s->width, z); c++)
         //                if (alpha.get(z,r,c) == 0) plane.set(z,r,c, predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
         //                else image.set(p,z,r,c,images[fr-1](p,z,r,c));
                 } else if (p != 4) {
-                    const uint32_t cs =ZOOM_COLPIXELSIZE(z), rs = ZOOM_ROWPIXELSIZE(z);
+                    const uint32_t cs = ZOOM_COLPIXELSIZE(z), rs = ZOOM_ROWPIXELSIZE(z);
                     ff_flif16_copy_rows(&s->out_frames[fr],
                                     &s->out_frames[fr - 1], plane, rs*r, cs*0, cs*begin, cs);
                     ff_flif16_copy_rows(&s->out_frames[fr],
@@ -1245,26 +1244,28 @@ static void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
             // avoid branching for border cases
             if (r > 1 && r < ZOOM_HEIGHT(s->height, z)-1 && !lookback && begin == 0 && end > 3) {
                 for (s->c = begin; c < 2; c++) {
-                    if (alphazero && p<3 && alpha.get_fast(r,c) == 0) {
-                        ff_flif16_pixel_set_fast(ctx. r,c,predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                    // TODO change FLIF16_PLANE_ALPHA to variable as appropriate
+                    if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, FLIF16_PLANE_ALPHA, r, c) == 0) {
+                        PIXEL_SETFAST(s, fr, p, r, c, predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
-                    guess = flif16_predict_calcprops(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    //guess = flif16_predict_calcprops(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
+                    guess = flif16_predict_calcprops(s, &s->outframes[fr], properties, ranges, z, p, r, c, &min, &max, predictor, 1, 0)
         case 1:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
-                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
+                    PIXEL_SETFAST(s, fr, p, r,c, curr);
                 }
                 for (uint32_t c = 2; c < end-2; c++) {
                     if (alphazero && p<3 && alpha.get_fast(r,c) == 0) {
-                        plane.set_fast(r,c,predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                        ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c,predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
                     guess = predict_and_calcProps_plane<plane_t,alpha_t,true,true,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 2:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
-                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
+                    PIXEL_SETFAST(s, fr, p, r,c, curr);
                 }
                 for (uint32_t c = end-2; c < end; c++) {
                     if (alphazero && p<3 && alpha.get_fast(r,c) == 0) {
@@ -1275,7 +1276,7 @@ static void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
         case 3:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
-                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
+                    PIXEL_SETFAST(s, fr, p, r,c, curr);
                 }
             } else {
                 for (uint32_t c = begin; c < end; c++) {
@@ -1297,11 +1298,11 @@ static void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                     curr += guess;
                     //assert(curr >= ranges->min(p) && curr <= ranges->max(p));
                     //assert(curr >= min && curr <= max);
-                    ff_flif16_pixel_set_fast(s, &s->outframes[fr], p, r,c, curr);
+                    PIXEL_SETFAST(s, fr, p, r,c, curr);
                 }
             }
 
-            if (fr>0 && alphazero && p < 3) {
+            if (fr>0 && alphazero && p < 3) { // Deal with the alpha flag
                 for (uint32_t c = end; c < ZOOM_WIDTH(s->width, z); c++)
                     if (alpha.get(z,r,c) == 0) plane.set(z,r,c, predict_plane_horizontal(plane,z,p,r,c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                     else image.set(p,z,r,c,images[fr-1](p,z,r,c));
@@ -1362,7 +1363,8 @@ static void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                     }
                     guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 1:
-                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
                     //\plane.set_fast(r, c, curr);
                     ff_flif16_pixel_set_fast(ctx, &s->outframes[fr], p, r, s->c, curr);
                 }
@@ -1373,7 +1375,8 @@ static void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                     }
                     guess = predict_and_calcProps_plane<plane_t,alpha_t,false,true,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 2:
-                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    cMANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
                     //\plane.set_fast(r,c, curr);
                     ff_flif16_pixel_set_fast(ctx, &s->outframes[fr], p, r, s->c, curr);
                 }
@@ -1384,7 +1387,8 @@ static void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                     }
                     guess = predict_and_calcProps_plane<plane_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,plane,planeY,z,r,c,min,max, predictor);
         case 3:
-                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
                     //\plane.set_fast(r, s->c, curr);
                     ff_flif16_pixel_set_fast(ctx, &s->outframes[fr], p, r, s->c, curr);
                 }
@@ -1404,7 +1408,8 @@ static void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                     if (lookback && (guess > max || guess < min))
                         guess = min;
         case 4:
-                    curr = coder.read_int(properties, min - guess, max - guess) + guess;
+                    MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
+                    curr += guess;
                     
                     ////plane.set(z,r,c, curr);
                     // assert(curr >= ranges->min(p) && curr <= ranges->max(p));
@@ -1415,13 +1420,13 @@ static void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
             }
     }
 
-    if (fr>0 && alphazero && p < 3) {
+    if (fr > 0 && alphazero && p < 3) {
         for (uint32_t s->c = end; s->c < ZOOM_WIDTH(s->width, z); s->c += 2)
+            // replace enum with variable
             if (ff_flif16_pixel_getz(s, &s->outframes[fr - 1], FLIF16_PLANE_ALPHA,z,r,c) == 0)
-                ff_flif16_pixel_setz(s, &s->outframes[fr], p, z, r, s->c, flif16_predict_vertical(s, &s->outframes[fr], z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
+                PIXEL_SETZ(s, fr, p, z, r, s->c, flif16_predict_vertical(s, &s->outframes[fr], z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
             else
-                ff_flif16_pixel_setz(s, &s->outframes[fr],p,z,r,c,
-                ff_flif16_pixel_getz(s, &s->outframes[fr - 1], p,z,r,c));
+                PIXEL_SETZ(s, fr, p, z, r, c, PIXEL_GETZ(s, fr - 1, p, z, r, c));
     }
 
 
@@ -1470,7 +1475,7 @@ static void flif16_decode_plane_inner_horizontal(FLIF16DecoderContext *s,
     }
     return true;
 }
-*/
+
 
 /*
 static void prepare_row(uint32_t row, int frame, const alpha_t *a, const alpha_t *pY)
@@ -1481,7 +1486,7 @@ static void prepare_row(uint32_t row, int frame, const alpha_t *a, const alpha_t
     planeY = pY;
 }
 */
-/*
+
 static int flif16_read_image_inner_vertical(FLIF16DecoderContext *s,
                                             int begin_zl, int end_zl, uint8_t plane,
                                             int i, int z, int predictor, int invisible_predictor)
@@ -1507,6 +1512,7 @@ static int flif16_read_image_inner_vertical(FLIF16DecoderContext *s,
     return true;
 }
 
+/*
 // todo put whole function inside of flif16_read_image
 static int flif16_read_image_inner(FLIF16DecoderContext *s, int begin_zl, int end_zl)
 {
@@ -1609,12 +1615,25 @@ static int flif16_read_image_inner(FLIF16DecoderContext *s, int begin_zl, int en
         }
     return 0;
 }
+*/
 
 static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
     int temp;
     int minR;
+
+    uint8_t nump = s->num_planes;
+    // Replace with ctx vars
+    int quality = options.quality; // TODO put in ctx
+    int scale = options.scale;// TODO put in ctx
+    uint8_t default_order;// TODO put in ctx
+    int p;// TODO put in ctx
+    int zl_first, zl_second;// TODO put in ctx
+    int z;// TODO put in ctx
+
+    int the_predictor[5] = {0};
+    int breakpoints = options.show_breakpoints; 
 
     if (begin_zl == s->zooms && end_zl > 0) {
         switch (s->segment) {
@@ -1638,16 +1657,95 @@ static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
                          minR = ff_flif16_ranges_min(s->range, p);
                          RAC_GET(&s->rc, NULL, minR, ff_flif16_ranges_max(s->range, p) - minR,
                                  &temp, FLIF16_RAC_UNI_INT);
-                         ff_flif16_pixel_set(CTX(s), s->out_frames, p, 0, 0, 0, temp);
+                         ff_flif16_pixel_set(CTX_CAST(s), s->out_frames, p, 0, 0, 0, temp);
                          // Add support for zoomlevel pixel set(ter).
                     }
                 }
                 ++s->segment;
 
             case 3:
-                if (ret = flif16_read_image_inner(s))
-                    goto error;
-                
+                s->zoomlevels = av_malloc(nump * sizeof(*s->zoomlevels));
+                memset(s->zoomlevels, begin_zl, nump);
+                ++s->segment;
+
+            case 4:
+                RAC_GET(rc, NULL, 0, 1, &default_order, FLIF16_RAC_UNI_INT8);
+                ++s->segment;
+
+            case 5:
+                for (int p = 0; p < nump; p++)
+                    RAC_GET(s->rc, NULL, -1, MAX_PREDICTORS + 1, &s->predictors[p], FLIF16_RAC_UNI_INT32);
+                ++s->segment;
+
+                for (int i = 0; i < plane_zoomlevels(nump, begin_zl, end_zl); i++) {
+                    if (default_order) {
+                        plane_zoomlevel(images[0], begin_zl, end_zl, i, ranges, &zl_first, &zl_second);
+                        p = zl_first;
+                        // assert(zoomlevels[p] == pzl.second);
+                    } else {
+                        // p = metaCoder.read_int(0, nump-1);
+            case 6:
+                        RAC_GET(rc, NULL, 0, nump - 1, &p, FLIF16_RAC_UNI_INT32);
+                        //if (nump > 3 && images[0].alpha_zero_special && p < 3 && zoomlevels[p] <= zoomlevels[3]) {
+                        //    e_printf("Corrupt file: non-alpha encoded before alpha, while invisible pixels have undefined RGB values. Not allowed.\n");
+                        //    return false;
+                        //}
+                        //if (nump > 4 && p < 4 && zoomlevels[p] <= zoomlevels[4]) {
+                        //    e_printf("Corrupt file: pixels encoded before frame lookback. Not allowed.\n");
+                        //    return false;
+                        //}
+                    }
+                    int z = zoomlevels[p];
+                    if (z < 0) {
+                        e_printf("Corrupt file: invalid plane/zoomlevel\n");
+                        return false;
+                    }
+                    //if (100 * pixels_done > quality * pixels_todo && endZL == 0) {
+                    //    v_printf(5,"%lu subpixels done, %lu subpixels todo, quality target %i%% reached (%i%%)\n",(long unsigned)pixels_done,(long unsigned)pixels_todo,(int)quality,(int)(100*pixels_done/pixels_todo));
+                    //    flif_decode_FLIF2_inner_interpol(images, ranges, p, endZL, -1, scale, zoomlevels, transforms);
+                    //    return false;
+                    //}
+                    if (ff_flif16_ranges_min(p) < ff_flif16_ranges_max(p)) {
+                        int predictor;
+                        if (the_predictor[p] < 0)
+                            predictor = metaCoder.read_int(0, MAX_PREDICTOR);
+                        else
+                            predictor = the_predictor[p];
+                        //if (1<<(z/2) < breakpoints) {
+                        //    v_printf(1,"1:%i scale: %li bytes\n",breakpoints,io.ftell());
+                        //    breakpoints /= 2;
+                        //    options.show_breakpoints = breakpoints;
+                        //    if (options.no_full_decode && breakpoints < 2)
+                        //        return false;
+                        //}
+                        //if (1 << (z / 2) < scale) {
+                        //    v_printf(5,"%lu subpixels done (out of %lu subpixels at this scale), scale target 1:%i reached\n",(long unsigned)pixels_done,(long unsigned)pixels_todo,scale);
+                        //    flif_decode_FLIF2_inner_interpol(images, ranges, p, endZL, -1, scale, zoomlevels, transforms);
+                        //    return false;
+                        //}
+                        //v_printf_tty((endZL==0?2:10),"\r%i%% done [%i/%i] DEC[%i,%ux%u]  ",(int)(100*pixels_done/pixels_todo),i,plane_zoomlevels(images[0], beginZL, endZL)-1,p,images[0].cols(z),images[0].rows(z));
+                        for (Image& image : images) {
+                            image.getPlane(p).prepare_zoomlevel(z);
+                        }
+                        if (p>0) for (Image& image : images) {
+                                image.getPlane(0).prepare_zoomlevel(z);
+                            }
+                        if (p<3 && nump>3) for (Image& image : images) {
+                                image.getPlane(3).prepare_zoomlevel(z);
+                            }
+
+                        // ConstantPlane null_alpha(1);
+                        // GeneralPlane &alpha = nump > 3 ? images[0].getPlane(3) : null_alpha;
+            case 7:
+                        if (!(z % 2)) {
+                            if (!flif_decode_FLIF2_inner_horizontal<IO,Rac,Coder,Plane<ColorVal_intern_8>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
+                        } else {
+                            if (!flif_decode_FLIF2_inner_vertical<IO,Rac,Coder,Plane<ColorVal_intern_16u>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
+                        }
+                        s->zoomlevels[p]--;
+                    } else
+                        s->zoomlevels[p]--;
+                }
         }
     } else {
         ret = AVERROR(EINVAL);
@@ -1733,7 +1831,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j) = \
-                    ff_flif16_pixel_get(CTX(s), &s->out_frames[s->out_frames_count], 0, i, j);
+                    PIXEL_GET(s, s->out_frames_count, 0, i, j);
                 }
             }
             break;
@@ -1743,13 +1841,13 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] * 3 + j * 3 + 0 ) = \
-                    ff_flif16_pixel_get(CTX(s), &s->out_frames[s->out_frames_count], 0, i, j);
+                    PIXEL_GET(s, s->out_frames_count, 0, i, j);
                     //printf("%d ", i * p->linesize[0] * 3 + j * 3);
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] * 3 + j * 3 + 1) = \
-                    ff_flif16_pixel_get(CTX(s), &s->out_frames[s->out_frames_count], 1, i, j);
+                    PIXEL_GET(s, s->out_frames_count, 1, i, j);
                     //printf("%d ", i * p->linesize[0] * 3+ j * 3 + 1);
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] * 3 + j * 3 + 2) = \
-                    ff_flif16_pixel_get(CTX(s), &s->out_frames[s->out_frames_count], 2, i, j);
+                    PIXEL_GET(s, s->out_frames_count, 2, i, j);
                     //printf("%d \n", i * p->linesize[0] * 3 + j * 3 + 2);
 
                     //for(uint32_t k = 0; k < s->width * s->height * 3; ++k)
@@ -1831,7 +1929,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
                         for(int k = 0; k < s->num_planes; ++k) {
                             for(int j = 0; j < s->height; ++j) {
                                 for(int i = 0; i < s->width; ++i) {
-                                    printf("%d ", ff_flif16_pixel_get(CTX(s), &s->out_frames[0], k, j, i));
+                                    printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[0], k, j, i));
                                 }
                                 printf("\n");
                             }
@@ -1875,7 +1973,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
         for(int k = 0; k < s->num_planes; ++k) {
             for(int j = 0; j < s->height; ++j) {
                 for(int i = 0; i < s->width; ++i) {
-                    printf("%d ", ff_flif16_pixel_get(CTX(s), &s->out_frames[0], k, j, i));
+                    printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[0], k, j, i));
                 }
                 printf("\n");
             }
