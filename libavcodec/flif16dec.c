@@ -1616,7 +1616,7 @@ static int flif16_read_image_inner(FLIF16DecoderContext *s, int begin_zl, int en
     return 0;
 }
 */
-
+/*
 static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
