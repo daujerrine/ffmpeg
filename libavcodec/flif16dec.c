@@ -936,7 +936,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  * Interlaced plane decoding
  * ============================================================================
  */
-
+/*
 // TODO combine these 2 funcs
 static inline ColorVal flif16_predict_horizontal(FLIF16Context *ctx, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, uint32_t rows, const int predictor)
 {
@@ -1310,13 +1310,13 @@ static void flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
     }
 }
 
-static void flif_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
-                                                 FLIF16RangesContext *ranges,
-                                                 // PlaneY, alpha
-                                                 FLIF16FLIF16ColorVal *properties,
-                                                 int plane, int z, uint32_t fr, uint32_t r,
-                                                 uint8_t alphazero, uint8_t lookback,
-                                                 int predictor, int invisible_predictor)
+static void flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
+                                                   FLIF16RangesContext *ranges,
+                                                   // PlaneY, alpha
+                                                   FLIF16FLIF16ColorVal *properties,
+                                                   int plane, int z, uint32_t fr, uint32_t r,
+                                                   uint8_t alphazero, uint8_t lookback,
+                                                  int predictor, int invisible_predictor)
 {
     FLIF16ColorVal min,max;
     uint32_t begin = 1, end = ZOOM_WIDTH(s->width, z);
@@ -1475,7 +1475,7 @@ static void flif16_decode_plane_inner_horizontal(FLIF16DecoderContext *s,
     }
     return true;
 }
-
+*/
 
 /*
 static void prepare_row(uint32_t row, int frame, const alpha_t *a, const alpha_t *pY)
@@ -1486,7 +1486,7 @@ static void prepare_row(uint32_t row, int frame, const alpha_t *a, const alpha_t
     planeY = pY;
 }
 */
-
+/*
 static int flif16_read_image_inner_vertical(FLIF16DecoderContext *s,
                                             int begin_zl, int end_zl, uint8_t plane,
                                             int i, int z, int predictor, int invisible_predictor)
@@ -1511,7 +1511,7 @@ static int flif16_read_image_inner_vertical(FLIF16DecoderContext *s,
 
     return true;
 }
-
+*/
 /*
 // todo put whole function inside of flif16_read_image
 static int flif16_read_image_inner(FLIF16DecoderContext *s, int begin_zl, int end_zl)
@@ -1631,7 +1631,8 @@ static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
     int p;// TODO put in ctx
     int zl_first, zl_second;// TODO put in ctx
     int z;// TODO put in ctx
-
+    // TODO replace constant_alpha
+    uint8_t alpha_plane = (s->num_planes > 3 && s->out_frames[0].constant_alpha) ? 3 : 0;
     int the_predictor[5] = {0};
     int breakpoints = options.show_breakpoints; 
 
@@ -1724,29 +1725,52 @@ static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
                         //    return false;
                         //}
                         //v_printf_tty((endZL==0?2:10),"\r%i%% done [%i/%i] DEC[%i,%ux%u]  ",(int)(100*pixels_done/pixels_todo),i,plane_zoomlevels(images[0], beginZL, endZL)-1,p,images[0].cols(z),images[0].rows(z));
-                        for (Image& image : images) {
-                            image.getPlane(p).prepare_zoomlevel(z);
-                        }
-                        if (p>0) for (Image& image : images) {
-                                image.getPlane(0).prepare_zoomlevel(z);
-                            }
-                        if (p<3 && nump>3) for (Image& image : images) {
-                                image.getPlane(3).prepare_zoomlevel(z);
-                            }
 
+                        //\for (Image& image : images) {
+                        //\    image.getPlane(p).prepare_zoomlevel(z);
+                        //\}
+                        //\if (p>0) for (Image& image : images) {
+                        //\        image.getPlane(0).prepare_zoomlevel(z);
+                        //\}
+                        //\if (p<3 && nump>3) for (Image& image : images) {
+                        //\        image.getPlane(3).prepare_zoomlevel(z);
+                        //\}
+                        for(int i = 0; i < s->num_frames; ++i) {
+                            ff_flif16_prepare_zoomlevel(s, &s->out_frames[fr], p, z);
+                            if (p > 0)
+                                ff_flif16_prepare_zoomlevel(s, &s->out_frames[fr], 0, z);
+                            if (p < 3 && s->num_planes > 3)
+                                ff_flif16_prepare_zoomlevel(s, &s->out_frames[fr], 3, z);
+                        }
                         // ConstantPlane null_alpha(1);
                         // GeneralPlane &alpha = nump > 3 ? images[0].getPlane(3) : null_alpha;
+                        s->properties = av_mallocz((s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
+                                                                      : properties_rgb_size[s->curr_plane]) 
+                                                                      * sizeof(*s->properties));
+                        
             case 7:
                         if (!(z % 2)) {
-                            if (!flif_decode_FLIF2_inner_horizontal<IO,Rac,Coder,Plane<ColorVal_intern_8>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
+                            for (uint32_t r = 1; r < ZOOM_HEIGHT(s->height, z); r += 2) {
+                                for (int fr = 0; fr < s->num_frames; fr++) {
+                                    flif_decode_plane_zoomlevel_horizontal
+                                }
+                            }
                         } else {
-                            if (!flif_decode_FLIF2_inner_vertical<IO,Rac,Coder,Plane<ColorVal_intern_16u>,ranges_t>(p,io, rac, coders, images, ranges, beginZL, endZL, quality, scale, i, z, predictor, zoomlevels, transforms, options.invisible_predictor)) return false;
+                            for (uint32_t r = 1; r < ZOOM_HEIGHT(s->height, z); r++) {
+                                for (int fr = 0; fr < s->num_frames; fr++) {
+                                    flif_decode_plane_zoomlevel_vertical
+                                }
+                            }
                         }
+
+                        
                         s->zoomlevels[p]--;
                     } else
                         s->zoomlevels[p]--;
-                }
-        }
+
+                    av_freep(&s->properties);
+                } // End For
+        } // End Switch
     } else {
         ret = AVERROR(EINVAL);
         goto error;
