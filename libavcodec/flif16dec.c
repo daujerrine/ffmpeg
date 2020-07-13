@@ -1666,11 +1666,10 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
-    int roughZL;
     printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
-    else {/*
+    /*else {
         switch (s->i) {
             case 0:
                 s->i++;
@@ -1681,8 +1680,8 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
 
             case 2:
             ret = flif16_read_image(avctx, s->zooms, roughZL+1
-        }*/
-    }
+        }
+    }*/
 
     if(!ret)
         s->state = FLIF16_OUTPUT;
