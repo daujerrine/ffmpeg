@@ -187,7 +187,7 @@ static ColorValCB_list *ff_insert_colorbucket(ColorValCB_list *list,
     for(int i = 1; i < pos; i++){
         temp = temp->next;
     }
-    elem->data = val;
+    av_assert0(temp);
     elem->next = temp->next;
     temp->next = elem;
 
@@ -282,7 +282,7 @@ static uint8_t ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c){
         cb->values = av_mallocz((cb->max - cb->min + 1) * sizeof(*cb->values));
         for(FLIF16ColorVal x = cb->min; x <= cb->max; x++){
             if(x != c){
-                ff_insert_colorbucket(cb->values, cb->values_size, x);
+                cb->values = ff_insert_colorbucket(cb->values, cb->values_size, x);
                 cb->values_size++;
             }
         }
@@ -997,7 +997,7 @@ FLIF16Ranges* flif16_ranges[] = {
     &flif16_ranges_static,                // FLIF16_RANGES_STATIC,
     &flif16_ranges_palettealpha,          // FLIF16_RANGES_PALETTEALPHA,
     &flif16_ranges_palette,               // FLIF16_RANGES_PALETTE,
-    NULL,                                 // FLIF16_RANGES_COLORBUCKETS,
+    &flif16_ranges_colorbuckets,          // FLIF16_RANGES_COLORBUCKETS,
     NULL,                                 // FLIF16_RANGES_DUPLICATEFRAME,
     NULL,                                 // FLIF16_RANGES_FRAMESHAPE,
     NULL,                                 // FLIF16_RANGES_FRAMELOOKBACK,
@@ -2026,17 +2026,20 @@ static int8_t transform_colorbuckets_init(FLIF16TransformContext *ctx,
     (ff_flif16_ranges_min(src_ctx, 1) == ff_flif16_ranges_max(src_ctx, 1)))
         return 0;
     
-    length = ((ff_flif16_ranges_max(src_ctx, 0) - cb->min0)/CB0b + 1);
-    temp = ((ff_flif16_ranges_max(src_ctx, 1) - cb->min1)/CB1 + 1);
-    
     cb = av_mallocz(sizeof(*cb));
     
     ff_init_bucket_default(&cb->bucket0);
     cb->min0 = ff_flif16_ranges_min(src_ctx, 0);
     cb->min1 = ff_flif16_ranges_min(src_ctx, 1);
+
+    length = ((ff_flif16_ranges_max(src_ctx, 0) - cb->min0)/CB0b + 1);
+    temp = ((ff_flif16_ranges_max(src_ctx, 1) - cb->min1)/CB1 + 1);
+
     cb->bucket1 = av_mallocz(((ff_flif16_ranges_max(src_ctx, 0)
                                    - cb->min0)/CB0a + 1)
                                    * sizeof(*cb->bucket1));
+    cb->bucket1_size = ((ff_flif16_ranges_max(src_ctx, 0)
+                                   - cb->min0)/CB0a + 1);
     cb->bucket2 = av_mallocz(length * sizeof(*cb->bucket2));
     cb->bucket2_size = length;
     for(int i = 0; i < length; i++){
@@ -2216,6 +2219,7 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                                           pixelL, pixelU,
                                           &cb->smin, &cb->smax);
             RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
+            printf("exists : %d\n", exists);
             if(exists == 0){
                 goto end; // empty bucket
             }
@@ -2229,10 +2233,12 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
 
         case 2:
             RAC_GET(rc, &chancectx[1], cb->smin, cb->smax, &b->min, FLIF16_RAC_GNZ_INT);
+            printf("min : %d\n", b->min);
             cb->i++;
             
         case 3:
             RAC_GET(rc, &chancectx[2], b->min, cb->smax, &b->max, FLIF16_RAC_GNZ_INT);
+            printf("max : %d\n", b->max);
             if(b->min == b->max){
                 b->discrete = 0;
                 goto end;
@@ -2245,6 +2251,7 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
 
         case 4:
             RAC_GET(rc, &chancectx[3], 0, 1, &b->discrete, FLIF16_RAC_GNZ_INT);
+            printf("discrete : %d\n", b->discrete);
             cb->i++;
 
         case 5:
@@ -2252,7 +2259,8 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                 RAC_GET(rc, &chancectx[4], 2, 
                         FFMIN(max_per_colorbucket[plane], b->max - b->min),
                         &cb->nb, FLIF16_RAC_GNZ_INT);
-                ff_insert_colorbucket(b->values, 0, b->min);
+                printf("nb : %d\n", cb->nb);
+                b->values = ff_insert_colorbucket(b->values, 0, b->min);
                 cb->v = b->min;
                 cb->i++;
 
@@ -2261,12 +2269,13 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                     RAC_GET(rc, &chancectx[5], cb->v + 1,
                             b->max + 1 - cb->nb + cb->i2, &temp,
                             FLIF16_RAC_GNZ_INT);
-                    ff_insert_colorbucket(b->values, cb->i2, temp);
+                    printf("temp : %d\n", temp);
+                    b->values = ff_insert_colorbucket(b->values, cb->i2, temp);
                     cb->v = ff_colorbucket_at(b->values, cb->i2);
                 }
 
                 if(b->min < b->max){
-                    ff_insert_colorbucket(b->values, cb->nb - 1, b->max);
+                    b->values = ff_insert_colorbucket(b->values, cb->nb - 1, b->max);
                     b->values_size = cb->nb;
                     goto end;
                 }
@@ -2294,6 +2303,7 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
 
     switch(data->i){
         case 0:
+            printf("ColorBuckets Read\n");
             ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket0, cb,
                                  src_ctx, 0, data->pixelL, data->pixelU);
             if(!ret)
@@ -2321,7 +2331,7 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
                 data->pixelU[1] = cb->min1 + CB1 - 1;
                 for(; data->j < cb->bucket2_size; data->j++){
                     data->pixelL[1] = cb->min1;
-                    data->pixelU[1] = cb->min1+CB1-1;
+                    data->pixelU[1] = cb->min1 + CB1 - 1;
                     data->i++;
 
                     for (; data->k < cb->bucket2_list_size; data->k++){
@@ -2442,14 +2452,14 @@ FLIF16Transform flif16_transform_colorbuckets = {
 FLIF16Transform *flif16_transforms[13] = {
     &flif16_transform_channelcompact,
     &flif16_transform_ycocg,
-    NULL, // FLIF16_TRANSFORM_RESERVED1,
+    NULL, // RESERVED,
     &flif16_transform_permuteplanes,
     &flif16_transform_bounds,
     &flif16_transform_palettealpha,
     &flif16_transform_palette,
-    NULL, // FLIF16_TRANSFORM_COLORBUCKETS,
-    NULL, // FLIF16_TRANSFORM_RESERVED2,
-    NULL, // FLIF16_TRANSFORM_RESERVED3,
+    &flif16_transform_colorbuckets,
+    NULL, // RESERVED,
+    NULL, // RESERVED,
     NULL, // FLIF16_TRANSFORM_DUPLICATEFRAME,
     NULL, // FLIF16_TRANSFORM_FRAMESHAPE,
     NULL  // FLIF16_TRANSFORM_FRAMELOOKBACK
