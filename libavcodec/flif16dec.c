@@ -936,7 +936,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  * Interlaced plane decoding
  * ============================================================================
  */
-
+/*
 // TODO combine these 2 funcs
 static inline FLIF16ColorVal flif16_predict_horizontal(FLIF16Context *s, FLIF16PixelData *frame, int z, int p, uint32_t r, uint32_t c, uint32_t rows, const int predictor)
 {
@@ -1627,7 +1627,7 @@ static int flif16_read_image(AVCodecContext *avctx, int begin_zl, int end_zl) {
     need_more_data:
     printf("[%s] Error return", __func__);
     return ret;
-}
+}*/
 
 static int flif16_read_pixeldata(AVCodecContext *avctx)
 {
