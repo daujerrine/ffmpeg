@@ -2363,6 +2363,11 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
         return AVERROR(EAGAIN);
 }
 
+static void transform_colorbuckets_close(FLIF16TransformContext *ctx){
+    transform_priv_colorbuckets *data = ctx->priv_data;
+    av_free(data->cb);
+}
+
 FLIF16Transform flif16_transform_channelcompact = {
     .priv_data_size = sizeof(transform_priv_channelcompact),
     .init           = &transform_channelcompact_init,
@@ -2428,10 +2433,10 @@ FLIF16Transform flif16_transform_colorbuckets = {
     .priv_data_size = sizeof(transform_priv_colorbuckets),
     .init           = &transform_colorbuckets_init,
     .read           = &transform_colorbuckets_read,
-    .meta           = &transform_colorbuckets_meta
-    //.forward
-    //.reverse        = &transform_colorbuckets_reverse,
-    //.close          = &transform_colorbuckets_close
+    .meta           = &transform_colorbuckets_meta,
+    .forward        = NULL,
+    .reverse        = NULL,
+    .close          = &transform_colorbuckets_close
 };
 
 FLIF16Transform *flif16_transforms[13] = {
