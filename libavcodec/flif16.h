@@ -249,4 +249,15 @@ static inline void ff_flif16_copy_rows(FLIF16Context *s,
     }
 }
 
+static inline void ff_flif16_copy_rows_stride(FLIF16Context *s,
+                                              FLIF16PixelData *dest,
+                                              FLIF16PixelData *src, uint8_t plane,
+                                              uint32_t row, uint32_t col_start,
+                                              uint32_t col_end, uint32_t stride)
+{
+    for(uint32_t col = col_start; col < col_end; col += stride) {
+        //printf("[%s] col_start = %u col_end = %u plane = %u row = %u\n", __func__, col_start, col_end, plane, row);
+        ff_flif16_pixel_set(s, dest, plane, row, col, ff_flif16_pixel_get(s, src, plane, row, col));
+    }
+}
 #endif /* AVCODEC_FLIF16_H */
