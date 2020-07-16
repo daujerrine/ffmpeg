@@ -936,6 +936,15 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 /* ============================================================================
  * Interlaced plane decoding
  * ============================================================================
+ *
+ * This is how the data is organised here:
+ * 1. uni_int: rough_zoomlevel
+ * 2. (repeat num_planes times) values of top left pixels of each channel
+ * 3. Rough Pixeldata max_zoomlevel to rough_zoomlevel + 1
+ *    For this case, the MANIAC forest is initialised with a single node per
+ *    channel. This is nused with the maniac integer reader.
+ * 4. Actual Encoded MANIAC trees
+ * 5. Rest of the pixeldata rough_zoomlevel to 0
  */
 
 // TODO combine these 2 funcs
