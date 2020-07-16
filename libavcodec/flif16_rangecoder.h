@@ -419,7 +419,7 @@ static inline void ff_flif16_chancetable_put(FLIF16RangeCoder *rc,
                                              FLIF16ChanceContext *ctx,
                                              uint16_t type, uint8_t bit)
 {
-    //printf("put: type = %d chance = %d\n", type, ctx->data[type]);
+    printf("put: type = %d chance = %d\n", type, ctx->data[type]);
     if(ctx->data[type] >= 4096)
         printf("type: %u data: %u\n", type, ctx->data[type]);
     ctx->data[type] = (!bit) ? rc->ct.zero_state[ctx->data[type]]
