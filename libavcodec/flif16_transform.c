@@ -313,6 +313,7 @@ static FLIF16ColorVal ff_snap_color_slow(ColorBucket *cb, const FLIF16ColorVal c
         }
         return ff_colorbucket_at(cb->values, best);
     }
+    printf("returning same c\n");
     return c;
 }
 
@@ -2040,6 +2041,7 @@ static int8_t transform_colorbuckets_init(FLIF16TransformContext *ctx,
                                    * sizeof(*cb->bucket1));
     cb->bucket1_size = ((ff_flif16_ranges_max(src_ctx, 0)
                                    - cb->min0)/CB0a + 1);
+    printf("bucket1_size = %d\n", cb->bucket1_size);                               
     cb->bucket2 = av_mallocz(length * sizeof(*cb->bucket2));
     cb->bucket2_size = length;
     for(int i = 0; i < length; i++){
@@ -2109,6 +2111,9 @@ static FLIF16RangesContext* transform_colorbuckets_meta(FLIF16Context *ctx,
     r_ctx->priv_data = data;
     r_ctx->num_planes = src_ctx->num_planes;
 
+    printf("buckets.min0 : %d\n", data->buckets->min0);
+    printf("buckets.min1 : %d\n", data->buckets->min1);
+
     return r_ctx;
 }
 
@@ -2120,7 +2125,9 @@ static void transform_colorbuckets_minmax(FLIF16RangesContext *src_ctx,
                                           FLIF16ColorVal *smax)
 {
     FLIF16ColorVal rmin, rmax;
-    FLIF16ColorVal *pixel = lower;
+    FLIF16ColorVal pixel[2];
+    pixel[0] = lower[0];
+    pixel[1] = lower[1];
     *smin = 10000;
     *smax = -10000;
     if(p == 0){
@@ -2156,19 +2163,27 @@ static uint8_t ff_colorbuckets_exists2(ColorBuckets *cb, const int p,
 {
     FLIF16ColorVal rmin, rmax, v;
     ColorBucket *b;
-    if (p > 0 && (pp[0] < cb->min0 || pp[0] > ff_flif16_ranges_max(cb->ranges, 0)))
+    if (p > 0 && (pp[0] < cb->min0 || pp[0] > ff_flif16_ranges_max(cb->ranges, 0))){
+        //printf("here\n");
         return 0;
-    if (p > 1 && (pp[1] < cb->min1 || pp[1] > ff_flif16_ranges_max(cb->ranges, 1)))
+    }
+    if (p > 1 && (pp[1] < cb->min1 || pp[1] > ff_flif16_ranges_max(cb->ranges, 1))){
+        //printf("here\n");
         return 0;
+    }
 
     v = pp[p];
     ff_flif16_ranges_snap(cb->ranges, p, pp, &rmin, &rmax, &v);
-    if (v != pp[p])
+    if (v != pp[p]){
+        //printf("v != pp[p]\n");
         return 0;
+    }
 
     b = ff_bucket_buckets(cb, p, pp);
-    if (ff_snap_color_slow(b, pp[p]) != pp[p])
+    if (ff_snap_color_slow(b, pp[p]) != pp[p]){
+        //printf("here2\n");
         return 0;
+    }
     
     return 1;
 }
@@ -2177,15 +2192,22 @@ static uint8_t ff_colorbuckets_exists(ColorBuckets *cb,
                                const int p, FLIF16ColorVal *lower,
                                FLIF16ColorVal *upper)
 {
-    FLIF16ColorVal *pixel = lower;
+    FLIF16ColorVal pixel[2];
+    pixel[0] = lower[0];
+    pixel[1] = lower[1];
+    //printf("lower[0] : %d & upper[0] : %d\n", lower[0], upper[0]);
+    //printf("lower[1] : %d & upper[1] : %d\n", lower[1], upper[1]);
     if(p == 0){
-        for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++)
+        for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++){
+            //printf("In the loop p = 0\n");
             if(ff_colorbuckets_exists2(cb, p, pixel))
                 return 1;
+        }
     }
     if(p == 1){
         for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++) {
             for(pixel[1] = lower[1]; pixel[1] <= upper[1]; pixel[1]++) {
+                //printf("In the loop p = 1\n");
                 if(ff_colorbuckets_exists2(cb, p, pixel))
                     return 1;
             }
@@ -2210,16 +2232,20 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
         case 0:
             if(plane < 3)
             for(int p = 0; p < plane; p++) {
-                if (!ff_colorbuckets_exists(cb, p, pixelL, pixelU))
+                if (!ff_colorbuckets_exists(cb, p, pixelL, pixelU)){
+                    //printf("colorbuckets exist false\n");
                     goto end;
+                }
             }
+            cb->i = 1;
 
         case 1:
             transform_colorbuckets_minmax(src_ctx, plane,
                                           pixelL, pixelU,
                                           &cb->smin, &cb->smax);
+            //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
-            printf("exists : %d\n", exists);
+            //printf("exists : %d\n", exists);
             if(exists == 0){
                 goto end; // empty bucket
             }
@@ -2229,16 +2255,18 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                 b->discrete = 0;
                 goto end;
             }
-            cb->i++;
+            cb->i = 2;
 
         case 2:
+            //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             RAC_GET(rc, &chancectx[1], cb->smin, cb->smax, &b->min, FLIF16_RAC_GNZ_INT);
-            printf("min : %d\n", b->min);
-            cb->i++;
+            //printf("min : %d\n", b->min);
+            cb->i = 3;
             
         case 3:
+            //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             RAC_GET(rc, &chancectx[2], b->min, cb->smax, &b->max, FLIF16_RAC_GNZ_INT);
-            printf("max : %d\n", b->max);
+            //printf("max : %d\n", b->max);
             if(b->min == b->max){
                 b->discrete = 0;
                 goto end;
@@ -2247,29 +2275,32 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                 b->discrete = 0;
                 goto end;
             }
-            cb->i++;
+            cb->i = 4;
 
         case 4:
+            //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             RAC_GET(rc, &chancectx[3], 0, 1, &b->discrete, FLIF16_RAC_GNZ_INT);
-            printf("discrete : %d\n", b->discrete);
-            cb->i++;
+            //printf("discrete : %d\n", b->discrete);
+            cb->i = 5;
 
         case 5:
             if(b->discrete){
+                //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 RAC_GET(rc, &chancectx[4], 2, 
                         FFMIN(max_per_colorbucket[plane], b->max - b->min),
                         &cb->nb, FLIF16_RAC_GNZ_INT);
-                printf("nb : %d\n", cb->nb);
+                //printf("nb : %d\n", cb->nb);
                 b->values = ff_insert_colorbucket(b->values, 0, b->min);
                 cb->v = b->min;
-                cb->i++;
+                cb->i = 6;
 
                 for(cb->i2 = 1; cb->i2 < cb->nb - 1; cb->i2++) {    
-        case 6:            
+        case 6:     
+                    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                     RAC_GET(rc, &chancectx[5], cb->v + 1,
                             b->max + 1 - cb->nb + cb->i2, &temp,
                             FLIF16_RAC_GNZ_INT);
-                    printf("temp : %d\n", temp);
+                    //printf("temp : %d\n", temp);
                     b->values = ff_insert_colorbucket(b->values, cb->i2, temp);
                     cb->v = ff_colorbucket_at(b->values, cb->i2);
                 }
@@ -2290,6 +2321,7 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
         return 1;
 
     need_more_data:
+        printf("need_more_data load_bucket\n");
         return AVERROR(EAGAIN);
 }
 
@@ -2304,21 +2336,28 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
     switch(data->i){
         case 0:
             printf("ColorBuckets Read\n");
+            //printf("bucket0 : \n");
+            //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket0, cb,
                                  src_ctx, 0, data->pixelL, data->pixelU);
             if(!ret)
                 goto need_more_data;
             data->pixelL[0] = (cb->min0);
-            data->pixelU[0] = (cb->min0 + CB0a - 1);
+            data->pixelU[0] = (cb->min0 + (int)CB0a - 1);
+            //printf("data->pixelL[0] : %d\n", data->pixelL[0]);
+            //printf("data->pixelU[0] : %d\n", data->pixelU[0]);
             data->i++;
 
             for(; data->j < cb->bucket1_size; data->j++){
         case 1:
+                //printf("bucket1[%d] : \n", data->j);
                 ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
                                      &cb->bucket1[data->j], cb,
                                      src_ctx, 1, data->pixelL, data->pixelU);
+                //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 if(!ret)
                     goto need_more_data;
+                //printf("data->pixelL[0] : %d\n", data->pixelL[0]);
                 data->pixelL[0] += CB0a;
                 data->pixelU[0] += CB0a;
             }
@@ -2336,9 +2375,11 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
 
                     for (; data->k < cb->bucket2_list_size; data->k++){
         case 2:
+                        //printf("bucket2[%d][%d] : \n", data->j, data->k);
                         ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
                                              &cb->bucket2[data->j][data->k], cb,
                                              src_ctx, 2, data->pixelL, data->pixelU);
+                        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                         if(!ret)
                             goto need_more_data;
                         data->pixelL[1] += CB1;
@@ -2353,9 +2394,11 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
             data->i++;
             
             if(src_ctx->num_planes > 3){
-        case 3:    
+        case 3:
+                //printf("bucket3 : \n");    
                 ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket3, cb,
                                      src_ctx, 3, data->pixelL, data->pixelU);
+                //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 if(!ret)
                     goto need_more_data;
             }
@@ -2370,6 +2413,7 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
         return 1;
 
     need_more_data:
+        printf("need_more_data buckets_read\n");
         return AVERROR(EAGAIN);
 }
 
