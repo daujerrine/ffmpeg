@@ -109,6 +109,7 @@ typedef struct FLIF16DecoderContext {
     // Size dynamically maybe
     FLIF16TransformContext *transforms[13];
     uint8_t transform_top;
+    uint8_t frameshape;
     FLIF16RangesContext *range; ///< The minimum and maximum values a
                                 ///  channel's pixels can take. Changes
                                 ///  depending on transformations applied
@@ -390,6 +391,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     FLIF16DecoderContext *s = avctx->priv_data;
     FLIF16RangesContext *prev_range;
     uint8_t temp;
+    int unique_frames;
 
     loop:
     switch (s->segment) {
@@ -412,7 +414,30 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             if(!s->transforms[s->transform_top])
                 return AVERROR(ENOMEM);
             if(temp == FLIF16_TRANSFORM_PALETTEALPHA)
-                ff_flif16_transform_configure(s->transforms[s->transform_top], s->alphazero);
+                ff_flif16_transform_configure(s->transforms[s->transform_top],
+                                              s->alphazero);
+            else if(temp == FLIF16_TRANSFORM_DUPLICATEFRAME){
+                if(s->out_frames_count < 2)
+                    return 0;
+                ff_flif16_transform_configure(s->transforms[s->transform_top],
+                                              s->out_frames_count);
+            }
+            else if(temp == FLIF16_TRANSFORM_FRAMESHAPE){
+                s->frameshape = 1;
+                if(s->out_frames_count < 2)
+                    return 0;
+                unique_frames = s->out_frames_count - 1;
+                for(unsigned int i = 0; i < s->out_frames_count; i++){
+                    if(s->out_frames[i].seen_before >= 0)
+                        unique_frames--;
+                }
+                if(unique_frames < 1)
+                    return 0;
+                ff_flif16_transform_configure(s->transforms[s->transform_top],
+                                              (unique_frames) * s->height);
+                ff_flif16_transform_configure(s->transforms[s->transform_top],
+                                              s->width);
+            }
             ++s->segment;
 
         case 2:

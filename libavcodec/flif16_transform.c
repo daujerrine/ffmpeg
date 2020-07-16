@@ -151,6 +151,21 @@ typedef struct transform_priv_colorbuckets{
     FLIF16ColorVal pixelL[2], pixelU[2];
 }transform_priv_colorbuckets;
 
+typedef struct transform_priv_framedup{
+    int *seen_before;
+    uint32_t nb;
+    FLIF16ChanceContext chancectx;
+    unsigned int i;
+}transform_priv_framedup;
+
+typedef struct transform_priv_frameshape{
+    int *b, *e;    // begin and end
+    uint32_t cols;
+    uint32_t nb;
+    FLIF16ChanceContext chancectx;
+    unsigned int i;
+}transform_priv_frameshape;
+
 typedef struct ranges_priv_ycocg {
     int origmax4;
     FLIF16RangesContext *r_ctx;
@@ -1930,7 +1945,7 @@ static int8_t transform_palettealpha_read(FLIF16TransformContext * ctx,
 }
 
 static void transform_palettealpha_configure(FLIF16TransformContext *ctx,
-                                      const int setting)
+                                             const int setting)
 {
     transform_priv_palettealpha *data = ctx->priv_data;
     data->alpha_zero_special = setting;
@@ -2293,8 +2308,9 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                 b->values = ff_insert_colorbucket(b->values, 0, b->min);
                 cb->v = b->min;
                 cb->i = 6;
+                cb->i2 = 1;
 
-                for(cb->i2 = 1; cb->i2 < cb->nb - 1; cb->i2++) {    
+                for(; cb->i2 < cb->nb - 1; cb->i2++) {    
         case 6:     
                     //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                     RAC_GET(rc, &chancectx[5], cb->v + 1,
@@ -2422,6 +2438,165 @@ static void transform_colorbuckets_close(FLIF16TransformContext *ctx){
     av_free(data->cb);
 }
 
+static int8_t transform_framedup_init(FLIF16TransformContext *ctx, 
+                                      FLIF16RangesContext* src_ctx)
+{
+    transform_priv_framedup *data = ctx->priv_data;
+    ff_flif16_chancecontext_init(&data->chancectx);
+    data->i = 0;
+
+    return 1;
+}
+
+static void transform_framedup_configure(FLIF16TransformContext *ctx,
+                                         const int setting){
+    transform_priv_framedup *data = ctx->priv_data;
+    data->nb = setting;
+}
+
+static int8_t transform_framedup_read(FLIF16TransformContext * ctx,
+                                      FLIF16Context *dec_ctx,
+                                      FLIF16RangesContext* src_ctx)
+{
+    transform_priv_framedup *data = ctx->priv_data;
+    
+    switch(ctx->i){
+        case 0:
+            printf("FrameDUP Read : \n");
+            data->seen_before = av_mallocz(data->nb * sizeof(*data->seen_before));
+            ctx->i = 1;
+
+        case 1:
+            for(; data->i < data->nb; data->i++){
+                RAC_GET(&dec_ctx->rc, &data->chancectx, -1, data->i - 1,
+                        &data->seen_before[data->i], FLIF16_RAC_NZ_INT);
+                printf("seen_before[%d] : %d\n", data->i, data->seen_before[data->i]);
+            }
+            data->i = 0;
+            goto end;
+    }
+
+    end:
+        ctx->i = 0;
+        return 1;
+
+    need_more_data:
+        return AVERROR(EAGAIN);
+}
+
+static FLIF16RangesContext* transform_framedup_meta(FLIF16Context *ctx,
+                                                    FLIF16PixelData *frame,
+                                                    uint32_t frame_count,
+                                                    FLIF16TransformContext* t_ctx,
+                                                    FLIF16RangesContext* src_ctx)
+{
+    transform_priv_framedup *data = t_ctx->priv_data;
+
+    for(unsigned int fr = 0; fr < frame_count; fr++){
+        frame->seen_before = data->seen_before[fr];
+    }
+
+    return src_ctx;
+}
+
+static void transform_framedup_close(FLIF16TransformContext *ctx){
+    transform_priv_framedup *data = ctx->priv_data;
+    av_free(data->seen_before);
+}
+
+static int8_t transform_frameshape_init(FLIF16TransformContext *ctx, 
+                                      FLIF16RangesContext* src_ctx)
+{
+    transform_priv_frameshape *data = ctx->priv_data;
+    ff_flif16_chancecontext_init(&data->chancectx);
+    data->i = 0;
+
+    return 1;
+}
+
+static void transform_frameshape_configure(FLIF16TransformContext *ctx,
+                                         const int setting){
+    transform_priv_frameshape *data = ctx->priv_data;
+    if(data->nb == 0)
+        data->nb = setting;
+    else
+        data->cols = setting;
+}
+
+static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
+                                      FLIF16Context *dec_ctx,
+                                      FLIF16RangesContext* src_ctx)
+{
+    transform_priv_frameshape *data = ctx->priv_data;
+    
+    switch(ctx->i){
+        case 0:
+            printf("FrameShape Read : \n");
+            ctx->i = 1;
+
+        case 1:
+            for(; data->i < data->nb; data->i++){
+                RAC_GET(&dec_ctx->rc, &data->chancectx, 0, data->cols,
+                        &data->b[data->i], FLIF16_RAC_NZ_INT);
+                printf("b[%d] : %d\n", data->i, data->b[data->i]);
+            }
+            ctx->i = 2;
+            data->i = 0;
+
+        case 2:
+            for(; data->i < data->nb; data->i++){
+                RAC_GET(&dec_ctx->rc, &data->chancectx, 0,
+                        data->cols - data->b[data->i],
+                        &data->e[data->i], FLIF16_RAC_NZ_INT);
+                if(   data->e[data->i] > data->cols
+                   || data->e[data->i] < data->b[data->i]
+                   || data->e[data->i] <= 0){
+                       return 0;
+                }
+                printf("e[%d] : %d\n", data->i, data->e[data->i]);
+            }
+            data->i = 0;
+            
+            goto end;
+    }
+
+    end:
+        ctx->i = 0;
+        return 1;
+
+    need_more_data:
+        return AVERROR(EAGAIN);
+}
+
+static FLIF16RangesContext* transform_frameshape_meta(FLIF16Context *ctx,
+                                                    FLIF16PixelData *frame,
+                                                    uint32_t frame_count,
+                                                    FLIF16TransformContext* t_ctx,
+                                                    FLIF16RangesContext* src_ctx)
+{
+    transform_priv_frameshape *data = t_ctx->priv_data;
+    uint32_t pos = 0;
+    
+    for(unsigned int fr = 0; fr < frame_count; fr++){
+        if(frame[fr].seen_before >= 0)
+            continue;
+        for(uint32_t r = 0; r < ctx->height; r++){
+            av_assert0(pos < data->nb);
+            frame[fr].col_begin[r] = data->b[pos];
+            frame[fr].col_end[r] = data->e[pos];
+            pos++;
+        }
+    }
+
+    return src_ctx;
+}
+
+static void transform_frameshape_close(FLIF16TransformContext *ctx){
+    transform_priv_frameshape *data = ctx->priv_data;
+    av_free(data->b);
+    av_free(data->e);
+}
+
 FLIF16Transform flif16_transform_channelcompact = {
     .priv_data_size = sizeof(transform_priv_channelcompact),
     .init           = &transform_channelcompact_init,
@@ -2493,6 +2668,28 @@ FLIF16Transform flif16_transform_colorbuckets = {
     .close          = &transform_colorbuckets_close
 };
 
+FLIF16Transform flif16_transform_framedup = {
+    .priv_data_size = sizeof(transform_priv_framedup),
+    .init           = &transform_framedup_init,
+    .read           = &transform_framedup_read,
+    .meta           = &transform_framedup_meta,
+    .configure      = &transform_framedup_configure,
+    .forward        = NULL,
+    .reverse        = NULL,
+    .close          = &transform_framedup_close
+};
+
+FLIF16Transform flif16_transform_frameshape = {
+    .priv_data_size = sizeof(transform_priv_frameshape),
+    .init           = &transform_frameshape_init,
+    .read           = &transform_frameshape_read,
+    .meta           = &transform_frameshape_meta,
+    .configure      = &transform_frameshape_configure,
+    .forward        = NULL,
+    .reverse        = NULL,
+    .close          = &transform_frameshape_close
+};
+
 FLIF16Transform *flif16_transforms[13] = {
     &flif16_transform_channelcompact,
     &flif16_transform_ycocg,
@@ -2504,8 +2701,8 @@ FLIF16Transform *flif16_transforms[13] = {
     &flif16_transform_colorbuckets,
     NULL, // RESERVED,
     NULL, // RESERVED,
-    NULL, // FLIF16_TRANSFORM_DUPLICATEFRAME,
-    NULL, // FLIF16_TRANSFORM_FRAMESHAPE,
+    &flif16_transform_framedup,
+    &flif16_transform_frameshape,
     NULL  // FLIF16_TRANSFORM_FRAMELOOKBACK
 };
 
