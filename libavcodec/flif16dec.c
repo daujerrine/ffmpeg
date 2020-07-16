@@ -1933,8 +1933,9 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
         av_freep(&s->prop_ranges);
     if (s->out_frames)
         ff_flif16_frames_free(s->out_frames, s->num_frames, s->num_planes);
-    if (s->range)
-        ff_flif16_ranges_close(s->range);
+    // TODO handle this
+    //if (s->range)
+    //    ff_flif16_ranges_close(s->range);
     return 0;
 }
 
