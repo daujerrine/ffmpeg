@@ -82,6 +82,8 @@ typedef struct FLIF16PixelData {
     uint8_t constant_alpha;  // Will Remove Shortly
     //uint8_t palette;       // Maybe this flag is not useful. Will delete it later
     int8_t seen_before;
+    uint32_t *col_begin;
+    uint32_t *col_end;
     int8_t scale;
     int s_r[MAX_PLANES];
     int s_c[MAX_PLANES];

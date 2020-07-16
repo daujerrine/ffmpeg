@@ -183,6 +183,8 @@ FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
         frames[i].seen_before = -1;
         frames[i].constant_alpha = constant_alpha;
         //frames[i].palette    = 0;
+        frames[i].col_begin = av_mallocz(height * sizeof(*frames->col_begin));
+        frames[i].col_end = av_mallocz(height * sizeof(*frames->col_end));
     }
     return frames;
 }
