@@ -56,7 +56,7 @@
 #define MULTISCALE_CHANCETABLE_DEFAULT_SIZE 6
 #define MULTISCALE_CHANCETABLE_DEFAULT_CUT  8
 
-#define MANIAC_TREE_BASE_SIZE 160
+#define MANIAC_TREE_BASE_SIZE 1600
 #define MANIAC_TREE_MIN_COUNT 1
 #define MANIAC_TREE_MAX_COUNT 512
 
@@ -218,12 +218,12 @@ typedef struct FLIF16MANIACStack {
 } FLIF16MANIACStack;
 
 typedef struct FLIF16MANIACNode {
-    int8_t property;
-    int16_t count;
+    int32_t property;
+    int32_t count;
     // typedef int32_t ColorVal;
     int32_t split_val;
-    uint32_t child_id;
-    uint32_t leaf_id;
+    int32_t child_id;
+    int32_t leaf_id;
     // probably safe to use only uint16
     //uint16_t childID;
     //uint16_t leafID;
@@ -419,7 +419,7 @@ static inline void ff_flif16_chancetable_put(FLIF16RangeCoder *rc,
                                              FLIF16ChanceContext *ctx,
                                              uint16_t type, uint8_t bit)
 {
-    printf("put: type = %d chance = %d\n", type, ctx->data[type]);
+    //printf("put: type = %d chance = %d\n", type, ctx->data[type]);
     if(ctx->data[type] >= 4096)
         printf("type: %u data: %u\n", type, ctx->data[type]);
     ctx->data[type] = (!bit) ? rc->ct.zero_state[ctx->data[type]]

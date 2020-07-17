@@ -43,7 +43,7 @@ int32_t  (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
     int mind = min - max, maxd = max - min;
     int32_t (*prop_ranges)[2];
     unsigned int top = 0;
-    unsigned int size = (((plane < 3) ? plane : 0) + 2 + 5) + (ranges->num_planes > 3);
+    unsigned int size = (((plane < 3) ? plane : 0) + 2 + 5) + ((plane < 3) && (ranges->num_planes > 3));
     *prop_ranges_size = size;
     prop_ranges = av_mallocz(sizeof(*prop_ranges) * size);
     printf("%u size: %u top: %u\n", __LINE__, size, top);

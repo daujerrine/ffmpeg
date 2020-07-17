@@ -219,9 +219,6 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
         
         case 1:
             start:
-            //for(unsigned int i = 0; i < prop_ranges_size; ++i)
-            //    printf("%u: (%d, %d) ", i, prop_ranges[i][0], prop_ranges[i][1]);
-            //printf("\n");
             if(!m->stack_top)
                 goto end;
 
@@ -230,18 +227,18 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             if (!m->stack[m->stack_top - 1].visited) {
                 switch (m->stack[m->stack_top - 1].mode) {
                     case 1:
-                        //printf("Right curr: %d pval: %u\n", m->stack[m->stack_top - 1].id, oldp);
+                        printf("Right curr: %d pval: %u\n", m->stack[m->stack_top - 1].id, oldp);
                         prop_ranges[oldp][0] = m->stack[m->stack_top - 1].min;
                         prop_ranges[oldp][1] = m->stack[m->stack_top - 1].max;
                         break;
 
                     case 2:
-                        //printf("Left curr: %d pval: %u\n", m->stack[m->stack_top - 1].id, oldp);
+                        printf("Left curr: %d pval: %u\n", m->stack[m->stack_top - 1].id, oldp);
                         prop_ranges[oldp][0] = m->stack[m->stack_top - 1].min;
                         break;
                 }
             } else {
-                //printf("Back curr: %d pval: %u\n", m->stack[m->stack_top - 1].id, oldp);
+                printf("Back curr: %d pval: %u\n", m->stack[m->stack_top - 1].id, oldp);
                 prop_ranges[oldp][1] = m->stack[m->stack_top - 1].max2;
                 --m->stack_top;
                 rc->segment2 = 1;
@@ -271,6 +268,8 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             p = --(m->forest[channel]->data[m->stack[m->stack_top - 1].id].property);
             if (p == -1) {
                 //printf(____PAD "leaf %d\n", m->stack[m->stack_top - 1].id);
+                printf("leaf: %d\n",
+                    m->stack[m->stack_top - 1].id);
                 --m->stack_top;
                 rc->segment2 = 1;
                 goto start;
@@ -281,6 +280,9 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             rc->oldmax = prop_ranges[p][1];
             //printf("rc->oldmin,rc->oldmax: %d %d %d %d\n",  rc->oldmin, rc->oldmax, prop_ranges[p][0],
             //      prop_ranges[p][1]);
+            for(unsigned int i = 0; i < prop_ranges_size; ++i)
+                    printf("%u: (%d, %d) ", i, prop_ranges[i][0], prop_ranges[i][1]);
+            printf("\n");
             if (rc->oldmin >= rc->oldmax) {
                 printf("!!! rc->oldmin >= rc->oldmax\n");
                 return AVERROR(EINVAL);
@@ -334,12 +336,14 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
 
         case 5:
             // \npos\tprop\tcount\tsplitv\tchild\trc->oldmin\trc->oldmax\n"
-            /*printf("%u\t%d\t%d\t%d\t%u\t%d\t%d\n",
+            //if (m->forest[channel]->data[640].split_val == 84721)
+            //    printf(">>>>>>>>>>>>>>>>>split_val changed");
+            printf("%u\t%d\t%d\t%d\t%u\t%d\t%d\n",
             m->stack[m->stack_top - 1].id,
             m->forest[channel]->data[m->stack[m->stack_top - 1].id].property,
             m->forest[channel]->data[m->stack[m->stack_top - 1].id].count,
             m->forest[channel]->data[m->stack[m->stack_top - 1].id].split_val,
-            m->forest[channel]->data[m->stack[m->stack_top - 1].id].child_id, rc->oldmin, rc->oldmax);*/
+            m->forest[channel]->data[m->stack[m->stack_top - 1].id].child_id, rc->oldmin, rc->oldmax);
             if ((m->tree_top + 2) >= m->forest[channel]->size) {
                 m->forest[channel]->data = av_realloc(m->forest[channel]->data,
                 (m->forest[channel]->size) * 2 * sizeof(*(m->forest[channel]->data)));
