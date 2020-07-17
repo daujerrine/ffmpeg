@@ -24,6 +24,8 @@
  * GIF demuxer.
  */
 
+#include <stdio.h>
+
 #include "avformat.h"
 #include "libavutil/bprint.h"
 #include "libavutil/intreadwrite.h"
@@ -377,8 +379,10 @@ resync:
             && (gdc->total_iter < 0 || ++gdc->iter_count < gdc->total_iter))
             return avio_seek(pb, 0, SEEK_SET);
         return AVERROR_EOF;
-    } else
+    } else {
+        printf("Returning: %d\n", ret);
         return ret;
+    }
 }
 
 static const AVOption options[] = {
