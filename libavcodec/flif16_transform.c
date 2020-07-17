@@ -29,11 +29,7 @@
 #include "libavutil/common.h"
 
 
-// Transform private structs
-
-typedef struct ranges_priv_channelcompact {
-    int nb_colors[4];
-} ranges_priv_channelcompact;
+// Transform private structs and internal functions
 
 typedef struct transform_priv_ycocg {
     int origmax4;
@@ -166,6 +162,20 @@ typedef struct transform_priv_frameshape{
     unsigned int i;
 }transform_priv_frameshape;
 
+typedef struct transform_priv_framecombine{
+    uint8_t was_flat;
+    uint8_t was_greyscale;
+    int max_lookback;
+    int user_max_lookback;
+    int nb_frames;
+
+    FLIF16ChanceContext chancectx;
+}transform_priv_framecombine;
+
+typedef struct ranges_priv_channelcompact {
+    int nb_colors[4];
+} ranges_priv_channelcompact;
+
 typedef struct ranges_priv_ycocg {
     int origmax4;
     FLIF16RangesContext *r_ctx;
@@ -186,169 +196,17 @@ typedef struct ranges_priv_palette{
     FLIF16RangesContext *r_ctx;
 }ranges_priv_palette;
 
-static ColorValCB_list *ff_insert_colorbucket(ColorValCB_list *list,
-                                              unsigned int pos, 
-                                              ColorValCB val)
-{
-    ColorValCB_list *temp = list;
-    ColorValCB_list *elem = av_mallocz(sizeof(*elem));
-    elem->data = val;
-    
-    if(pos == 0){
-        elem->next = temp;
-        return elem;
-    }
-
-    for(int i = 1; i < pos; i++){
-        temp = temp->next;
-    }
-    av_assert0(temp);
-    elem->next = temp->next;
-    temp->next = elem;
-
-    return list;
-}
-
-static ColorValCB_list *ff_remove_colorbucket(ColorValCB_list *list,
-                                              unsigned int pos)
-{
-    ColorValCB_list *temp = list, *temp1;
-    if(pos == 0){
-        temp = list->next;
-        av_free(list);
-        return temp;
-    }
-
-    for(int i = 1; i < pos; i++){
-        temp = temp->next;
-    }
-    temp1 = temp->next;
-    temp->next = temp1->next;
-    av_free(temp1);
-
-    return list;
-}
-
-static ColorValCB ff_colorbucket_at(ColorValCB_list *list, unsigned int pos)
-{
-    ColorValCB_list *temp = list;
-    for(int i = 0; i < pos; i++){
-        temp = temp->next;
-    }
-    return temp->data;
-}
-
-/*
-void ff_add_color(ColorBucket *cb, const FLIF16ColorVal c, const unsigned int max_per_bucket)
-{
-    if(c < cb->min)
-        cb->min = c;
-    if(c > cb->max)
-        cb->max = c;
-    if(cb->discrete){
-        unsigned int pos = 0;
-        for(; pos < cb->values_size; pos++){
-            if(c == ff_colorbucket_at(cb->values, pos))
-                return;
-            if(ff_colorbucket_at(cb->values, pos) > c)
-                break;
-        }
-        if(cb->values_size < max_per_bucket){
-            cb->values = ff_insert_colorbucket(cb->values, pos, c);
-            cb->values_size++;
-        }
-    }
-}
-*/
-
-static uint8_t ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c){
-    if(cb->discrete){
-        unsigned int pos = 0;
-        for(; pos < cb->values_size; pos++){
-            if(c == ff_colorbucket_at(cb->values, pos)){
-                cb->values = ff_remove_colorbucket(cb->values, pos);
-                cb->values_size--;
-                break;
-            }
-        }
-        if(cb->values_size == 0){
-            cb->min = 10000;
-            cb->max = -10000;
-            return 1;
-        }
-        av_assert0(cb->values_size > 0);
-        if(c == cb->min)
-            cb->min = ff_colorbucket_at(cb->values, 0);
-        if(c == cb->max)
-            cb->max = ff_colorbucket_at(cb->values, cb->values_size-1);
-    }
-    else{
-        if(c == cb->min)
-            cb->min++;
-        if(c == cb->max)
-            cb->max--;
-        if(c > cb->max)
-            return 1;
-        if(c < cb->min)
-            return 1;
-        cb->discrete = 1;
-        av_freep(&cb->values);
-        cb->values_size = 0;
-        cb->values = av_mallocz((cb->max - cb->min + 1) * sizeof(*cb->values));
-        for(FLIF16ColorVal x = cb->min; x <= cb->max; x++){
-            if(x != c){
-                cb->values = ff_insert_colorbucket(cb->values, cb->values_size, x);
-                cb->values_size++;
-            }
-        }
-    }
-    return 1;
-}
-
-static FLIF16ColorVal ff_snap_color_slow(ColorBucket *cb, const FLIF16ColorVal c)
-{
-    FLIF16ColorVal diff;
-    if(c <= cb->min)
-        return cb->min;
-    if(c >= cb->max)
-        return cb->max;
-    if(cb->discrete){
-        FLIF16ColorVal mindiff = abs(c - cb->min);
-        unsigned int best = 0;
-        for(unsigned int i = 1; i < cb->values_size; i++){
-            if(c == ff_colorbucket_at(cb->values, i))
-                return c;
-            diff = abs(c - ff_colorbucket_at(cb->values, i));
-            if(diff < mindiff){
-                best = i;
-                mindiff = diff;
-            }
-            if(ff_colorbucket_at(cb->values, i) > c)
-                break;
-        }
-        return ff_colorbucket_at(cb->values, best);
-    }
-    printf("returning same c\n");
-    return c;
-}
-
-static void ff_prepare_snapvalues(ColorBucket *cb){
-    int i = 0;
-    if(cb->discrete){
-        av_freep(&cb->snapvalues);
-        cb->snapvalues = av_mallocz((cb->max - cb->min) * sizeof(*cb->snapvalues));
-        cb->snapvalues_size = cb->max - cb->min;
-        for(FLIF16ColorVal c = cb->min; c < cb->max; c++){
-            cb->snapvalues[i] = ff_snap_color_slow(cb, c);
-            i++;
-        }
-    }
-}
-
 typedef struct ranges_priv_colorbuckets{
     FLIF16RangesContext *r_ctx;
     ColorBuckets *buckets;
 }ranges_priv_colorbuckets;
+
+typedef struct ranges_priv_framecombine{
+    FLIF16ColorVal numPrevFrames;
+    FLIF16ColorVal alpha_min;
+    FLIF16ColorVal alpha_max;
+    FLIF16RangesContext *ranges;
+}ranges_priv_framecombine;
 
 typedef struct ranges_priv_static {
     FLIF16ColorVal (*bounds)[2];
@@ -402,7 +260,7 @@ static void ff_static_snap(FLIF16RangesContext *src_ctx , const int p,
 {
     //printf("static_snap\n");
     //printf("s1 %d %d %d\n", *minv, *maxv, *v);
-    ff_flif16_ranges_minmax(src_ctx, p, prev_planes, minv, maxv);
+    ff_static_minmax(src_ctx, p, prev_planes, minv, maxv);
     //printf("s2 %d %d %d\n",*minv, *maxv, *v);
     if(*minv > *maxv)
         *maxv = *minv;
@@ -806,6 +664,10 @@ static void ff_palettealpha_minmax(FLIF16RangesContext* r_ctx,
         ff_flif16_ranges_minmax(data->r_ctx, p, prev_planes, minv, maxv);
 }
 
+/*
+ * ColorBuckets
+ */
+
 // quantization constants
 #define CB0a 1
 #define CB0b 1
@@ -914,6 +776,67 @@ static void ff_colorbuckets_minmax(FLIF16RangesContext* r_ctx,
     }
 }
 
+static void ff_colorbuckets_close(FLIF16RangesContext *r_ctx){
+    ranges_priv_colorbuckets *data = r_ctx->priv_data;
+    flif16_ranges[data->r_ctx->r_no]->close(data->r_ctx);
+    av_free(data->buckets);
+}
+
+static FLIF16ColorVal ff_framecombine_min(FLIF16RangesContext *r_ctx, int p)
+{
+    ranges_priv_framecombine *data = r_ctx->priv_data;
+    if(p < 3)
+        return ff_flif16_ranges_min(data->ranges, p);
+    else if(p == 3)
+        return data->alpha_min;
+    else
+        return 0;
+}
+
+static FLIF16ColorVal ff_framecombine_max(FLIF16RangesContext *r_ctx, int p)
+{
+    ranges_priv_framecombine *data = r_ctx->priv_data;
+    if(p < 3)
+        return ff_flif16_ranges_max(data->ranges, p);
+    else if(p == 3)
+        return data->alpha_max;
+    else
+        return data->numPrevFrames;
+}
+
+static void ff_framecombine_minmax(FLIF16RangesContext* r_ctx, 
+                                   int p, FLIF16ColorVal* prev_planes,
+                                   FLIF16ColorVal* minv, FLIF16ColorVal* maxv)
+{
+    ranges_priv_framecombine *data= r_ctx->priv_data;
+    if(p >= 3){
+        *minv = ff_framecombine_min(r_ctx, p);
+        *maxv = ff_framecombine_max(r_ctx, p);
+    }
+    else
+        ff_flif16_ranges_minmax(data->ranges, p, prev_planes, minv, maxv);
+}                                   
+
+static void ff_framecombine_snap(FLIF16RangesContext *src_ctx,
+                                          const int p,
+                                          FLIF16ColorVal *prev_planes,
+                                          FLIF16ColorVal *minv,
+                                          FLIF16ColorVal *maxv, 
+                                          FLIF16ColorVal *v)
+{
+    ranges_priv_framecombine *data = src_ctx->priv_data;
+    FLIF16RangesContext *r_ctx;    //Deliberately not allocated any memory
+    if(p >= 3)
+        ff_static_snap(r_ctx, p, prev_planes, minv, maxv, v);
+    else
+        ff_flif16_ranges_snap(data->ranges, p, prev_planes, minv, maxv, v);
+}
+
+static void ff_framecombine_close(FLIF16RangesContext *r_ctx){
+    ranges_priv_framecombine *data = r_ctx->priv_data;
+    flif16_ranges[data->ranges->r_no]->close(data->ranges);
+}
+
 FLIF16Ranges flif16_ranges_static = {
     .priv_data_size = sizeof(ranges_priv_static),
     .min            = &ff_static_min,
@@ -1001,7 +924,17 @@ FLIF16Ranges flif16_ranges_colorbuckets = {
     .minmax         = &ff_colorbuckets_minmax,
     .snap           = &ff_colorbuckets_snap,
     .is_static      = 0,
-    //.close          = &ff_colorbuckets_close 
+    .close          = &ff_colorbuckets_close 
+};
+
+FLIF16Ranges flif16_ranges_framecombine = {
+    .priv_data_size = sizeof(ranges_priv_framecombine),
+    .min            = &ff_framecombine_min,
+    .max            = &ff_framecombine_max,
+    .minmax         = &ff_framecombine_minmax,
+    .snap           = &ff_framecombine_snap,
+    .is_static      = 0,
+    .close          = &ff_framecombine_close 
 };
 
 FLIF16Ranges* flif16_ranges[] = {
@@ -2016,6 +1949,225 @@ static void transform_palettealpha_close(FLIF16TransformContext *ctx){
  * ColorBuckets
  */
 
+
+static ColorValCB_list *ff_insert_colorbucket(ColorValCB_list *list,
+                                              unsigned int pos, 
+                                              ColorValCB val)
+{
+    ColorValCB_list *temp = list;
+    ColorValCB_list *elem = av_mallocz(sizeof(*elem));
+    elem->data = val;
+    
+    if(pos == 0){
+        elem->next = temp;
+        return elem;
+    }
+
+    for(int i = 1; i < pos; i++){
+        temp = temp->next;
+    }
+    av_assert0(temp);
+    elem->next = temp->next;
+    temp->next = elem;
+
+    return list;
+}
+
+static ColorValCB_list *ff_remove_colorbucket(ColorValCB_list *list,
+                                              unsigned int pos)
+{
+    ColorValCB_list *temp = list, *temp1;
+    if(pos == 0){
+        temp = list->next;
+        av_free(list);
+        return temp;
+    }
+
+    for(int i = 1; i < pos; i++){
+        temp = temp->next;
+    }
+    temp1 = temp->next;
+    temp->next = temp1->next;
+    av_free(temp1);
+
+    return list;
+}
+
+static ColorValCB ff_colorbucket_at(ColorValCB_list *list, unsigned int pos)
+{
+    ColorValCB_list *temp = list;
+    for(int i = 0; i < pos; i++){
+        temp = temp->next;
+    }
+    return temp->data;
+}
+
+/*
+void ff_add_color(ColorBucket *cb, const FLIF16ColorVal c, const unsigned int max_per_bucket)
+{
+    if(c < cb->min)
+        cb->min = c;
+    if(c > cb->max)
+        cb->max = c;
+    if(cb->discrete){
+        unsigned int pos = 0;
+        for(; pos < cb->values_size; pos++){
+            if(c == ff_colorbucket_at(cb->values, pos))
+                return;
+            if(ff_colorbucket_at(cb->values, pos) > c)
+                break;
+        }
+        if(cb->values_size < max_per_bucket){
+            cb->values = ff_insert_colorbucket(cb->values, pos, c);
+            cb->values_size++;
+        }
+    }
+}
+*/
+
+static uint8_t ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c){
+    if(cb->discrete){
+        unsigned int pos = 0;
+        for(; pos < cb->values_size; pos++){
+            if(c == ff_colorbucket_at(cb->values, pos)){
+                cb->values = ff_remove_colorbucket(cb->values, pos);
+                cb->values_size--;
+                break;
+            }
+        }
+        if(cb->values_size == 0){
+            cb->min = 10000;
+            cb->max = -10000;
+            return 1;
+        }
+        av_assert0(cb->values_size > 0);
+        if(c == cb->min)
+            cb->min = ff_colorbucket_at(cb->values, 0);
+        if(c == cb->max)
+            cb->max = ff_colorbucket_at(cb->values, cb->values_size-1);
+    }
+    else{
+        if(c == cb->min)
+            cb->min++;
+        if(c == cb->max)
+            cb->max--;
+        if(c > cb->max)
+            return 1;
+        if(c < cb->min)
+            return 1;
+        cb->discrete = 1;
+        av_freep(&cb->values);
+        cb->values_size = 0;
+        cb->values = av_mallocz((cb->max - cb->min + 1) * sizeof(*cb->values));
+        for(FLIF16ColorVal x = cb->min; x <= cb->max; x++){
+            if(x != c){
+                cb->values = ff_insert_colorbucket(cb->values, cb->values_size, x);
+                cb->values_size++;
+            }
+        }
+    }
+    return 1;
+}
+
+static FLIF16ColorVal ff_snap_color_slow(ColorBucket *cb, const FLIF16ColorVal c)
+{
+    FLIF16ColorVal diff;
+    if(c <= cb->min)
+        return cb->min;
+    if(c >= cb->max)
+        return cb->max;
+    if(cb->discrete){
+        FLIF16ColorVal mindiff = abs(c - cb->min);
+        unsigned int best = 0;
+        for(unsigned int i = 1; i < cb->values_size; i++){
+            if(c == ff_colorbucket_at(cb->values, i))
+                return c;
+            diff = abs(c - ff_colorbucket_at(cb->values, i));
+            if(diff < mindiff){
+                best = i;
+                mindiff = diff;
+            }
+            if(ff_colorbucket_at(cb->values, i) > c)
+                break;
+        }
+        return ff_colorbucket_at(cb->values, best);
+    }
+    printf("returning same c\n");
+    return c;
+}
+
+static void ff_prepare_snapvalues(ColorBucket *cb){
+    int i = 0;
+    if(cb->discrete){
+        av_freep(&cb->snapvalues);
+        cb->snapvalues = av_mallocz((cb->max - cb->min) * sizeof(*cb->snapvalues));
+        cb->snapvalues_size = cb->max - cb->min;
+        for(FLIF16ColorVal c = cb->min; c < cb->max; c++){
+            cb->snapvalues[i] = ff_snap_color_slow(cb, c);
+            i++;
+        }
+    }
+}
+
+
+static uint8_t ff_colorbuckets_exists2(ColorBuckets *cb, const int p,
+                                       FLIF16ColorVal *pp)
+{
+    FLIF16ColorVal rmin, rmax, v;
+    ColorBucket *b;
+    if (p > 0 && (pp[0] < cb->min0 || pp[0] > ff_flif16_ranges_max(cb->ranges, 0))){
+        //printf("here\n");
+        return 0;
+    }
+    if (p > 1 && (pp[1] < cb->min1 || pp[1] > ff_flif16_ranges_max(cb->ranges, 1))){
+        //printf("here\n");
+        return 0;
+    }
+
+    v = pp[p];
+    ff_flif16_ranges_snap(cb->ranges, p, pp, &rmin, &rmax, &v);
+    if (v != pp[p]){
+        //printf("v != pp[p]\n");
+        return 0;
+    }
+
+    b = ff_bucket_buckets(cb, p, pp);
+    if (ff_snap_color_slow(b, pp[p]) != pp[p]){
+        //printf("here2\n");
+        return 0;
+    }
+    
+    return 1;
+}
+
+static uint8_t ff_colorbuckets_exists(ColorBuckets *cb,
+                               const int p, FLIF16ColorVal *lower,
+                               FLIF16ColorVal *upper)
+{
+    FLIF16ColorVal pixel[2];
+    pixel[0] = lower[0];
+    pixel[1] = lower[1];
+    //printf("lower[0] : %d & upper[0] : %d\n", lower[0], upper[0]);
+    //printf("lower[1] : %d & upper[1] : %d\n", lower[1], upper[1]);
+    if(p == 0){
+        for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++){
+            //printf("In the loop p = 0\n");
+            if(ff_colorbuckets_exists2(cb, p, pixel))
+                return 1;
+        }
+    }
+    if(p == 1){
+        for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++) {
+            for(pixel[1] = lower[1]; pixel[1] <= upper[1]; pixel[1]++) {
+                //printf("In the loop p = 1\n");
+                if(ff_colorbuckets_exists2(cb, p, pixel))
+                    return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 static int8_t transform_colorbuckets_init(FLIF16TransformContext *ctx,
                                           FLIF16RangesContext *src_ctx)
 {
@@ -2171,64 +2323,6 @@ static void transform_colorbuckets_minmax(FLIF16RangesContext *src_ctx,
     else if(p == 3){
         ff_flif16_ranges_minmax(src_ctx, p, pixel, smin, smax);
     }
-}
-
-static uint8_t ff_colorbuckets_exists2(ColorBuckets *cb, const int p,
-                                       FLIF16ColorVal *pp)
-{
-    FLIF16ColorVal rmin, rmax, v;
-    ColorBucket *b;
-    if (p > 0 && (pp[0] < cb->min0 || pp[0] > ff_flif16_ranges_max(cb->ranges, 0))){
-        //printf("here\n");
-        return 0;
-    }
-    if (p > 1 && (pp[1] < cb->min1 || pp[1] > ff_flif16_ranges_max(cb->ranges, 1))){
-        //printf("here\n");
-        return 0;
-    }
-
-    v = pp[p];
-    ff_flif16_ranges_snap(cb->ranges, p, pp, &rmin, &rmax, &v);
-    if (v != pp[p]){
-        //printf("v != pp[p]\n");
-        return 0;
-    }
-
-    b = ff_bucket_buckets(cb, p, pp);
-    if (ff_snap_color_slow(b, pp[p]) != pp[p]){
-        //printf("here2\n");
-        return 0;
-    }
-    
-    return 1;
-}
-
-static uint8_t ff_colorbuckets_exists(ColorBuckets *cb,
-                               const int p, FLIF16ColorVal *lower,
-                               FLIF16ColorVal *upper)
-{
-    FLIF16ColorVal pixel[2];
-    pixel[0] = lower[0];
-    pixel[1] = lower[1];
-    //printf("lower[0] : %d & upper[0] : %d\n", lower[0], upper[0]);
-    //printf("lower[1] : %d & upper[1] : %d\n", lower[1], upper[1]);
-    if(p == 0){
-        for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++){
-            //printf("In the loop p = 0\n");
-            if(ff_colorbuckets_exists2(cb, p, pixel))
-                return 1;
-        }
-    }
-    if(p == 1){
-        for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++) {
-            for(pixel[1] = lower[1]; pixel[1] <= upper[1]; pixel[1]++) {
-                //printf("In the loop p = 1\n");
-                if(ff_colorbuckets_exists2(cb, p, pixel))
-                    return 1;
-            }
-        }
-    }
-    return 0;
 }
 
 const unsigned int max_per_colorbucket[] = {255, 510, 5, 255};
@@ -2597,6 +2691,79 @@ static void transform_frameshape_close(FLIF16TransformContext *ctx){
     av_free(data->e);
 }
 
+static int8_t transform_framecombine_init(FLIF16TransformContext *ctx, 
+                                      FLIF16RangesContext* src_ctx)
+{
+    transform_priv_framecombine *data = ctx->priv_data;
+    ff_flif16_chancecontext_init(&data->chancectx);
+
+    return 1;
+}
+
+static void transform_framecombine_configure(FLIF16TransformContext *ctx,
+                                         const int setting){
+    transform_priv_framecombine *data = ctx->priv_data;
+    data->user_max_lookback = data->nb_frames = setting;
+}
+
+static int8_t transform_framecombine_read(FLIF16TransformContext * ctx,
+                                      FLIF16Context *dec_ctx,
+                                      FLIF16RangesContext* src_ctx)
+{
+    transform_priv_framecombine *data = ctx->priv_data;
+    
+    switch(ctx->i){
+        case 0:
+            printf("FrameShape Read : \n");
+            if(src_ctx->num_planes > 4)
+                return 0;
+            ctx->i = 1;
+
+        case 1:
+            RAC_GET(&dec_ctx->rc, &data->chancectx, 1, data->nb_frames = 1,
+                        &data->max_lookback, FLIF16_RAC_GNZ_INT);
+            printf("max_lookback : %d\n", data->max_lookback);
+            goto end;
+    }
+
+    end:
+        ctx->i = 0;
+        return 1;
+
+    need_more_data:
+        return AVERROR(EAGAIN);
+}
+
+static FLIF16RangesContext* transform_framecombine_meta(FLIF16Context *ctx,
+                                                    FLIF16PixelData *frame,
+                                                    uint32_t frame_count,
+                                                    FLIF16TransformContext* t_ctx,
+                                                    FLIF16RangesContext* src_ctx)
+{
+    transform_priv_framecombine *data = t_ctx->priv_data;
+    FLIF16RangesContext *ranges = av_mallocz(sizeof(*ranges));
+    ranges_priv_framecombine *rdata = av_mallocz(sizeof(*rdata));
+    int lookback;
+    av_assert0(data->max_lookback < frame_count);
+    data->was_greyscale = (src_ctx->num_planes < 2);
+    data->was_flat = (src_ctx->num_planes < 4);
+
+    lookback = frame_count - 1;
+    if(lookback > data->max_lookback)
+        lookback = data->max_lookback;
+
+    ranges->r_no = FLIF16_RANGES_FRAMELOOKBACK;
+    ranges->num_planes = 5;
+    ranges->priv_data = rdata;
+
+    rdata->numPrevFrames = lookback;
+    rdata->alpha_min = (src_ctx->num_planes == 4 ? ff_flif16_ranges_min(src_ctx, 3) : 1);
+    rdata->alpha_max = (src_ctx->num_planes == 4 ? ff_flif16_ranges_max(src_ctx, 3) : 1);
+    rdata->ranges = src_ctx;
+    
+    return ranges;
+}
+
 FLIF16Transform flif16_transform_channelcompact = {
     .priv_data_size = sizeof(transform_priv_channelcompact),
     .init           = &transform_channelcompact_init,
@@ -2688,6 +2855,17 @@ FLIF16Transform flif16_transform_frameshape = {
     .forward        = NULL,
     .reverse        = NULL,
     .close          = &transform_frameshape_close
+};
+
+FLIF16Transform flif16_transform_framecombine = {
+    .priv_data_size = sizeof(transform_priv_framecombine),
+    .init           = &transform_framecombine_init,
+    .read           = &transform_framecombine_read,
+    .meta           = &transform_framecombine_meta,
+    .configure      = &transform_framecombine_configure,
+    //.forward        = &transform_framecombine_forward,
+    //.reverse        = &transform_framecombine_reverse,
+    .close          = NULL
 };
 
 FLIF16Transform *flif16_transforms[13] = {
