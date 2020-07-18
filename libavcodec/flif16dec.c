@@ -438,6 +438,12 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->width);
             }
+            else if(temp == FLIF16_TRANSFORM_FRAMELOOKBACK){
+                if(s->out_frames_count < 2)
+                    return 0;
+                ff_flif16_transform_configure(s->transforms[s->transform_top],
+                                              s->out_frames_count);
+            }
             ++s->segment;
 
         case 2:
