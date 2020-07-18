@@ -2208,7 +2208,7 @@ static int8_t transform_colorbuckets_init(FLIF16TransformContext *ctx,
                                    * sizeof(*cb->bucket1));
     cb->bucket1_size = ((ff_flif16_ranges_max(src_ctx, 0)
                                    - cb->min0)/CB0a + 1);
-    printf("bucket1_size = %d\n", cb->bucket1_size);                               
+    //printf("bucket1_size = %d\n", cb->bucket1_size);                               
     cb->bucket2 = av_mallocz(length * sizeof(*cb->bucket2));
     cb->bucket2_size = length;
     for(int i = 0; i < length; i++){
@@ -2221,6 +2221,7 @@ static int8_t transform_colorbuckets_init(FLIF16TransformContext *ctx,
 
     cb->ranges = src_ctx;
     data->cb = cb;
+    data->i = 0;
     
     return 1;
 }
@@ -2450,13 +2451,13 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
             //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket0, cb,
                                  src_ctx, 0, data->pixelL, data->pixelU);
-            if(!ret)
+            if(ret <= 0)
                 goto need_more_data;
             data->pixelL[0] = (cb->min0);
             data->pixelU[0] = (cb->min0 + (int)CB0a - 1);
             //printf("data->pixelL[0] : %d\n", data->pixelL[0]);
             //printf("data->pixelU[0] : %d\n", data->pixelU[0]);
-            data->i++;
+            data->i = 1;
 
             for(; data->j < cb->bucket1_size; data->j++){
         case 1:
@@ -2465,7 +2466,7 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
                                      &cb->bucket1[data->j], cb,
                                      src_ctx, 1, data->pixelL, data->pixelU);
                 //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                if(!ret)
+                if(ret <= 0)
                     goto need_more_data;
                 //printf("data->pixelL[0] : %d\n", data->pixelL[0]);
                 data->pixelL[0] += CB0a;
@@ -2481,7 +2482,7 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
                 for(; data->j < cb->bucket2_size; data->j++){
                     data->pixelL[1] = cb->min1;
                     data->pixelU[1] = cb->min1 + CB1 - 1;
-                    data->i++;
+                    data->i = 2;
 
                     for (; data->k < cb->bucket2_list_size; data->k++){
         case 2:
@@ -2490,7 +2491,7 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
                                              &cb->bucket2[data->j][data->k], cb,
                                              src_ctx, 2, data->pixelL, data->pixelU);
                         //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                        if(!ret)
+                        if(ret <= 0)
                             goto need_more_data;
                         data->pixelL[1] += CB1;
                         data->pixelU[1] += CB1;
@@ -2501,15 +2502,15 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
                 }
                 data->j = 0;
             }
-            data->i++;
+            data->i = 3;
             
             if(src_ctx->num_planes > 3){
         case 3:
-                //printf("bucket3 : \n");    
+                //printf("bucket3 : \n");
                 ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket3, cb,
                                      src_ctx, 3, data->pixelL, data->pixelU);
                 //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                if(!ret)
+                if(ret <= 0)
                     goto need_more_data;
             }
                 
