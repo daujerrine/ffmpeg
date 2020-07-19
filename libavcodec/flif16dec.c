@@ -592,8 +592,9 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
               ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c-1) : (r > 0 ? top : left));
     gradientTL = left + top - topleft;
     guess = MEDIAN3(gradientTL, left, top);
-
+    printf("g %d\n", guess); 
     ff_flif16_ranges_snap(ranges_ctx, p, properties, min, max, &guess);
+    printf("g %d\n", guess); 
     printf("min = %d max = %d\n", *min, *max);
     /*assert(min >= ff_flif16_ranges_min(ranges_ctx, p));
     assert(max <= ff_flif16_ranges_max(ranges_ctx, p));
@@ -646,8 +647,8 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
         properties[index++] = 0;
     }
 
-    //for(int i = 0; i < properties_ni_rgb_size[p]; ++i)
-    //    printf("%d ", properties[i]);
+    for(int i = 0; i < properties_ni_rgb_size[p]; ++i)
+        printf("%d ", properties[i]);
     printf("\n");
     printf("psl fallback = %d left = %d top = %d topleft = %d gradienttl = %d guess = %d\n", fallback, left, top, topleft, gradientTL, guess);
     printf("p = %u r = %u c = %u min = %d max = %d\n", p, r, c, *min, *max);
@@ -688,7 +689,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
             }
             // if this is not the first or only frame, fill the beginning of the row
             // before the actual pixel data
-            printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+            // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             if (fr > 0) {
                 //if alphazero is on, fill with a predicted value, otherwise
                 // copy pixels from the previous frame
@@ -723,7 +724,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     continue;
                 }
                 printf("<a> 1\n");
-                printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
+                // printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
                 s->guess = flif16_ni_predict_calcprops(s, &s->out_frames[fr],
                            properties, ranges_ctx, p, r, s->c, &s->min, &s->max, minP, 0);
                 // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
@@ -749,7 +750,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 }
                 printf("<a> 3\n");
                 // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
+                // printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
                 s->guess = flif16_ni_predict_calcprops(s, &s->out_frames[fr],
                            properties, ranges_ctx, p, r, s->c, &s->min, &s->max, minP, 1);
         case 2:
@@ -773,7 +774,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     continue;
                 }
                printf("<a> 5\n");
-               printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
+               // printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
                s->guess = flif16_ni_predict_calcprops(s, &s->out_frames[fr],
                           properties, ranges_ctx, p, r, s->c, &s->min, &s->max, minP, 0);
         case 3:
@@ -811,7 +812,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     }
                     //calculate properties and use them to decode the next pixel
                     printf("<> 1\n");
-                    printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
+                    // printf("%d %d %d %d %d %d\n", p, r, s->c, s->min, s->max, minP);
                     s->guess = flif16_ni_predict_calcprops(s, &s->out_frames[fr], properties,
                                                            ranges_ctx, p, r, s->c, &s->min,
                                                            &s->max, minP, 0);
