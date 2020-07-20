@@ -114,7 +114,7 @@ static int flif16_read_header(AVFormatContext *s)
         vlist[2] += 2;
 
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-
+    /*
     while ((temp = avio_r8(pb)) != 0) {
         printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         // Get metadata identifier
@@ -137,7 +137,7 @@ static int flif16_read_header(AVFormatContext *s)
             avio_seek(pb, metadata_size, SEEK_CUR);
         #endif
     }
-    
+    */
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
     avpriv_set_pts_info(st, 64, 1, 1000);

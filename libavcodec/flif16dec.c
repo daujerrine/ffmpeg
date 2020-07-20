@@ -1778,7 +1778,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
             break;
 
         case AV_PIX_FMT_RGB24:
-            s->final_out_frame->linesize[0] = s->width * 3;
+            //s->final_out_frame->linesize[0] = s->width * 3;
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j * 3 + 0 ) = \
