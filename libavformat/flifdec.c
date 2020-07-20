@@ -92,11 +92,10 @@ static int flif16_read_header(AVFormatContext *s)
 
     st = avformat_new_stream(s, NULL);
     flag = avio_r8(pb) >> 4;
-
+    temp = avio_r8(pb); ;// Bytes per channel
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
-    for (int i = 0; i < 2 + ((flag > 4) ? 1 : 0); ++i) {
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    for (int i = 0; i < (2 + ((flag > 4) ? 1 : 0)); ++i) {
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
                 return AVERROR_INVALIDDATA;
@@ -112,10 +111,13 @@ static int flif16_read_header(AVFormatContext *s)
     ++vlist[1];
     if (flag > 4)
         vlist[2] += 2;
-
+    else
+        vlist[2] = 1;
+    printf("%d %d %d\n", vlist[0], vlist[1], vlist[2]);
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-    /*
-    while ((temp = avio_r8(pb)) != 0) {
+
+    while ((temp = avio_r8(pb))) {
+        printf("??? %x\n", temp);
         printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         // Get metadata identifier
         tag[0] = temp;
@@ -137,7 +139,7 @@ static int flif16_read_header(AVFormatContext *s)
             avio_seek(pb, metadata_size, SEEK_CUR);
         #endif
     }
-    */
+
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
     avpriv_set_pts_info(st, 64, 1, 1000);
