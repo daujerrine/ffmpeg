@@ -1966,6 +1966,7 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
         ff_flif16_transforms_close(s->transforms[i]);
 
     ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes);
+    av_frame_free(&s->final_out_frame);
 
     // TODO handle this
     //if (s->range)
