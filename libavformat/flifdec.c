@@ -38,13 +38,79 @@
 #include <zlib.h>
 #endif
 
+#define METADATA_BUF_SIZE 4096
+
+typedef struct FLIFDemuxContext {
+    z_stream stream;
+    uint8_t active;
+} FLIFDemuxContext;
+
+
+
+static int flif_inflate(FLIFDemuxContext *s, unsigned char *buf, int buf_size,
+                        unsigned char *out_buf, int *out_buf_size)
+{
+    int flush, ret;
+    z_stream *stream = &s->stream;
+
+    if (!s->active) {
+        s->active = 1;
+        stream->zalloc   = Z_NULL;
+        stream->zfree    = Z_NULL;
+        stream->opaque   = Z_NULL;
+        stream->avail_in = buf_size;
+        stream->next_in  = Z_NULL;
+        ret   = inflateInit(stream);
+
+        if (ret != Z_OK)
+        return ret;
+
+        if (stream->avail_in == 0) {
+            (void) inflateEnd(stream);
+            return AVERROR(ENOMEM);
+        }
+    }
+
+    stream->next_in  = buf;
+    stream->avail_in = buf_size;
+
+    *out_buf_size = buf_size + *out_buf_size + 1;
+    out_buf = av_realloc(out_buf, *out_buf_size);
+
+    if (!out_buf)
+        return AVERROR(ENOMEM);
+
+    stream->next_out  = out_buf;
+    stream->avail_out = buf_size - 1; // Last byte should be NULL char
+
+    ret = inflate(stream, Z_NO_FLUSH);
+
+    switch (ret) {
+        case Z_NEED_DICT:
+            ret = Z_DATA_ERROR;     /* and fall through */
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+            (void)inflateEnd(stream);
+            return AVERROR(EINVAL);
+    }
+
+    if (ret == Z_STREAM_END) {
+        ret = 0;
+        s->active = 0;
+        out_buf[*out_buf_size - 1] = '\0';
+        (void) inflateEnd(stream);
+    } else
+        ret = AVERROR(EAGAIN);
+
+    return ret; // Return Z_BUF_ERROR/EAGAN as long as input is incomplete.
+}
 
 static int flif16_probe(const AVProbeData *p)
 {
     uint32_t vlist[3] = {0};
     unsigned int count = 0, pos = 0;
 
-    printf("[%s] called\n", __func__);
+    //printf("[%s] called\n", __func__);
     // Magic Number
     if (memcmp(p->buf, flif16_header, 4)) {
         return 0;
@@ -73,27 +139,32 @@ static int flif16_probe(const AVProbeData *p)
 
 static int flif16_read_header(AVFormatContext *s)
 {
+    FLIFDemuxContext *dc = s->priv_data;
     AVIOContext     *pb  = s->pb;
     AVStream        *st;
     uint32_t vlist[3] = {0};
-    uint32_t metadata_size = 0;
     uint8_t flag, temp;
     uint8_t tag[5] = {0};
+    uint8_t metadata_buf[METADATA_BUF_SIZE];
+    uint32_t metadata_size = 0;
+    uint8_t *out_buf;
+    int out_buf_size;
     unsigned int count = 4;
+    int ret;
 
-    printf("[%s] called\n", __func__);
+    //printf("[%s] called\n", __func__);
     // Magic Number
     if (avio_rl32(pb) != (*((uint32_t *) flif16_header))) {
         av_log(s, AV_LOG_ERROR, "bad magic number\n");
         return AVERROR(EINVAL);
     }
 
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     st = avformat_new_stream(s, NULL);
     flag = avio_r8(pb) >> 4;
     temp = avio_r8(pb); ;// Bytes per channel
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     for (int i = 0; i < (2 + ((flag > 4) ? 1 : 0)); ++i) {
         while ((temp = avio_r8(pb)) > 127) {
@@ -105,7 +176,7 @@ static int flif16_read_header(AVFormatContext *s)
         count = 4;
     }
 
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     ++vlist[0];
     ++vlist[1];
@@ -113,17 +184,17 @@ static int flif16_read_header(AVFormatContext *s)
         vlist[2] += 2;
     else
         vlist[2] = 1;
-    printf("%d %d %d\n", vlist[0], vlist[1], vlist[2]);
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    //printf("%d %d %d\n", vlist[0], vlist[1], vlist[2]);
+    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     while ((temp = avio_r8(pb))) {
-        printf("??? %x\n", temp);
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+        //printf("??? %x\n", temp);
+        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         // Get metadata identifier
         tag[0] = temp;
         for(int i = 1; i <= 3; ++i)
             tag[i] = avio_r8(pb);
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         // Read varint
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
@@ -132,9 +203,19 @@ static int flif16_read_header(AVFormatContext *s)
         }
         VARINT_APPEND(metadata_size, temp);
         count = 4;
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-        #if CONFIG_ZLIB
+        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+        #if 0
+            // CONFIG_ZLIB
             // Decompression Routines
+            while (metadata_size > 0) {
+                ret = avio_read(pb, metadata_buf, ((METADATA_BUF_SIZE < metadata_size) ?
+                                                   METADATA_BUF_SIZE : metadata_size));
+                metadata_size -= ret;
+                // TODO maybe remove out_buf_size
+                flif_inflate(dc, metadata_buf, ret, out_buf, &out_buf_size);
+                av_dict_set(s->metadata, tag, out_buf);
+            }
+            av_free(out_buf);
         #else
             avio_seek(pb, metadata_size, SEEK_CUR);
         #endif
@@ -153,7 +234,7 @@ static int flif16_read_header(AVFormatContext *s)
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)
         return AVERROR(EIO);
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     return 0;
 }
 
@@ -182,7 +263,7 @@ static const AVClass demuxer_class = {
 AVInputFormat ff_flif_demuxer = {
     .name           = "flif",
     .long_name      = NULL_IF_CONFIG_SMALL("Free Lossless Image Format (FLIF)"),
-    .priv_data_size = 0,
+    .priv_data_size = sizeof(FLIFDemuxContext),
     .extensions     = "flif",
     .read_probe     = flif16_probe,
     .read_header    = flif16_read_header,
