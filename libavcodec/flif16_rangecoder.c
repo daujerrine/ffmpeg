@@ -424,6 +424,20 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
     return AVERROR(EAGAIN);
 }
 
+void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes) 
+{
+    for (int i = 0; i < num_planes; ++i) {
+        if(m->forest[i]->data)
+            av_freep(&m->forest[i]->data);
+        if(m->forest[i]->leaves)
+            av_freep(&m->forest[i]->leaves);
+    }
+
+    // Should be already freed in maniac reading, but checking anyway.
+    if(m->stack)
+        av_freep(&m->stack);
+}
+
 #ifdef MULTISCALE_CHANCES_ENABLED
 FLIF16MultiscaleChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
                                                          uint8_t channel,
@@ -522,10 +536,6 @@ int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc,
             #else
             RAC_GET(rc, rc->maniac_ctx, min, max, target, FLIF16_RAC_NZ_INT);
             #endif
-            
-            /*if (!ff_flif16_rac_process(rc, rc->maniac_ctx, min, max, target, FLIF16_RAC_NZ_INT)) {
-                goto need_more_data;
-            }*/
             
     }
 
