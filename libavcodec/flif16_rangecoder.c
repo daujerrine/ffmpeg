@@ -427,10 +427,14 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
 void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes) 
 {
     for (int i = 0; i < num_planes; ++i) {
-        if(m->forest[i]->data)
+        printf("%d, %lx\n", i, (long unsigned int) m->forest[i]);
+        if (!m->forest[i])
+            continue;
+        if (m->forest[i]->data)
             av_freep(&m->forest[i]->data);
-        if(m->forest[i]->leaves)
+        if (m->forest[i]->leaves)
             av_freep(&m->forest[i]->leaves);
+        av_freep(&m->forest[i]);
     }
 
     // Should be already freed in maniac reading, but checking anyway.

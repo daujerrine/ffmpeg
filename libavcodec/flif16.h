@@ -70,24 +70,6 @@ typedef enum FLIF16PixelType {
     FLIF16_PIXEL_16_UNSIGNED = 2
 } FLIF16PixelType;
 
-static int flif16_pixel_types[2][MAX_PLANES] = {
-    {
-        FLIF16_PIXEL_8,
-        FLIF16_PIXEL_16,
-        FLIF16_PIXEL_16,
-        FLIF16_PIXEL_8,
-        FLIF16_PIXEL_8
-    },
-    {
-        FLIF16_PIXEL_16_UNSIGNED,
-        FLIF16_PIXEL_32,
-        FLIF16_PIXEL_32,
-        FLIF16_PIXEL_16_UNSIGNED,
-        FLIF16_PIXEL_8
-    }
-};
-
-
 // Each FLIF16PixelData Struct will contain a single frame
 // This will work similarly to AVFrame.
 // **data will carry an array of planes
@@ -188,7 +170,7 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
                                             uint8_t property,
                                             uint8_t channels))[2];
 
-FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s);
+FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s, int32_t *cplane_value);
 
 void ff_flif16_frames_free(FLIF16PixelData *frames, uint32_t num_frames,
                            uint32_t num_planes);
