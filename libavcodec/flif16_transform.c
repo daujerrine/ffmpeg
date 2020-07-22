@@ -726,22 +726,22 @@ static ColorBucket *ff_bucket_buckets(ColorBuckets *buckets, const int p, const 
     return &buckets->bucket3;
 }
 
-static FLIF16ColorVal *ff_snap_color_bucket(ColorBucket *bucket, FLIF16ColorVal *c)
+static FLIF16ColorVal ff_snap_color_bucket(ColorBucket *bucket, FLIF16ColorVal *c)
 {
     if(*c <= bucket->min){
         //printf("min : %d\n", bucket->min);
-        return &bucket->min;
+        return bucket->min;
     }
     if(*c >= bucket->max){
         //printf("max : %d\n", bucket->max);
-        return &bucket->max;
+        return bucket->max;
     }
     if(bucket->discrete){
         av_assert0((FLIF16ColorVal)bucket->snapvalues_size > (*c - bucket->min));
-        printf("snapvalues[c-min] : %d\n", bucket->snapvalues[*c - bucket->min]);
-        return &bucket->snapvalues[*c - bucket->min];
+        //printf("snapvalues[c-min] : %d\n", bucket->snapvalues[*c - bucket->min]);
+        return bucket->snapvalues[*c - bucket->min];
     }
-    return c;
+    return *c;
 }
 
 static FLIF16ColorVal ff_colorbuckets_min(FLIF16RangesContext *r_ctx, int p)
@@ -773,8 +773,8 @@ static void ff_colorbuckets_snap(FLIF16RangesContext *src_ctx,
         *maxv = ff_colorbuckets_max(src_ctx, p);
         return;
     }
-    v = ff_snap_color_bucket(b, v);
-    printf("min : %d max : %d v : %d\n", *minv, *maxv, *v);
+    *v = ff_snap_color_bucket(b, v);
+    //printf("min : %d max : %d v : %d\n", *minv, *maxv, *v);
 }
 
 static void ff_colorbuckets_minmax(FLIF16RangesContext* r_ctx, 
@@ -2111,7 +2111,7 @@ static FLIF16ColorVal ff_snap_color_slow(ColorBucket *cb, const FLIF16ColorVal c
             if(temp->data > c)
                 break;
         }
-        printf("best %d\n", best);
+        //printf("best %d\n", best);
         return ff_colorvalCB_at(cb->values, best);
     }
     printf("returning same c\n");
@@ -2126,6 +2126,7 @@ static void ff_prepare_snapvalues(ColorBucket *cb){
         cb->snapvalues_size = cb->max - cb->min;
         for(FLIF16ColorVal c = cb->min; c < cb->max; c++){
             cb->snapvalues[i] = ff_snap_color_slow(cb, c);
+            //printf("snapvalues[i] : %d\n", cb->snapvalues[i]);
             i++;
         }
     }
@@ -2503,7 +2504,7 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                             FLIF16_RAC_GNZ_INT);
                     b->values = ff_insert_colorvalCB(b->values, cb->i2, temp);
                     cb->v = temp;
-                    //printf("b->values[%d] : %d\n", cb->i2, cb->v);
+                    //printf("b->values[%d] : %d\n", cb->i2, ff_colorvalCB_at(b->values, cb->i2));
                 }
 
                 if(b->min < b->max){
