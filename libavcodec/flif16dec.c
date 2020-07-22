@@ -80,7 +80,7 @@ typedef struct FLIF16DecoderContext {
     // change to uint32_t
     uint32_t *framedelay; ///< Frame delay for each frame
 
-    FLIF16PixelSize pixel_size[MAX_PLANES];
+    FLIF16PixelType plane_type[MAX_PLANES];
     /* End Inheritance from FLIF16Context */
 
     FLIF16PixelData  *out_frames;
@@ -139,9 +139,11 @@ typedef struct FLIF16DecoderContext {
 
 // Cast values to FLIF16Context
 #define CTX_CAST(x) ((FLIF16Context *) (x))
-// TODO Remove PIXEL and PIXELY
+
+// TODO Remove PIXEL and PIXELY. Concerned with interlaced decoding
 #define PIXEL(z,r,c) ff_flif16_pixel_getz(CTX_CAST(s), frame, p, z, r, c)
 #define PIXELY(z,r,c) ff_flif16_pixel_getz(CTX_CAST(s), frame, FLIF16_PLANE_Y, z, r, c)
+
 #define PIXEL_SET(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, r, c, val)
 #define PIXEL_GET(ctx, fr, p, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, r, c)
 #define PIXEL_SETZ(ctx, fr, p, z, r, c, val) ff_flif16_pixel_setz(CTX_CAST(ctx), &(ctx)->out_frames[fr], p, z, r, c, val)
@@ -154,6 +156,23 @@ static const int properties_ni_rgb_size[] = {7, 8, 9, 7, 7};
 static const int properties_ni_rgba_size[] = {8, 9, 10, 7, 7};
 static const int properties_rgb_size[] = {8, 10, 9, 8, 8};
 static const int properties_rgba_size[] = {9, 11, 10, 8, 8};
+
+static int flif16_pixel_types[2][MAX_PLANES] = {
+    {
+        FLIF16_PIXEL_8,
+        FLIF16_PIXEL_16,
+        FLIF16_PIXEL_16,
+        FLIF16_PIXEL_8,
+        FLIF16_PIXEL_8
+    },
+    {
+        FLIF16_PIXEL_16_UNSIGNED,
+        FLIF16_PIXEL_32,
+        FLIF16_PIXEL_32,
+        FLIF16_PIXEL_16_UNSIGNED,
+        FLIF16_PIXEL_8
+    }
+};
 
 // The order in which the planes are encoded.
 // lookback (Lookback) (animations-only, value refers to a previous frame) has
@@ -237,12 +256,13 @@ static int flif16_read_header(AVCodecContext *avctx)
 
     if (s->num_frames > 1)
         s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->num_frames);
-    
-    if (!s->out_frames)
-        s->out_frames = ff_flif16_frames_init(s->num_frames, s->num_planes, 32,
-                                              s->width, s->height, !(s->num_planes > 2));
-    if (!s->out_frames)
-        return AVERROR(ENOMEM);
+
+    // Initialize Planes
+    for (int i = 0; i < s->num_planes; ++i) {
+        s->plane_type[i] = flif16_pixel_types[(s->bpc > 255)][i];
+    }
+
+    s->out_frames = ff_flif16_frames_init(CTX_CAST(s), NULL);
     
     // Handle Metadata Chunk. Currently it discards all data.
 
@@ -390,6 +410,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     FLIF16RangesContext *prev_range;
+    int32_t constant_plane_value[MAX_PLANES];
     uint8_t temp;
     int unique_frames;
 
@@ -397,10 +418,8 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     switch (s->segment) {
         case 0:
             RAC_GET(&s->rc, NULL, 0, 0, &temp, FLIF16_RAC_BIT);
-            if(!temp){
-                //return AVERROR_EOF;
+            if(!temp)
                 goto end;
-            }
             ++s->segment;
 
         case 1:
@@ -410,35 +429,38 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 av_log(avctx, AV_LOG_ERROR, "transform %u not implemented\n", temp);
                 return AVERROR_PATCHWELCOME;
             }
+
             s->transforms[s->transform_top] = ff_flif16_transform_init(temp, s->range);
-            if(!s->transforms[s->transform_top])
+            if (!s->transforms[s->transform_top])
                 return AVERROR(ENOMEM);
-            if(temp == FLIF16_TRANSFORM_PALETTEALPHA)
+
+            // TODO Replace with switch statement
+            if (temp == FLIF16_TRANSFORM_PALETTEALPHA)
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->alphazero);
-            else if(temp == FLIF16_TRANSFORM_DUPLICATEFRAME){
+            else if (temp == FLIF16_TRANSFORM_DUPLICATEFRAME) {
                 if(s->out_frames_count < 2)
                     return 0;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->out_frames_count);
             }
-            else if(temp == FLIF16_TRANSFORM_FRAMESHAPE){
+            else if (temp == FLIF16_TRANSFORM_FRAMESHAPE){
                 s->frameshape = 1;
-                if(s->out_frames_count < 2)
+                if (s->out_frames_count < 2)
                     return 0;
                 unique_frames = s->out_frames_count - 1;
-                for(unsigned int i = 0; i < s->out_frames_count; i++){
+                for (unsigned int i = 0; i < s->out_frames_count; i++){
                     if(s->out_frames[i].seen_before >= 0)
                         unique_frames--;
                 }
-                if(unique_frames < 1)
+                if (unique_frames < 1)
                     return 0;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               (unique_frames) * s->height);
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->width);
             }
-            else if(temp == FLIF16_TRANSFORM_FRAMELOOKBACK){
+            else if (temp == FLIF16_TRANSFORM_FRAMELOOKBACK) {
                 if(s->out_frames_count < 2)
                     return 0;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
@@ -475,6 +497,9 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 && ff_flif16_ranges_min(s->range, 3) <= 0
                 && !(s->ia % 2))
                 RAC_GET(&s->rc, NULL, 0, 2, &s->ipp, FLIF16_RAC_UNI_INT8);
+            
+            if (!s->out_frames)
+                return AVERROR(ENOMEM);
     }
 
     s->segment = 0;
@@ -581,7 +606,6 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
         }
         if (ranges_ctx->num_planes > 3) {
             printf("&b %d %d\n", index, ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c));
-            printf("&b %d %d\n", index, ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c));
             properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c); //image(3,r,c);
         }
     }
@@ -647,7 +671,7 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
         properties[index++] = 0;
     }
 
-    for(int i = 0; i < properties_ni_rgb_size[p]; ++i)
+    for(int i = 0; i < properties_ni_rgba_size[p]; ++i)
         printf("%d ", properties[i]);
     printf("\n");
     printf("psl fallback = %d left = %d top = %d topleft = %d gradienttl = %d guess = %d\n", fallback, left, top, topleft, gradientTL, guess);
@@ -907,12 +931,12 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                     ff_flif16_ranges_max(s->range, s->curr_plane)) {
                     continue;
                 }
-               // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+                // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 s->properties = av_mallocz((s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]
                                                             : properties_ni_rgb_size[s->curr_plane]) 
                                                             * sizeof(*s->properties));
-                /*printf("sizeof s->properties: %u\n", (s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]:
-                                                                        properties_ni_rgb_size[s->curr_plane]));*/
+                printf("sizeof s->properties: %u\n", (s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]:
+                                                                        properties_ni_rgb_size[s->curr_plane]));
                  //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 for (; s->i2 < s->height; ++s->i2) {
                     for (; s->i3 < s->num_frames; ++s->i3) {
@@ -980,6 +1004,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  *    channel. This is nused with the maniac integer reader.
  * 4. Actual Encoded MANIAC trees
  * 5. Rest of the pixeldata rough_zoomlevel to 0
+ * 
  */
 
 // TODO combine these 2 funcs
@@ -1778,7 +1803,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
             break;
 
         case AV_PIX_FMT_RGB24:
-            s->final_out_frame->linesize[0] = s->width * 3;
+            //s->final_out_frame->linesize[0] = s->width * 3;
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j * 3 + 0 ) = \
@@ -1944,7 +1969,6 @@ static int flif16_decode_frame(AVCodecContext *avctx,
 
 static av_cold int flif16_decode_end(AVCodecContext *avctx)
 {
-    // TODO complete function
     FLIF16DecoderContext *s = avctx->priv_data;
     if(s->framedelay)
         av_freep(&s->framedelay);
@@ -1952,6 +1976,14 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
         av_freep(&s->prop_ranges);
     if (s->out_frames)
         ff_flif16_frames_free(s->out_frames, s->num_frames, s->num_planes);
+
+    // TODO transforms close handle segfaults
+    //for (int i = s->transform_top - 1; i >= 0; --i)
+    //    ff_flif16_transforms_close(s->transforms[i]);
+
+    ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes);
+    av_frame_free(&s->final_out_frame);
+
     // TODO handle this
     //if (s->range)
     //    ff_flif16_ranges_close(s->range);

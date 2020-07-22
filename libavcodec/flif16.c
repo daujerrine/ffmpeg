@@ -46,6 +46,8 @@ int32_t  (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
     unsigned int size = (((plane < 3) ? plane : 0) + 2 + 5) + ((plane < 3) && (ranges->num_planes > 3));
     *prop_ranges_size = size;
     prop_ranges = av_mallocz(sizeof(*prop_ranges) * size);
+    if (!prop_ranges)
+        return NULL;
     printf("%u size: %u top: %u\n", __LINE__, size, top);
     if (plane < 3) {
         for (int i = 0; i < plane; i++) {
@@ -88,6 +90,8 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
                         + ((property == 1 || property == 2) ? 1 : 0) \
                         + ((property != 2) ? 2 : 0) + 1 + 5);
     prop_ranges = av_mallocz(sizeof(*prop_ranges) * size);
+    if (!prop_ranges)
+        return NULL;
     *prop_ranges_size = size;
 
     if (property < 3) {
@@ -123,13 +127,15 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
 }
 
 
-static void ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
-                                  uint32_t depth, uint32_t width, uint32_t height,
-                                  uint8_t constant_alpha) // depth = log2(bpc)
+static int ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
+                                 uint32_t width, uint32_t height,
+                                 FLIF16PixelType *plane_type,
+                                 int32_t *cplane_value) // depth = log2(bpc)
 {
     frame->data = av_mallocz(sizeof(*frame->data) * num_planes);
     // TODO if constant, allocate a single integer for the plane.
     // And set is_constant for that plane
+    /*
     if (depth <= 8) {
         if (num_planes > 0)
             frame->data[0] = av_mallocz(sizeof(int32_t) * width * height);
@@ -159,32 +165,72 @@ static void ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
     }
     if (num_planes> 4)
         frame->data[4] = av_malloc(sizeof(int32_t) * width * height);
+    */
+    /*
+    for (int i = 0; i < num_planes; ++i) {
+        switch (pixel_size[i]) {
+            case FLIF16_PIXEL_8:
+                frame->data[i] = av_mallocz(sizeof(uint8_t) * width * height);
+                break;
+
+            case FLIF16_PIXEL_16:
+                frame->data[i] = av_mallocz(sizeof(int16_t) * width * height);
+                break;
+
+            case FLIF16_PIXEL_16_UNSIGNED:
+                frame->data[i] = av_mallocz(sizeof(uint16_t) * width * height);
+                break;
+
+            case FLIF16_PIXEL_32:
+                frame->data[i] = av_mallocz(sizeof(int32_t) * width * height);
+                break;
+
+            // Insignigficant with respect to image size, hence only one type
+            // is added here.
+            case FLIF16_PIXEL_CONSTANT:
+                frame->data[i] = av_mallocz(sizeof(int32_t));
+                break;
+        }
+    }
+    */
+    for (int i = 0; i < num_planes; ++i) {
+        if (plane_type[i] == FLIF16_PIXEL_CONSTANT) {
+            frame->data[i] = av_mallocz(sizeof(int32_t));
+            ((int32_t *) frame->data[i])[0] = cplane_value[i];
+        } else
+            frame->data[i] = av_mallocz(sizeof(int32_t) * width * height);
+        if (!frame->data[i])
+            return -1;
+    }
+
+    return 0;
 }
 
 
 static void ff_flif16_plane_free(FLIF16PixelData *frame, uint8_t num_planes)
 {
     for(uint8_t i = 0; i < num_planes; ++i) {
-        printf("freeing: %d\n", i);
         av_free(frame->data[i]);
     }
     av_free(frame->data);
 }
 
-FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames, uint8_t num_planes,
-                                       uint32_t depth, uint32_t width, uint32_t height,
-                                       uint8_t constant_alpha)
+FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s, int32_t *cplane_value)
 {
-    FLIF16PixelData *frames = av_mallocz(sizeof(*frames) * num_frames);
+    FLIF16PixelData *frames = av_mallocz(sizeof(*frames) * s->num_frames);
     if (!frames)
         return NULL;
-    for (int i = 0; i < num_frames; ++i) {
-        ff_flif16_plane_alloc(&frames[i], num_planes, depth, width, height, constant_alpha);
+
+    for (int i = 0; i < s->num_frames; ++i) {
+        if (ff_flif16_plane_alloc(&frames[i], s->num_planes, s->width, s->height,
+                                  s->plane_type, cplane_value) < 0)
+            return NULL;
         frames[i].seen_before = -1;
-        frames[i].constant_alpha = constant_alpha;
         //frames[i].palette    = 0;
-        frames[i].col_begin = av_mallocz(height * sizeof(*frames->col_begin));
-        frames[i].col_end = av_mallocz(height * sizeof(*frames->col_end));
+        // Width?
+        // TODO check for the transform first.
+        frames[i].col_begin = av_mallocz(s->width * sizeof(*frames->col_begin));
+        frames[i].col_end   = av_mallocz(s->width * sizeof(*frames->col_end));
     }
     return frames;
 }
