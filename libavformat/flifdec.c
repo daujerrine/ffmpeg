@@ -43,16 +43,14 @@
 
 typedef struct FLIFDemuxContext {
     FLIF16RangeCoder rc;
-#if 0
-// CONFIG_ZLIB
+#if CONFIG_ZLIB
     z_stream stream;
     uint8_t active;
 #endif
 } FLIFDemuxContext;
 
 
-#if 0
-// CONFIG_ZLIB
+#if CONFIG_ZLIB
 static int flif_inflate(FLIFDemuxContext *s, unsigned char *buf, int buf_size,
                         unsigned char *out_buf, int *out_buf_size)
 {
@@ -229,7 +227,7 @@ static int flif16_read_header(AVFormatContext *s)
         VARINT_APPEND(metadata_size, temp);
         count = 4;
         //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-        #if 0
+        #if CONFIG_ZLIB
             // TODO see why this does not work.
             // CONFIG_ZLIB
             // Decompression Routines
@@ -254,8 +252,10 @@ static int flif16_read_header(AVFormatContext *s)
     }
 
     //ff_flif16_rac_init(dc->rc, gb, b, bs):
-
-    av_freep(&out_buf);
+    #if 0
+    // CONFIG_ZLIB
+        av_freep(&out_buf);
+    #endif
 
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
