@@ -2649,8 +2649,10 @@ static int8_t transform_framedup_read(FLIF16TransformContext * ctx,
     switch(ctx->i){
         case 0:
             printf("FrameDUP Read : \n");
-            data->seen_before = av_mallocz(data->nb * sizeof(*data->seen_before));
+            data->seen_before = av_mallocz(data->nb-1 * sizeof(*data->seen_before));
+            data->seen_before[0] = -1;
             ctx->i = 1;
+            data->i = 1;
 
         case 1:
             for(; data->i < data->nb; data->i++){
@@ -2679,7 +2681,7 @@ static FLIF16RangesContext* transform_framedup_meta(FLIF16Context *ctx,
     transform_priv_framedup *data = t_ctx->priv_data;
 
     for(unsigned int fr = 0; fr < frame_count; fr++){
-        frame->seen_before = data->seen_before[fr];
+        frame[fr].seen_before = data->seen_before[fr];
     }
 
     return src_ctx;
@@ -2703,8 +2705,11 @@ static int8_t transform_frameshape_init(FLIF16TransformContext *ctx,
 static void transform_frameshape_configure(FLIF16TransformContext *ctx,
                                          const int setting){
     transform_priv_frameshape *data = ctx->priv_data;
-    if(data->nb == 0)
+    if(data->nb == 0){
         data->nb = setting;
+        data->b = av_mallocz(data->nb * sizeof(*data->b));
+        data->e = av_mallocz(data->nb * sizeof(*data->e));
+    }
     else
         data->cols = setting;
 }
@@ -2731,6 +2736,7 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
 
         case 2:
             for(; data->i < data->nb; data->i++){
+                printf("here \n");
                 RAC_GET(&dec_ctx->rc, &data->chancectx, 0,
                         data->cols - data->b[data->i],
                         &data->e[data->i], FLIF16_RAC_NZ_INT);
@@ -2973,7 +2979,7 @@ FLIF16Transform *flif16_transforms[13] = {
     NULL, // RESERVED,
     &flif16_transform_framedup,
     &flif16_transform_frameshape,
-    NULL  // FLIF16_TRANSFORM_FRAMELOOKBACK
+    &flif16_transform_framecombine
 };
 
 FLIF16TransformContext *ff_flif16_transform_init(int t_no, FLIF16RangesContext* r_ctx)

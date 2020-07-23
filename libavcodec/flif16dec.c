@@ -444,33 +444,34 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->alphazero);
             else if (temp == FLIF16_TRANSFORM_DUPLICATEFRAME) {
-                if(s->out_frames_count < 2)
-                    return 0;
+                 if(s->num_frames < 2)
+                     return 0;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
-                                              s->out_frames_count);
+                                              s->num_frames);
             }
             else if (temp == FLIF16_TRANSFORM_FRAMESHAPE){
                 s->frameshape = 1;
-                if (s->out_frames_count < 2)
-                    return 0;
-                unique_frames = s->out_frames_count - 1;
-                for (unsigned int i = 0; i < s->out_frames_count; i++){
+                 if (s->num_frames < 2)
+                     return 0;
+                unique_frames = s->num_frames - 1;
+                for (unsigned int i = 0; i < s->num_frames; i++){
                     if(s->out_frames[i].seen_before >= 0)
                         unique_frames--;
                 }
                 if (unique_frames < 1)
                     return 0;
+                printf("unique_frames : %d\n", unique_frames);
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               (unique_frames) * s->height);
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->width);
             }
             else if (temp == FLIF16_TRANSFORM_FRAMELOOKBACK) {
-                if(s->out_frames_count < 2)
+                if(s->num_frames < 2)
                     return 0;
                 s->framelookback = 1;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
-                                              s->out_frames_count);
+                                              s->num_frames);
             }
             ++s->segment;
 
@@ -480,7 +481,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 goto need_more_data;
             printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             prev_range = s->range;
-            s->range = ff_flif16_transform_meta(CTX_CAST(s), s->out_frames, s->out_frames_count,
+            s->range = ff_flif16_transform_meta(CTX_CAST(s), s->out_frames, s->num_frames,
                                                 s->transforms[s->transform_top],
                                                 prev_range);
             if(!s->range)
