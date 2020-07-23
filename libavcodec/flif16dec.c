@@ -955,8 +955,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                                                    s->i3,
                                                    s->i2,
                                                    s->grays[s->curr_plane],
-                                                   min_p,
-                                                   0);
+                                                   min_p);
                         
                         if (ret) {
                             //printf("Caught Ret: %u\n", ret);
