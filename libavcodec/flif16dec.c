@@ -225,7 +225,7 @@ static int flif16_read_header(AVCodecContext *avctx)
     s->state = FLIF16_HEADER;
 
     temp = bytestream2_get_byte(&s->gb);
-    s->ia       = temp >> 4;
+    s->ia         = temp >> 4;
     s->num_planes = (0x0F & temp);
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
@@ -235,7 +235,9 @@ static int flif16_read_header(AVCodecContext *avctx)
     //}
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     
-    s->bpc      = bytestream2_get_byte(&s->gb);
+    s->bpc = bytestream2_get_byte(&s->gb);
+
+    
 
     // Handle dimensions and frames
     for(int i = 0; i < 2 + ((s->ia > 4) ? 1 : 0); ++i) {
