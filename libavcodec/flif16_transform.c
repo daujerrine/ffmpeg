@@ -599,11 +599,11 @@ static void ff_palette_minmax(FLIF16RangesContext* r_ctx,
                              FLIF16ColorVal* minv, FLIF16ColorVal* maxv)
 {
     ranges_priv_palette *data = r_ctx->priv_data;
-    if(p == 1){
+    if(p == FLIF16_PLANE_CO){
         *minv = 0;
         *maxv = data->nb_colors-1;
     }
-    else if(p < 3){
+    else if(p < FLIF16_PLANE_ALPHA){
         *minv = 0;
         *maxv = 0;
     }
@@ -619,9 +619,9 @@ static void ff_palette_close(FLIF16RangesContext *r_ctx){
 
 static FLIF16ColorVal ff_palettealpha_min(FLIF16RangesContext *r_ctx, int p){
     ranges_priv_palette *data = r_ctx->priv_data;
-    if(p < 3)
+    if(p < FLIF16_PLANE_ALPHA)
         return 0;
-    else if(p == 3)
+    else if(p == FLIF16_PLANE_ALPHA)
         return 1;
     else
         return ff_flif16_ranges_min(data->r_ctx, p); 
@@ -648,15 +648,15 @@ static void ff_palettealpha_minmax(FLIF16RangesContext* r_ctx,
                                    FLIF16ColorVal* minv, FLIF16ColorVal* maxv)
 {
     ranges_priv_palette *data = r_ctx->priv_data;
-    if(p == 1){
+    if(p == FLIF16_PLANE_CO){
         *minv = 0;
         *maxv = data->nb_colors-1;
     }
-    else if(p < 3){
+    else if(p < FLIF16_PLANE_ALPHA){
         *minv = 0;
         *maxv = 0;
     }
-    else if(p == 3){
+    else if(p == FLIF16_PLANE_ALPHA){
         *minv = 1;
         *maxv = 1;
     }
@@ -682,16 +682,16 @@ static void ff_init_bucket_default(ColorBucket *b){
 }
 
 static ColorBucket *ff_bucket_buckets2(ColorBuckets *buckets, const int p, const FLIF16ColorVal *prev_planes){
-    av_assert0(p >= 0);
-    av_assert0(p < 4);
-    if(p == 0)
+    av_assert0(p >= FLIF16_PLANE_Y);
+    av_assert0(p < FLIF16_PLANE_LOOKBACK);
+    if(p == FLIF16_PLANE_Y)
         return &buckets->bucket0;
-    if(p == 1){
+    if(p == FLIF16_PLANE_CO){
         av_assert0((prev_planes[0] - buckets->min0)/CB0a >= 0
                 && (prev_planes[0] - buckets->min0)/CB0a < buckets->bucket1_size);
         return &buckets->bucket1[(prev_planes[0] - buckets->min0)/CB0a];
     }
-    if(p == 2){
+    if(p == FLIF16_PLANE_CG){
         av_assert0((prev_planes[0] - buckets->min0)/CB0b >= 0
                 && (prev_planes[0] - buckets->min0)/CB0b < buckets->bucket2_size);
         av_assert0((prev_planes[1] - buckets->min1)/CB1 >= 0
@@ -705,16 +705,16 @@ static ColorBucket *ff_bucket_buckets2(ColorBuckets *buckets, const int p, const
 static ColorBucket *ff_bucket_buckets(ColorBuckets *buckets, const int p, const FLIF16ColorVal *prev_planes){
     av_assert0(p >= 0);
     av_assert0(p < 4);
-    if(p == 0)
+    if(p == FLIF16_PLANE_Y)
         return &buckets->bucket0;
-    if(p == 1){
+    if(p == FLIF16_PLANE_CO){
         int i = (prev_planes[0] - buckets->min0)/CB0a;
         if(i >= 0 && i < (int)buckets->bucket1_size)
             return &buckets->bucket1[i];
         else
             return &buckets->empty_bucket;
     }
-    if(p == 2){
+    if(p == FLIF16_PLANE_CG){
         int i = (prev_planes[0] - buckets->min0)/CB0b;
         int j = (prev_planes[1] - buckets->min1)/CB1;
         if(i >= 0 && i < (int)buckets->bucket1_size && j >= 0 && j < (int) buckets->bucket2_list_size)
@@ -800,9 +800,9 @@ static void ff_colorbuckets_close(FLIF16RangesContext *r_ctx){
 static FLIF16ColorVal ff_framecombine_min(FLIF16RangesContext *r_ctx, int p)
 {
     ranges_priv_framecombine *data = r_ctx->priv_data;
-    if(p < 3)
+    if(p < FLIF16_PLANE_ALPHA)
         return ff_flif16_ranges_min(data->ranges, p);
-    else if(p == 3)
+    else if(p == FLIF16_PLANE_ALPHA)
         return data->alpha_min;
     else
         return 0;
@@ -811,9 +811,9 @@ static FLIF16ColorVal ff_framecombine_min(FLIF16RangesContext *r_ctx, int p)
 static FLIF16ColorVal ff_framecombine_max(FLIF16RangesContext *r_ctx, int p)
 {
     ranges_priv_framecombine *data = r_ctx->priv_data;
-    if(p < 3)
+    if(p < FLIF16_PLANE_ALPHA)
         return ff_flif16_ranges_max(data->ranges, p);
-    else if(p == 3)
+    else if(p == FLIF16_PLANE_ALPHA)
         return data->alpha_max;
     else
         return data->numPrevFrames;
@@ -2138,11 +2138,11 @@ static uint8_t ff_colorbuckets_exists2(ColorBuckets *cb, const int p,
 {
     FLIF16ColorVal rmin, rmax, v;
     ColorBucket *b;
-    if (p > 0 && (pp[0] < cb->min0 || pp[0] > ff_flif16_ranges_max(cb->ranges, 0))){
+    if (p > FLIF16_PLANE_Y && (pp[0] < cb->min0 || pp[0] > ff_flif16_ranges_max(cb->ranges, 0))){
         //printf("here\n");
         return 0;
     }
-    if (p > 1 && (pp[1] < cb->min1 || pp[1] > ff_flif16_ranges_max(cb->ranges, 1))){
+    if (p > FLIF16_PLANE_CO && (pp[1] < cb->min1 || pp[1] > ff_flif16_ranges_max(cb->ranges, 1))){
         //printf("here\n");
         return 0;
     }
@@ -2172,14 +2172,14 @@ static uint8_t ff_colorbuckets_exists(ColorBuckets *cb,
     pixel[1] = lower[1];
     //printf("lower[0] : %d & upper[0] : %d\n", lower[0], upper[0]);
     //printf("lower[1] : %d & upper[1] : %d\n", lower[1], upper[1]);
-    if(p == 0){
+    if(p == FLIF16_PLANE_Y){
         for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++){
             //printf("In the loop p = 0\n");
             if(ff_colorbuckets_exists2(cb, p, pixel))
                 return 1;
         }
     }
-    if(p == 1){
+    if(p == FLIF16_PLANE_CO){
         for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++) {
             for(pixel[1] = lower[1]; pixel[1] <= upper[1]; pixel[1]++) {
                 //printf("In the loop p = 1\n");
@@ -2388,10 +2388,10 @@ static void transform_colorbuckets_minmax(FLIF16RangesContext *src_ctx,
     pixel[1] = lower[1];
     *smin = 10000;
     *smax = -10000;
-    if(p == 0){
+    if(p == FLIF16_PLANE_Y){
         ff_flif16_ranges_minmax(src_ctx, p,pixel,smin,smax);
     }
-    else if(p == 1){
+    else if(p == FLIF16_PLANE_CO){
         for(pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++){
             ff_flif16_ranges_minmax(src_ctx, p, pixel, &rmin, &rmax);
             if(rmin < *smin) 
@@ -2400,7 +2400,7 @@ static void transform_colorbuckets_minmax(FLIF16RangesContext *src_ctx,
                 *smax = rmax;
         }
     } 
-    else if(p == 2){
+    else if(p == FLIF16_PLANE_CG){
         for (pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++){
             for (pixel[1] = lower[1]; pixel[1] <= upper[1]; pixel[1]++){
                 ff_flif16_ranges_minmax(src_ctx, p, pixel, &rmin, &rmax);
@@ -2411,7 +2411,7 @@ static void transform_colorbuckets_minmax(FLIF16RangesContext *src_ctx,
             }
         }
     }
-    else if(p == 3){
+    else if(p == FLIF16_PLANE_ALPHA){
         ff_flif16_ranges_minmax(src_ctx, p, pixel, smin, smax);
     }
 }
@@ -2430,7 +2430,7 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
     int exists;
     switch(cb->i){
         case 0:
-            if(plane < 3)
+            if(plane < FLIF16_PLANE_ALPHA)
             for(int p = 0; p < plane; p++) {
                 if (!ff_colorbuckets_exists(cb, p, pixelL, pixelU)){
                     //printf("colorbuckets exist false\n");
