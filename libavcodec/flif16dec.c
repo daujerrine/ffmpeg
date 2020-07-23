@@ -110,6 +110,7 @@ typedef struct FLIF16DecoderContext {
     FLIF16TransformContext *transforms[13];
     uint8_t transform_top;
     uint8_t frameshape;
+    uint8_t framelookback;
     FLIF16RangesContext *range; ///< The minimum and maximum values a
                                 ///  channel's pixels can take. Changes
                                 ///  depending on transformations applied
@@ -465,6 +466,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             else if (temp == FLIF16_TRANSFORM_FRAMELOOKBACK) {
                 if(s->out_frames_count < 2)
                     return 0;
+                s->framelookback = 1;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->out_frames_count);
             }
@@ -842,7 +844,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     s->guess = flif16_ni_predict_calcprops(s, &s->out_frames[fr], properties,
                                                            ranges_ctx, p, r, s->c, &s->min,
                                                            &s->max, minP, 0);
-                    if (lookback && p == 4 && s->max > fr)
+                    if (lookback && p == FLIF16_PLANE_LOOKBACK && s->max > fr)
                         s->max = fr;
         case 4:
                     //printf("<> 2\n");
@@ -1129,7 +1131,7 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16Context *s,
         else if (median == topleftgradient)
             which = 1;
         properties[index++] = which;
-        if (p == 1 || p == 2) {
+        if (p == FLIF16_PLANE_CO || p == FLIF16_PLANE_CG) {
             properties[index++] = PIXELY(z,r,c) - ((PIXELY(z, r - 1, c) +
                                   PIXELY(z,(nobordercases || bottomPresent ? r + 1 : r - 1), c)) >> 1);
         }
@@ -1160,7 +1162,7 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16Context *s,
         else if (median == topleftgradient)
             which = 1;
         properties[index++] = which;
-        if (p == 1 || p == 2) {
+        if (p == FLIF16_PLANE_CO || p == FLIF16_PLANE_CG) {
             properties[index++] = PIXELY(z,r,c) - ((PIXELY(z,r,c-1)+PIXELY(z,r,(nobordercases || rightPresent ? c+1 : c-1)))>>1);
         }
         if (predictor == 0)
@@ -1371,7 +1373,7 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                     //guess = predict_and_calcProps_p<p_t,alpha_t,true,false,p,ranges_t>(properties,rcanges,image,p,pY,z,r,c,min,max, predictor);
                     guess = flif16_predict_calcprops(CTX_CAST(s), &s->out_frames[fr], properties, ranges, z, p, r, s->c, &min, &max, predictor, 1, 0);
 
-                    if (lookback && p == 4 && max > fr)
+                    if (lookback && p == FLIF16_PLANE_LOOKBACK && max > fr)
                         max = fr;
                     if (lookback && (guess > max || guess < min))
                         guess = min;
@@ -1508,7 +1510,7 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                     }
                     //\guess = predict_and_calcProps_p<p_t,alpha_t,false,false,p,ranges_t>(properties,ranges,image,p,pY,z,r,s->c,min,max, predictor);
                     flif16_predict_calcprops(CTX_CAST(s), &s->out_frames[fr], properties, ranges, z, p, r, s->c, &min, &max, predictor, 0, 0);
-                    if (lookback && p == 4 && max > fr)
+                    if (lookback && p == FLIF16_PLANE_LOOKBACK && max > fr)
                         max = fr;
                     if (lookback && (guess > max || guess < min))
                         guess = min;
@@ -1702,7 +1704,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                         for (uint32_t r = 1; r < ZOOM_HEIGHT(s->height, z); r += 2) {
                             for (int fr = 0; fr < s->num_frames; fr++) {
                                 if(ret = flif_decode_plane_zoomlevel_horizontal(s, s->properties, s->range, alpha_plane,
-                                   p, z, fr, r, s->alphazero, 0, predictor, s->ipp))
+                                   p, z, fr, r, s->alphazero, s->framelookback, predictor, s->ipp))
                                     goto error;
                             // TODO replac lookback
                             }
@@ -1711,7 +1713,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                         for (uint32_t r = 1; r < ZOOM_HEIGHT(s->height, z); r++) {
                             for (int fr = 0; fr < s->num_frames; fr++) {
                                 if(ret = flif16_decode_plane_zoomlevel_vertical(s, s->properties, s->range, alpha_plane,
-                                   p, z, fr, r, s->alphazero, 0, predictor, s->ipp))
+                                   p, z, fr, r, s->alphazero, s->framelookback, predictor, s->ipp))
                                     goto error;
                             }
                         }
