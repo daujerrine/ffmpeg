@@ -81,6 +81,10 @@ typedef struct FLIF16DecoderContext {
     uint32_t *framedelay; ///< Frame delay for each frame
 
     FLIF16PixelType plane_type[MAX_PLANES];
+
+    // Transform flags
+    uint8_t frameshape;
+    uint8_t framelookback;
     /* End Inheritance from FLIF16Context */
 
     FLIF16PixelData  *out_frames;
@@ -109,7 +113,6 @@ typedef struct FLIF16DecoderContext {
     // Size dynamically maybe
     FLIF16TransformContext *transforms[13];
     uint8_t transform_top;
-    uint8_t frameshape;
     FLIF16RangesContext *range; ///< The minimum and maximum values a
                                 ///  channel's pixels can take. Changes
                                 ///  depending on transformations applied
@@ -698,7 +701,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                                 FLIF16RangesContext *ranges_ctx,
                                 FLIF16ColorVal *properties, uint8_t p,
                                 uint32_t fr, uint32_t r, FLIF16ColorVal gray,
-                                FLIF16ColorVal minP, uint8_t lookback)
+                                FLIF16ColorVal minP)
 {
     // TODO write in a packet size independent manner
     // FLIF16ColorVal s->min = 0, s->max = 0;
@@ -734,8 +737,8 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
             }
             ++s->segment2;
 
-            //printf("r = %u lookback = %d begin = %u end = %u\n", r, lookback, begin, end);
-            if (r > 1 && !lookback && begin == 0 && end > 3) {
+            //printf("r = %u s->framelookback = %d begin = %u end = %u\n", r, s->framelookback, begin, end);
+            if (r > 1 && !s->framelookback && begin == 0 && end > 3) {
             // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             //decode actual pixel data
             s->c = begin;
@@ -820,7 +823,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 s->segment2 = 4;
                 for (s->c = begin; s->c < end; s->c++) {
                     // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-                    //predict pixel for alphazero and get a previous pixel for lookback
+                    //predict pixel for alphazero and get a previous pixel for s->framelookback
                     //printf("<><><><>%d %d %d\n",  s->alphazero, p, ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[fr], 3, r, s->c));
                     if (s->alphazero && p < 3 &&
                         ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[fr], 3, r, s->c) == 0) {
@@ -829,7 +832,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                         flif16_ni_predict(s, &s->out_frames[fr], p, r, s->c, gray));
                         continue;
                     }
-                    if (lookback && p < 4 &&
+                    if (s->framelookback && p < 4 &&
                         PIXEL_GET(s, fr, 4, r, s->c) > 0) {
                         //printf("<<>> 2\n");
                         PIXEL_SET(s, fr, p, r, s->c,
@@ -842,7 +845,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     s->guess = flif16_ni_predict_calcprops(s, &s->out_frames[fr], properties,
                                                            ranges_ctx, p, r, s->c, &s->min,
                                                            &s->max, minP, 0);
-                    if (lookback && p == 4 && s->max > fr)
+                    if (s->framelookback && p == 4 && s->max > fr)
                         s->max = fr;
         case 4:
                     //printf("<> 2\n");
@@ -951,8 +954,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                                                    s->i3,
                                                    s->i2,
                                                    s->grays[s->curr_plane],
-                                                   min_p,
-                                                   0);
+                                                   min_p);
                         
                         if (ret) {
                             //printf("Caught Ret: %u\n", ret);
