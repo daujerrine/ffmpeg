@@ -315,7 +315,8 @@ static int flif16_read_second_header(AVCodecContext *avctx)
         case 1:
             // In original source this is handled in what seems to be a very
             // bogus manner. It takes all the bpps of all planes and then
-            // takes the max.
+            // takes the max, negating any benefit of actually keeping these
+            // multiple values.
             if (s->bpc == '0') {
                 s->bpc = 0;
                 for (; s->i < s->num_planes; ++s->i) {
@@ -1775,7 +1776,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     FLIF16DecoderContext *s = avctx->priv_data;
     ff_set_dimensions(avctx, s->width, s->height);
     s->final_out_frame->pict_type = AV_PICTURE_TYPE_I;
-    s->final_out_frame->key_frame = 1;
+    //s->final_out_frame->key_frame = 1;
 
     printf("<*****> In flif16_write_frame\n");
 
@@ -1839,7 +1840,6 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
                     //    printf("%d ", *(p->data[0] + k));
                     //printf("\n");
                 }
-                printf("\n");
             }
             break;
 
@@ -1928,8 +1928,8 @@ static int flif16_decode_frame(AVCodecContext *avctx,
                 ret = flif16_write_frame(avctx, p);
                 if (!ret) {
                     *got_frame = 1;
-                    printf("[%s] ret = %d\n", __FILE__, buf_size);
-                    if(s->out_frames) {
+                    printf("[%s] OUT frames = %d ret = %d\n", __FILE__, s->out_frames_count, buf_size);
+                    /*if(s->out_frames) {
                         for(int k = 0; k < s->num_planes; ++k) {
                             for(int j = 0; j < s->height; ++j) {
                                 for(int i = 0; i < s->width; ++i) {
@@ -1939,7 +1939,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
                             }
                             printf("===\n");
                         }
-                    }
+                    }*/
                     return buf_size;
                 }
                 break;

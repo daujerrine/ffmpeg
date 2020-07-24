@@ -173,7 +173,6 @@ typedef struct FLIF16RangeCoder {
     uint_fast32_t range;
     uint_fast32_t low;
     uint16_t chance;
-    uint8_t empty;    ///< Is bytestream emptyW
     uint8_t active;   ///< Is an integer reader currently active (to save/
                       ///  transfer state)
 

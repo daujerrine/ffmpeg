@@ -39,18 +39,19 @@
 #include <zlib.h>
 #endif
 
-#define METADATA_BUF_SIZE 4096
+#define BUF_SIZE 4096
 
 typedef struct FLIFDemuxContext {
-    FLIF16RangeCoder rc;
-#if CONFIG_ZLIB
+#if 0
+// CONFIG_ZLIB
     z_stream stream;
     uint8_t active;
 #endif
 } FLIFDemuxContext;
 
 
-#if CONFIG_ZLIB
+#if 0
+// CONFIG_ZLIB
 static int flif_inflate(FLIFDemuxContext *s, unsigned char *buf, int buf_size,
                         unsigned char *out_buf, int *out_buf_size)
 {
@@ -152,15 +153,16 @@ static int flif16_read_header(AVFormatContext *s)
 {
     FLIFDemuxContext *dc = s->priv_data;
     GetByteContext gb;
+    FLIF16RangeCoder rc;
 
     AVIOContext     *pb  = s->pb;
     AVStream        *st;
     
     uint32_t vlist[3] = {0};
-    uint8_t flag, temp, bpc;
+    uint32_t flag, animated, temp;
+    uint32_t bpc = 0;
     uint8_t tag[5] = {0};
-
-    uint8_t metadata_buf[METADATA_BUF_SIZE];
+    uint8_t buf[BUF_SIZE];
     uint32_t metadata_size = 0;
     uint8_t *out_buf = NULL;
     int out_buf_size = 0;
@@ -168,6 +170,11 @@ static int flif16_read_header(AVFormatContext *s)
     unsigned int count = 4;
     int ret;
     int format;
+    int segment = 0, i = 0;
+    int64_t duration = 0;
+    uint8_t loops = 0;
+    uint8_t num_planes;
+    uint8_t num_frames;
 
     //printf("[%s] called\n", __func__);
     // Magic Number
@@ -177,11 +184,15 @@ static int flif16_read_header(AVFormatContext *s)
     }
 
     //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-
     st = avformat_new_stream(s, NULL);
-    flag = avio_r8(pb) >> 4;
+    flag = avio_r8(pb);
+    animated = (flag >> 4) > 4;
+    duration = animated;
     bpc = avio_r8(pb); // Bytes per channel
-    switch (bpc) {
+
+    num_planes = flag & 0x0F;
+
+    switch (num_planes) {
         case 1:
             format = AV_PIX_FMT_GRAY8;
             break;
@@ -194,7 +205,7 @@ static int flif16_read_header(AVFormatContext *s)
     }
     //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
-    for (int i = 0; i < (2 + ((flag > 4) ? 1 : 0)); ++i) {
+    for (int i = 0; i < (2 + animated); ++i) {
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
                 return AVERROR_INVALIDDATA;
@@ -208,10 +219,12 @@ static int flif16_read_header(AVFormatContext *s)
 
     ++vlist[0];
     ++vlist[1];
-    if (flag > 4)
+    if (animated)
         vlist[2] += 2;
     else
         vlist[2] = 1;
+
+    num_frames = vlist[2];
     //printf("%d %d %d\n", vlist[0], vlist[1], vlist[2]);
     //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
@@ -232,13 +245,12 @@ static int flif16_read_header(AVFormatContext *s)
         VARINT_APPEND(metadata_size, temp);
         count = 4;
         //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-        #if CONFIG_ZLIB
+        #if 0
             // TODO see why this does not work.
             // CONFIG_ZLIB
             // Decompression Routines
             while (metadata_size > 0) {
-                printf("%s go: %d\n", tag, ((METADATA_BUF_SIZE < metadata_size) ?
-                                    METADATA_BUF_SIZE : metadata_size));
+                printf("%s go: %d\n", tag, FFMIN(BUF_SIZE, metadata_size));
                 ret = avio_read(pb, metadata_buf, FFMIN(METADATA_BUF_SIZE, metadata_size));
                 metadata_size -= ret;
                 // TODO maybe remove out_buf_size
@@ -256,32 +268,91 @@ static int flif16_read_header(AVFormatContext *s)
         #endif
     }
 
-    //ff_flif16_rac_init(dc->rc, gb, b, bs):
     #if 0
     // CONFIG_ZLIB
         if (out_buf)
             av_freep(&out_buf);
     #endif
 
-    //bytestream2_init(&gb, buf, size);
-    //ff_flif16_rac_init(dc->rc, gb, buf, bufsize):
+    avio_read(pb, buf, FLIF16_RAC_MAX_RANGE_BYTES);
+    ff_flif16_rac_init(&rc, NULL, buf, FLIF16_RAC_MAX_RANGE_BYTES);
+    ret = avio_read_partial(pb, buf, BUF_SIZE);
+    printf("%u\n", ret);
+    bytestream2_init(&gb, buf, ret);
+    rc.gb = &gb;
 
+    while (1) {
+        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+        switch (segment) {
+            case 0:
+                if (bpc == '0') {
+                    bpc = 0;
+                    for (; i < num_planes; ++i) {
+                        RAC_GET(&rc, NULL, 1, 15, &temp, FLIF16_RAC_UNI_INT8);
+                        bpc = FFMAX(bpc, (1 << temp) - 1);
+                    }
+                    i = 0;
+                } else
+                    bpc = (bpc == '1') ? 255 : 65535;
+                // MSG("planes : %d & bpc : %d\n", num_planes, bpc);
+                if (num_frames < 2)
+                    goto end;
+                ++segment;
+
+                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+            case 1:
+                if (num_planes > 3) {
+                    RAC_GET(&rc, NULL, 0, 1, &temp, FLIF16_RAC_UNI_INT8);
+                }
+                ++segment;
+
+                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+            case 2:
+                if (num_frames > 1) {
+                    RAC_GET(&rc, NULL, 0, 100, &loops, FLIF16_RAC_UNI_INT8);
+                }
+                loops = (!loops) ? 1 : loops;
+                ++segment;
+
+                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+            case 3:
+                if (num_frames > 1) {
+                    for (; i < num_frames; ++i) {
+                        temp = 0;
+                        RAC_GET(&rc, NULL, 0, 60000, &(temp), FLIF16_RAC_UNI_INT16);
+                        duration += temp;
+                        printf("%u\n", temp);
+                    }
+                    i = 0;
+                }
+                goto end;
+                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+        }
+
+        need_more_data:
+            avio_read_partial(pb, buf, BUF_SIZE);
+            bytestream2_init(&gb, buf, BUF_SIZE);
+    }
+
+    end:
+    printf("Width: %u\nHeight: %u\nFrames: %u\nTotal duration: %ld\n", vlist[0], vlist[1], vlist[2], duration * loops);
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
+
     avpriv_set_pts_info(st, 64, 1, 1000);
     st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codecpar->codec_id   = AV_CODEC_ID_FLIF16;
     st->codecpar->width      = vlist[0];
     st->codecpar->height     = vlist[1];
     st->codecpar->format     = format;
-    st->duration             = 1;
+    st->duration             = duration * loops;
     st->start_time           = 0;
     st->nb_frames            = vlist[2];
 
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)
         return AVERROR(EIO);
-
+    printf("Exiting\n");
     //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     return 0;
 }
@@ -318,5 +389,6 @@ AVInputFormat ff_flif_demuxer = {
     .read_probe     = flif16_probe,
     .read_header    = flif16_read_header,
     .read_packet    = flif16_read_packet,
+    .flags          = AVFMT_NOTIMESTAMPS,
     .priv_class     = &demuxer_class,
 };
