@@ -364,6 +364,7 @@ static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
     int ret;
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     printf("Returning %d\n", pkt->size);
+    //  FFMIN(BUF_SIZE, avio_size(pb))
     ret = av_get_packet(pb, pkt, avio_size(pb));
     return ret;
 }

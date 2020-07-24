@@ -2717,6 +2717,7 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
                                       FLIF16RangesContext* src_ctx)
 {
     transform_priv_frameshape *data = ctx->priv_data;
+    int temp;
 
     switch(ctx->i){
         case 0:
@@ -2734,9 +2735,15 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
 
         case 2:
             for (; data->i < data->nb; data->i++) {
-                RAC_GET(&dec_ctx->rc, &data->chancectx, 0,
-                        data->cols - data->b[data->i],
-                        &data->e[data->i], FLIF16_RAC_NZ_INT);
+                //RAC_GET(&dec_ctx->rc, &data->chancectx, 0,
+                //        data->cols - data->b[data->i],
+                //        &data->e[data->i], FLIF16_RAC_NZ_INT);
+                temp = ff_flif16_rac_process(&dec_ctx->rc, &data->chancectx, 0,
+                                           data->cols - data->b[data->i],
+                                           &data->e[data->i], FLIF16_RAC_NZ_INT);
+                printf("temp == %d\n", temp);
+                if (temp == 0)
+                    goto need_more_data;
                 data->e[data->i] = data->cols - data->e[data->i];
               
                 if (   data->e[data->i] > data->cols
@@ -2769,10 +2776,12 @@ static FLIF16RangesContext* transform_frameshape_meta(FLIF16Context *ctx,
     for(unsigned int fr = 1; fr < frame_count; fr++){
         if(frame[fr].seen_before >= 0)
             continue;
+        printf("Frameshape: Frame: %u\n", fr);
         for(uint32_t r = 0; r < ctx->height; r++){
             av_assert0(pos < data->nb);
             frame[fr].col_begin[r] = data->b[pos];
             frame[fr].col_end[r] = data->e[pos];
+            printf("(%u, %u)\n", frame[fr].col_begin[r], frame[fr].col_end[r]);
             pos++;
         }
     }

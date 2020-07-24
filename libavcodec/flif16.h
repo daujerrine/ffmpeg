@@ -244,6 +244,7 @@ static inline FLIF16ColorVal ff_flif16_pixel_get_fast(FLIF16Context *s,
         return ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]];
     else
         printf("check\n");
+    return 0;
 }
 
 static inline void ff_flif16_pixel_set_fast(FLIF16Context *s,

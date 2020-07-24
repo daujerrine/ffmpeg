@@ -424,8 +424,8 @@ static inline void ff_flif16_chancetable_put(FLIF16RangeCoder *rc,
                                              uint16_t type, uint8_t bit)
 {
     // printf("put: type = %d chance = %d\n", type, ctx->data[type]);
-    // if(ctx->data[type] >= 4096)
-    //     printf("type: %u data: %u\n", type, ctx->data[type]);
+     if(ctx->data[type] >= 4096)
+         printf("type: %u data: %u\n", type, ctx->data[type]);
     ctx->data[type] = (!bit) ? rc->ct.zero_state[ctx->data[type]]
                              : rc->ct.one_state[ctx->data[type]];
 }
@@ -830,7 +830,7 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
     int flag = 0;
     while (!flag) {
         if(!ff_flif16_rac_renorm(rc)) {
-            printf("Process again\n");
+            //printf("Process again\n");
             return 0; // EAGAIN condition
         }
         
