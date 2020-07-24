@@ -2723,33 +2723,34 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
     switch(ctx->i){
         case 0:
             printf("FrameShape Read : \n");
-            ctx->i = 1;
+            ctx->i = 1; // ++ctx->i
 
         case 1:
-            for(; data->i < data->nb; data->i++){
+            for (; data->i < data->nb; data->i++) {
                 RAC_GET(&dec_ctx->rc, &data->chancectx, 0, data->cols,
                         &data->b[data->i], FLIF16_RAC_NZ_INT);
                 printf("b[%d] : %d\n", data->i, data->b[data->i]);
             }
-            ctx->i = 2;
+            ctx->i = 2; // ++ctx->i
             data->i = 0;
 
         case 2:
-            for(; data->i < data->nb; data->i++){
+            for (; data->i < data->nb; data->i++) {
                 printf("here \n");
                 RAC_GET(&dec_ctx->rc, &data->chancectx, 0,
                         data->cols - data->b[data->i],
                         &data->e[data->i], FLIF16_RAC_NZ_INT);
-                if(   data->e[data->i] > data->cols
-                   || data->e[data->i] < data->b[data->i]
-                   || data->e[data->i] <= 0){
+                
+                if (   data->e[data->i] > data->cols
+                    || data->e[data->i] < data->b[data->i]
+                    || data->e[data->i] <= 0) {
                        return 0;
                 }
                 printf("e[%d] : %d\n", data->i, data->e[data->i]);
             }
             data->i = 0;
             
-            goto end;
+            goto end; // No need for the end label. Control wil automatically go there
     }
 
     end:

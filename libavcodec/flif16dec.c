@@ -68,12 +68,12 @@ typedef struct FLIF16DecoderContext {
     uint32_t width;
     uint32_t height;
     uint32_t num_frames;
-    uint32_t meta;      ///< Size of a meta chunk
+    uint32_t meta;       ///< Size of a meta chunk
 
     // Primary Header     
-    uint8_t  ia;        ///< Is image interlaced or/and animated or not
-    uint32_t bpc;       ///< 2 ^ Bytes per channel
-    uint8_t  num_planes;    ///< Number of planes
+    uint8_t  ia;         ///< Is image interlaced or/and animated or not
+    uint32_t bpc;        ///< 2 ^ Bytes per channel
+    uint8_t  num_planes; ///< Number of planes
     
     // change to uint8_t
     uint32_t loops;       ///< Number of times animation loops
@@ -85,6 +85,7 @@ typedef struct FLIF16DecoderContext {
     // Transform flags
     uint8_t frameshape;
     uint8_t framelookback;
+    
     /* End Inheritance from FLIF16Context */
 
     FLIF16PixelData  *out_frames;
@@ -105,7 +106,7 @@ typedef struct FLIF16DecoderContext {
     uint8_t custombc;     ///< Custom Bitchance Flag
     uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
 
-    uint8_t cut;         ///< Chancetable custom cutoff
+    uint8_t cut;          ///< Chancetable custom cutoff
     uint32_t alpha;       ///< Chancetable custom alphadivisor
     uint8_t ipp;          ///< Invisible pixel predictor
 

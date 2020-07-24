@@ -175,8 +175,6 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                                unsigned int prop_ranges_size,
                                unsigned int channel)
 {
-    // There is a problem with "overlapping" mallocs over here. Apparently
-    // Mitigable by a large malloc
     int oldp = 0, p = 0, split_val = 0, temp;
     //printf("rc: %lu \nm: %lu\nprop_ranges: %lu\npsize: %lu \nchannel: %u\n",
     //       (long unsigned int)rc, (long unsigned int)m, (long unsigned int)prop_ranges,

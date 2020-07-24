@@ -151,15 +151,20 @@ static int flif16_probe(const AVProbeData *p)
 static int flif16_read_header(AVFormatContext *s)
 {
     FLIFDemuxContext *dc = s->priv_data;
+    GetByteContext gb;
+
     AVIOContext     *pb  = s->pb;
     AVStream        *st;
+    
     uint32_t vlist[3] = {0};
     uint8_t flag, temp, bpc;
     uint8_t tag[5] = {0};
+
     uint8_t metadata_buf[METADATA_BUF_SIZE];
     uint32_t metadata_size = 0;
-    uint8_t *out_buf;
+    uint8_t *out_buf = NULL;
     int out_buf_size = 0;
+
     unsigned int count = 4;
     int ret;
     int format;
@@ -254,8 +259,12 @@ static int flif16_read_header(AVFormatContext *s)
     //ff_flif16_rac_init(dc->rc, gb, b, bs):
     #if 0
     // CONFIG_ZLIB
-        av_freep(&out_buf);
+        if (out_buf)
+            av_freep(&out_buf);
     #endif
+
+    //bytestream2_init(&gb, buf, size);
+    //ff_flif16_rac_init(dc->rc, gb, buf, bufsize):
 
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000

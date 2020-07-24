@@ -306,18 +306,21 @@ static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
     uint32_t left;
     while (rc->range <= FLIF16_RAC_MIN_RANGE) {
         left = bytestream2_get_bytes_left(rc->gb);
+        printf("Renorm left = %d %lu %u\n", left, rc->range, FLIF16_RAC_MIN_RANGE);
         if (!left) {
+            printf(">>1\n");
             return 0;
         }
-        //printf("Renorm left = %d %lu %u\n", left, rc->range, FLIF16_RAC_MIN_RANGE);
         rc->low <<= 8;
         rc->range <<= 8;
         rc->low |= bytestream2_get_byte(rc->gb);
         //printf("Renorm low = %lu range = %lu\n", rc->low, rc->range);
-        if(!left)
+        if(!left) {
+            printf(">>2\n");
             return 0;
-        else
+        } else {
             --left;
+        }
     }
     return 1;
 }
@@ -325,7 +328,7 @@ static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
 static inline uint8_t ff_flif16_rac_get(FLIF16RangeCoder *rc, uint32_t chance,
                                         uint8_t *target)
 {
-    //printf("low = %lu range = %lu chance = %u\n", rc->low, rc->range, chance);
+    printf("low = %lu range = %lu chance = %u\n", rc->low, rc->range, chance);
     if (rc->low >= rc->range - chance) {
         rc->low -= rc->range - chance;
         rc->range = chance;
@@ -421,7 +424,7 @@ static inline void ff_flif16_chancetable_put(FLIF16RangeCoder *rc,
                                              FLIF16ChanceContext *ctx,
                                              uint16_t type, uint8_t bit)
 {
-    //printf("put: type = %d chance = %d\n", type, ctx->data[type]);
+    printf("put: type = %d chance = %d\n", type, ctx->data[type]);
     if(ctx->data[type] >= 4096)
         printf("type: %u data: %u\n", type, ctx->data[type]);
     ctx->data[type] = (!bit) ? rc->ct.zero_state[ctx->data[type]]
@@ -827,9 +830,11 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
 {
     int flag = 0;
     while (!flag) {
-        if(!ff_flif16_rac_renorm(rc))
+        if(!ff_flif16_rac_renorm(rc)) {
+            printf("Process again\n");
             return 0; // EAGAIN condition
-
+        }
+        
         switch (type) {
             case FLIF16_RAC_BIT:
                 flag = ff_flif16_rac_read_bit(rc, (uint8_t *) target);
@@ -874,7 +879,7 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
                 break;
         }
     }
-
+    printf("Success\n");
     return 1;
 }
 
