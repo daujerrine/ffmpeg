@@ -1169,7 +1169,6 @@ static int8_t transform_permuteplanes_read(FLIF16TransformContext* ctx,
                 return 0;
             }
             ++ctx->segment;
-            goto end;
     }
 
     end:
@@ -1478,7 +1477,6 @@ static int8_t transform_bounds_read(FLIF16TransformContext* ctx,
     else{
         ctx->i = 0;
         ctx->segment = 0;
-        goto end;
     }
     end:
         printf("[Bounds Result]\n");
@@ -2649,7 +2647,7 @@ static int8_t transform_framedup_read(FLIF16TransformContext * ctx,
     switch(ctx->i){
         case 0:
             printf("FrameDUP Read : \n");
-            data->seen_before = av_mallocz(data->nb-1 * sizeof(*data->seen_before));
+            data->seen_before = av_mallocz(data->nb * sizeof(*data->seen_before));
             data->seen_before[0] = -1;
             ctx->i = 1;
             data->i = 1;
@@ -2719,11 +2717,11 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
                                       FLIF16RangesContext* src_ctx)
 {
     transform_priv_frameshape *data = ctx->priv_data;
-    
+
     switch(ctx->i){
         case 0:
             printf("FrameShape Read : \n");
-            ctx->i = 1; // ++ctx->i
+            ctx->i = 1;
 
         case 1:
             for (; data->i < data->nb; data->i++) {
@@ -2731,16 +2729,16 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
                         &data->b[data->i], FLIF16_RAC_NZ_INT);
                 printf("b[%d] : %d\n", data->i, data->b[data->i]);
             }
-            ctx->i = 2; // ++ctx->i
+            ctx->i = 2;
             data->i = 0;
 
         case 2:
             for (; data->i < data->nb; data->i++) {
-                printf("here \n");
                 RAC_GET(&dec_ctx->rc, &data->chancectx, 0,
                         data->cols - data->b[data->i],
                         &data->e[data->i], FLIF16_RAC_NZ_INT);
-                
+                data->e[data->i] = data->cols - data->e[data->i];
+              
                 if (   data->e[data->i] > data->cols
                     || data->e[data->i] < data->b[data->i]
                     || data->e[data->i] <= 0) {
@@ -2749,8 +2747,6 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
                 printf("e[%d] : %d\n", data->i, data->e[data->i]);
             }
             data->i = 0;
-            
-            goto end; // No need for the end label. Control wil automatically go there
     }
 
     end:
@@ -2770,7 +2766,7 @@ static FLIF16RangesContext* transform_frameshape_meta(FLIF16Context *ctx,
     transform_priv_frameshape *data = t_ctx->priv_data;
     uint32_t pos = 0;
     
-    for(unsigned int fr = 0; fr < frame_count; fr++){
+    for(unsigned int fr = 1; fr < frame_count; fr++){
         if(frame[fr].seen_before >= 0)
             continue;
         for(uint32_t r = 0; r < ctx->height; r++){
@@ -2813,7 +2809,7 @@ static int8_t transform_framecombine_read(FLIF16TransformContext * ctx,
     
     switch(ctx->i){
         case 0:
-            printf("FrameShape Read : \n");
+            printf("FrameLookback Read : \n");
             if(src_ctx->num_planes > 4)
                 return 0;
             ctx->i = 1;
@@ -2822,7 +2818,6 @@ static int8_t transform_framecombine_read(FLIF16TransformContext * ctx,
             RAC_GET(&dec_ctx->rc, &data->chancectx, 1, data->nb_frames = 1,
                         &data->max_lookback, FLIF16_RAC_GNZ_INT);
             printf("max_lookback : %d\n", data->max_lookback);
-            goto end;
     }
 
     end:
