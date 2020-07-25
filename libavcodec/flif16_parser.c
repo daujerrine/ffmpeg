@@ -175,7 +175,6 @@ static int flif16_parse(AVCodecParserContext *s, AVCodecContext *avctx,
     }
     printf("Width:%u\nHeight:%u\nFrames:%u\nEnd:%d\n", 
            fpc->width, fpc->height, fpc->frames, buf_size);
-
     *poutbuf      = buf;
     *poutbuf_size = buf_size;
     return next;
