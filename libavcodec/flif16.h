@@ -113,6 +113,7 @@ typedef struct FLIF16Context {
     uint16_t *framedelay; ///< Frame delay for each frame
     FLIF16PixelType plane_type[MAX_PLANES];
     // Transform flags
+    uint8_t framedup;
     uint8_t frameshape;
     uint8_t framelookback;
 } FLIF16Context;

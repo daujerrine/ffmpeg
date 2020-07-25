@@ -42,11 +42,13 @@
 #define BUF_SIZE 4096
 
 typedef struct FLIFDemuxContext {
+    const AVClass *class;
 #if 0
 // CONFIG_ZLIB
     z_stream stream;
     uint8_t active;
 #endif
+    int64_t duration;
 } FLIFDemuxContext;
 
 
@@ -187,7 +189,7 @@ static int flif16_read_header(AVFormatContext *s)
     st = avformat_new_stream(s, NULL);
     flag = avio_r8(pb);
     animated = (flag >> 4) > 4;
-    duration = animated;
+    duration = !animated;
     bpc = avio_r8(pb); // Bytes per channel
 
     num_planes = flag & 0x0F;
@@ -348,6 +350,9 @@ static int flif16_read_header(AVFormatContext *s)
     st->duration             = duration * loops;
     st->start_time           = 0;
     st->nb_frames            = vlist[2];
+    st->codec_info_nb_frames = vlist[2] - 1;
+    st->need_parsing         = 1;
+    dc->duration = st->duration;
 
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)
@@ -360,12 +365,16 @@ static int flif16_read_header(AVFormatContext *s)
 
 static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
+    FLIFDemuxContext *dc = s->priv_data;
     AVIOContext *pb  = s->pb;
     int ret;
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-    printf("Returning %d\n", pkt->size);
     //  FFMIN(BUF_SIZE, avio_size(pb))
     ret = av_get_packet(pb, pkt, avio_size(pb));
+    printf("Returning %d\n", ret);
+    pkt->dts      = dc->duration;
+    if (ret > 0)
+        pkt->duration = dc->duration;
     return ret;
 }
 
@@ -390,6 +399,6 @@ AVInputFormat ff_flif_demuxer = {
     .read_probe     = flif16_probe,
     .read_header    = flif16_read_header,
     .read_packet    = flif16_read_packet,
-    .flags          = AVFMT_NOTIMESTAMPS,
+    //.flags          = AVFMT_NOTIMESTAMPS,
     .priv_class     = &demuxer_class,
 };

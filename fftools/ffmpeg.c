@@ -32,6 +32,7 @@
 #include <limits.h>
 #include <stdatomic.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #if HAVE_IO_H
 #include <io.h>
@@ -692,7 +693,7 @@ static void write_packet(OutputFile *of, AVPacket *pkt, OutputStream *ost, int u
     AVFormatContext *s = of->ctx;
     AVStream *st = ost->st;
     int ret;
-
+    printf(">>>> [%s]\n", __func__);
     /*
      * Audio encoders may split the packets --  #frames in != #packets out.
      * But there is no reordering, so we can limit the number of output packets
@@ -708,7 +709,7 @@ static void write_packet(OutputFile *of, AVPacket *pkt, OutputStream *ost, int u
         }
         ost->frame_number++;
     }
-
+    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     if (!of->header_written) {
         AVPacket tmp_pkt = {0};
         /* the muxer is not initialized yet, buffer the packet */
@@ -848,7 +849,7 @@ static void output_packet(OutputFile *of, AVPacket *pkt,
                           OutputStream *ost, int eof)
 {
     int ret = 0;
-
+    printf(">>>> [%s]\n", __func__);
     /* apply the output bitstream filters, if any */
     if (ost->nb_bitstream_filters) {
         int idx;
@@ -860,6 +861,7 @@ static void output_packet(OutputFile *of, AVPacket *pkt,
         eof = 0;
         idx = 1;
         while (idx) {
+            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             /* get a packet from the previous filter up the chain */
             ret = av_bsf_receive_packet(ost->bsf_ctx[idx - 1], pkt);
             if (ret == AVERROR(EAGAIN)) {
@@ -883,8 +885,10 @@ static void output_packet(OutputFile *of, AVPacket *pkt,
             else
                 write_packet(of, pkt, ost, 0);
         }
-    } else if (!eof)
+    } else if (!eof) {
+        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         write_packet(of, pkt, ost, 0);
+    }
 
 finish:
     if (ret < 0 && ret != AVERROR_EOF) {
@@ -1203,7 +1207,7 @@ static void do_video_out(OutputFile *of,
         av_init_packet(&pkt);
         pkt.data = NULL;
         pkt.size = 0;
-
+        printf(">>>>frame: %d nb_frames: %d\n", i, nb_frames);
         if (i < nb0_frames && ost->last_frame) {
             in_picture = ost->last_frame;
         } else
@@ -1363,7 +1367,7 @@ static void do_video_stats(OutputStream *ost, int frame_size)
     AVCodecContext *enc;
     int frame_number;
     double ti1, bitrate, avg_bitrate;
-
+    printf(">>>> [%s]\n", __func__);
     /* this is executed just the first time do_video_stats is called */
     if (!vstats_file) {
         vstats_file = fopen(vstats_filename, "w");
@@ -4650,7 +4654,7 @@ static int transcode(void)
     InputStream *ist;
     int64_t timer_start;
     int64_t total_packets_written = 0;
-
+    printf(">>>> [%s]\n", __func__);
     ret = transcode_init();
     if (ret < 0)
         goto fail;
