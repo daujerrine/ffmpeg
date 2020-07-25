@@ -3360,7 +3360,7 @@ int ff_rfps_add_frame(AVFormatContext *ic, AVStream *st, int64_t ts)
     int64_t last = st->info->last_dts;
 
     if (   ts != AV_NOPTS_VALUE && last != AV_NOPTS_VALUE && ts > last
-        && ts - (uint64_t)last < INT64_MAX) {
+       && ts - (uint64_t)last < INT64_MAX) {
         double dts = (is_relative(ts) ?  ts - RELATIVE_TS_BASE : ts) * av_q2d(st->time_base);
         int64_t duration = ts - last;
 
@@ -3618,6 +3618,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
     int *missing_streams = av_opt_ptr(ic->iformat->priv_class, ic->priv_data, "missing_streams");
 
     flush_codecs = probesize > 0;
+
     av_opt_set(ic, "skip_clear", "1", AV_OPT_SEARCH_CHILDREN);
 
     max_stream_analyze_duration = max_analyze_duration;
@@ -3723,7 +3724,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     read_size = 0;
     for (;;) {
-        printf("codec_info_nb_frames = %d\n", st->codec_info_nb_frames);
         const AVPacket *pkt;
         int analyzed_all_streams;
         if (ff_check_interrupt(&ic->interrupt_callback)) {
@@ -3731,17 +3731,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
             av_log(ic, AV_LOG_DEBUG, "interrupted\n");
             break;
         }
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
         /* check if one codec still needs to be handled */
         for (i = 0; i < ic->nb_streams; i++) {
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             int fps_analyze_framecount = 20;
             int count;
 
             st = ic->streams[i];
             if (!has_codec_parameters(st, NULL))
                 break;
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             /* If the timebase is coarse (like the usual millisecond precision
              * of mkv), we need to analyze more frames to reliably arrive at
              * the correct fps. */
@@ -3753,19 +3751,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 fps_analyze_framecount = ic->fps_probe_size;
             if (st->disposition & AV_DISPOSITION_ATTACHED_PIC)
                 fps_analyze_framecount = 0;
-            printf("At: [%s] %s, %d <> %d\n", __func__, __FILE__, __LINE__, ic->iformat->flags & AVFMT_NOTIMESTAMPS);
-            printf("%d\n",st->info->codec_info_duration_fields);
             /* variable fps and no guess at the real fps */
             count = (ic->iformat->flags & AVFMT_NOTIMESTAMPS) ?
                        st->info->codec_info_duration_fields/2 :
                        st->info->duration_count;
-            
             if (!(st->r_frame_rate.num && st->avg_frame_rate.num) &&
                 st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
                 if (count < fps_analyze_framecount)
                     break;
             }
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             // Look at the first 3 frames if there is evidence of frame delay
             // but the decoder delay is not set.
             if (st->info->frame_delay_evidence && count < 2 && st->internal->avctx->has_b_frames == 0)
@@ -3811,7 +3805,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                            "consider increasing probesize\n", i);
             break;
         }
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
         /* NOTE: A new stream can be added there if no header in file
          * (AVFMTCTX_NOHEADER). */
         ret = read_frame_internal(ic, &pkt1);
@@ -3823,7 +3817,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             eof_reached = 1;
             break;
         }
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
         if (!(ic->flags & AVFMT_FLAG_NOBUFFER)) {
             ret = ff_packet_list_put(&ic->internal->packet_buffer,
                                      &ic->internal->packet_buffer_end,
@@ -3835,7 +3829,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         } else {
             pkt = &pkt1;
         }
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
         st = ic->streams[pkt->stream_index];
         if (!(st->disposition & AV_DISPOSITION_ATTACHED_PIC))
             read_size += pkt->size;
@@ -3847,7 +3841,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 goto unref_then_goto_end;
             st->internal->avctx_inited = 1;
         }
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
         if (pkt->dts != AV_NOPTS_VALUE && st->codec_info_nb_frames > 1) {
             /* check for non-increasing dts */
             if (st->info->fps_last_dts != AV_NOPTS_VALUE &&
@@ -3914,21 +3908,16 @@ FF_ENABLE_DEPRECATION_WARNINGS
                     av_packet_unref(&pkt1);
                 break;
             }
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             if (pkt->duration) {
-                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 if (avctx->codec_type == AVMEDIA_TYPE_SUBTITLE && pkt->pts != AV_NOPTS_VALUE && st->start_time != AV_NOPTS_VALUE && pkt->pts >= st->start_time) {
-                    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                     st->info->codec_info_duration = FFMIN(pkt->pts - st->start_time, st->info->codec_info_duration + pkt->duration);
                 } else
                     st->info->codec_info_duration += pkt->duration;
-                printf("At: [%s] %s, %d << %d\n", __func__, __FILE__, __LINE__, st->parser && st->need_parsing && avctx->ticks_per_frame == 2);
-                st->info->codec_info_duration_fields += st->parser && st->need_parsing && avctx->ticks_per_frame == 2 ? st->parser->repeat_pict + 1 : 2;
+                st->info->codec_info_duration_fields += st->parser && st->need_parsing && avctx->ticks_per_frame ==2 ? st->parser->repeat_pict + 1 : 2;
             }
         }
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
 #if FF_API_R_FRAME_RATE
-            printf("<<><<<><At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             ff_rfps_add_frame(ic, st, pkt->dts);
 #endif
             if (pkt->dts != pkt->pts && pkt->dts != AV_NOPTS_VALUE && pkt->pts != AV_NOPTS_VALUE)
@@ -3939,7 +3928,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             if (ret < 0)
                 goto unref_then_goto_end;
         }
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
         /* If still no information, we try to open the codec and to
          * decompress the frame. We try to avoid that in most cases as
          * it takes longer and uses more memory. For MPEG-4, we need to
@@ -3956,12 +3945,10 @@ FF_ENABLE_DEPRECATION_WARNINGS
             av_packet_unref(&pkt1);
 
         st->codec_info_nb_frames++;
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         count++;
     }
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
     if (eof_reached) {
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         int stream_index;
         for (stream_index = 0; stream_index < ic->nb_streams; stream_index++) {
             st = ic->streams[stream_index];
@@ -3986,9 +3973,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
         }
     }
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
     if (flush_codecs) {
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         AVPacket empty_pkt = { 0 };
         int err = 0;
         av_init_packet(&empty_pkt);
@@ -4012,7 +3998,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
         }
     }
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
     ff_rfps_calculate(ic);
 
     for (i = 0; i < ic->nb_streams; i++) {
@@ -4024,7 +4010,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 if (avpriv_find_pix_fmt(avpriv_get_raw_pix_fmt_tags(), tag) == avctx->pix_fmt)
                     avctx->codec_tag= tag;
             }
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
             /* estimate average framerate if not set by demuxer */
             if (st->info->codec_info_duration_fields &&
                 !st->avg_frame_rate.num &&
