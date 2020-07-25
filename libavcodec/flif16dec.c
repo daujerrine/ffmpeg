@@ -83,14 +83,15 @@ typedef struct FLIF16DecoderContext {
     FLIF16PixelType plane_type[MAX_PLANES];
 
     // Transform flags
+    uint8_t framedup;
     uint8_t frameshape;
     uint8_t framelookback;
-    
     /* End Inheritance from FLIF16Context */
 
     FLIF16PixelData  *out_frames;
     uint32_t out_frames_count;
     AVFrame *final_out_frame;
+    int64_t pts;
     
     uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
     uint8_t buf_count;    ///< Count for initial RAC buffer
@@ -446,7 +447,8 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->alphazero);
             else if (temp == FLIF16_TRANSFORM_DUPLICATEFRAME) {
-                 if(s->num_frames < 2)
+                s->framedup = 1;
+                if(s->num_frames < 2)
                      return 0;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->num_frames);
@@ -719,7 +721,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
     // TODO write in a packet size independent manner
     // FLIF16ColorVal s->min = 0, s->max = 0;
     FLIF16ColorVal curr;
-    uint32_t begin = 0, end = (!fr) ? s->width : s->out_frames[fr].col_end[r];
+    uint32_t begin = 0, end = (!fr || !s->framedup) ? s->width : s->out_frames[fr].col_end[r];
     //printf("%u %u\n", begin, end);
     switch (s->segment2) {
         case 0:
@@ -737,8 +739,8 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 // copy pixels from the previous frame
                 // begin = image.col_begin[r];
                 // end = image.col_end[r];
-                begin = s->out_frames[fr].col_begin[r];
-                end = s->out_frames[fr].col_end[r];
+                begin = (!s->framedup) ? 0 : s->out_frames[fr].col_begin[r];
+                end = (!s->framedup) ? s->width : s->out_frames[fr].col_end[r];
                 if (s->alphazero && p < 3) {
                     for (uint32_t c = 0; c < begin; c++)
                         if (PIXEL_GET(s, fr, 3, r, c) == 0)
@@ -1818,6 +1820,9 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
                    ? s->out_frames[s->out_frames_count].seen_before
                    : s->out_frames_count;
 
+    s->final_out_frame->pts = s->pts;
+    s->pts += s->framedelay[s->out_frames_count];
+    printf(">>>>>>>>>target: %d pts: %ld\n", target_frame, s->final_out_frame->pts);
     printf(">>>>>>>>>Linesize: %d\n", s->final_out_frame->linesize[0]);
 
     switch (avctx->pix_fmt) {
