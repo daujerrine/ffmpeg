@@ -1820,8 +1820,11 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
                    ? s->out_frames[s->out_frames_count].seen_before
                    : s->out_frames_count;
 
-    s->final_out_frame->pts = s->pts;
-    s->pts += s->framedelay[s->out_frames_count];
+    if (s->num_frames > 1) {
+        s->final_out_frame->pts = s->pts;
+        s->pts += s->framedelay[s->out_frames_count];
+    }
+
     printf(">>>>>>>>>target: %d pts: %ld\n", target_frame, s->final_out_frame->pts);
     printf(">>>>>>>>>Linesize: %d\n", s->final_out_frame->linesize[0]);
 
