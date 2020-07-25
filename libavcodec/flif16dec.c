@@ -1785,6 +1785,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     // for(...)
     //     p->data[...] = ..
     uint32_t temp;
+    uint32_t target_frame;
     int ret;
     FLIF16DecoderContext *s = avctx->priv_data;
     ff_set_dimensions(avctx, s->width, s->height);
@@ -1813,6 +1814,10 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
         return ret;
     }
 
+    target_frame = (s->out_frames[s->out_frames_count].seen_before >= 0)
+                   ? s->out_frames[s->out_frames_count].seen_before
+                   : s->out_frames_count;
+
     printf(">>>>>>>>>Linesize: %d\n", s->final_out_frame->linesize[0]);
 
     switch (avctx->pix_fmt) {
@@ -1820,7 +1825,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j) = \
-                    PIXEL_GET(s, s->out_frames_count, 0, i, j);
+                    PIXEL_GET(s, target_frame, 0, i, j);
                 }
             }
             break;
@@ -1830,13 +1835,13 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j * 3 + 0 ) = \
-                    PIXEL_GET(s, s->out_frames_count, 0, i, j);
+                    PIXEL_GET(s, target_frame, 0, i, j);
                     //printf("%d ", i * p->linesize[0] * 3 + j * 3);
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j * 3 + 1) = \
-                    PIXEL_GET(s, s->out_frames_count, 1, i, j);
+                    PIXEL_GET(s, target_frame, 1, i, j);
                     //printf("%d ", i * p->linesize[0] * 3+ j * 3 + 1);
                     *(s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j * 3 + 2) = \
-                    PIXEL_GET(s, s->out_frames_count, 2, i, j);
+                    PIXEL_GET(s, target_frame, 2, i, j);
                     //printf("%d \n", i * p->linesize[0] * 3 + j * 3 + 2);
                    /* temp = (0xFF << 24) | ((0xFF & PIXEL_GET(s, s->out_frames_count, 0, i, j)) << 16) |
                     ((0xFF & PIXEL_GET(s, s->out_frames_count, 1, i, j)) << 8) |
@@ -1860,10 +1865,10 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
             for (uint32_t i = 0; i < s->height; ++i) {
                 for (uint32_t j = 0; j < s->width; ++j) {
                     *((uint32_t *) (s->final_out_frame->data[0] + i * s->final_out_frame->linesize[0] + j * 4))
-                    = (PIXEL_GET(s, s->out_frames_count, 3, i, j) << 24) |
-                      (PIXEL_GET(s, s->out_frames_count, 0, i, j) << 16) |
-                      (PIXEL_GET(s, s->out_frames_count, 1, i, j) << 8)  |
-                       PIXEL_GET(s, s->out_frames_count, 2, i, j);
+                    = (PIXEL_GET(s, target_frame, 3, i, j) << 24) |
+                      (PIXEL_GET(s, target_frame, 0, i, j) << 16) |
+                      (PIXEL_GET(s, target_frame, 1, i, j) << 8)  |
+                       PIXEL_GET(s, target_frame, 2, i, j);
                 }
             }
             
