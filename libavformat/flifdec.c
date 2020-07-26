@@ -194,17 +194,6 @@ static int flif16_read_header(AVFormatContext *s)
 
     num_planes = flag & 0x0F;
 
-    switch (num_planes) {
-        case 1:
-            format = AV_PIX_FMT_GRAY8;
-            break;
-        case 3:
-            format = AV_PIX_FMT_RGB24;
-            break;
-        case 4:
-            format = AV_PIX_FMT_RGB32;
-            break;
-    }
     //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     for (int i = 0; i < (2 + animated); ++i) {
@@ -340,6 +329,13 @@ static int flif16_read_header(AVFormatContext *s)
     printf("Width: %u\nHeight: %u\nFrames: %u\nTotal duration: %ld\n", vlist[0], vlist[1], vlist[2], duration * loops);
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
+
+    if (bpc > 65535) {
+        av_log(s, AV_LOG_ERROR, "depth per channel greater than 16 bits not supported\n");
+        return AVERROR_PATCHWELCOME;
+    }
+        
+    format = flif16_out_frame_type[FFMIN(num_planes, 4)][bpc > 255];
     avpriv_set_pts_info(st, 64, 1, 1000);
     st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codecpar->codec_id   = AV_CODEC_ID_FLIF16;

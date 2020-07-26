@@ -155,7 +155,7 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
 
                 case FLIF16_PLANEMODE_FILL:
                     printf("Constant fill plane %d %d\n", i, const_plane_value[i]);
-                    frames[j].data[i] = av_mallocz(sizeof(int32_t));
+                    frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);;
                     if (!frames[j].data[i]) {
                         printf("fail2\n");
                         return AVERROR(ENOMEM);

@@ -162,6 +162,8 @@ static const int properties_ni_rgba_size[] = {8, 9, 10, 7, 7};
 static const int properties_rgb_size[] = {8, 10, 9, 8, 8};
 static const int properties_rgba_size[] = {9, 11, 10, 8, 8};
 
+// From reference decoder:
+//
 // The order in which the planes are encoded.
 // lookback (Lookback) (animations-only, value refers to a previous frame) has
 // to be first, because all other planes are not encoded if lookback != 0
@@ -430,14 +432,14 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             // TODO Replace with switch statement
             switch (temp) {
                 case FLIF16_TRANSFORM_PALETTEALPHA:
-                    s->plane_mode[FLIF16_PLANE_ALPHA] = FLIF16_PLANEMODE_NORMAL;
+                    s->plane_mode[FLIF16_PLANE_ALPHA] = FLIF16_PLANEMODE_CONSTANT;
                     ff_flif16_transform_configure(s->transforms[s->transform_top],
                                                   s->alphazero);
 
                 case FLIF16_TRANSFORM_CHANNELCOMPACT:
                     if (s->num_planes > 3 && !s->plane_mode[FLIF16_PLANE_ALPHA])
                         s->plane_mode[FLIF16_PLANE_ALPHA] = FLIF16_PLANEMODE_FILL;
-                    
+
                 case FLIF16_TRANSFORM_YCOCG:
                 case FLIF16_TRANSFORM_PALETTE:
                     s->plane_mode[FLIF16_PLANE_Y] = FLIF16_PLANEMODE_NORMAL;
@@ -1822,6 +1824,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
 
     printf("<*****> In flif16_write_frame\n");
 
+    /*
     if (s->num_planes  == 1 && s->bpc <= 256) {
         printf("gray8\n");
         avctx->pix_fmt = AV_PIX_FMT_GRAY8;
@@ -1836,6 +1839,14 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
                s->num_planes, s->bpc);
         return AVERROR_PATCHWELCOME;
     }
+    */
+
+    if (s->bpc > 65535) {
+        av_log(avctx, AV_LOG_ERROR, "depth per channel greater than 16 bits not supported\n");
+        return AVERROR_PATCHWELCOME;
+    }
+
+    avctx->pix_fmt = flif16_out_frame_type[FFMIN(s->num_planes, 4)][s->bpc > 255];
 
     if ((ret = ff_reget_buffer(avctx, s->out_frame, 0)) < 0) {
         printf(">>>>>>Couldn't allocate buffer.\n");
@@ -1905,6 +1916,41 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
                        PIXEL_GET(s, target_frame, 2, i, j);
                 }
             }
+            break;
+
+        case AV_PIX_FMT_GRAY16:
+            for (uint32_t i = 0; i < s->height; ++i) {
+                for (uint32_t j = 0; j < s->width; ++j) {
+                    *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 2)) = \
+                    PIXEL_GET(s, target_frame, 0, i, j);
+                }
+            }
+            break;
+
+        case AV_PIX_FMT_RGB48:
+            for (uint32_t i = 0; i < s->height; ++i) {
+                for (uint32_t j = 0; j < s->width; ++j) {
+                    *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 6 + 0)) = \
+                    PIXEL_GET(s, target_frame, 0, i, j);
+                    *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 6 + 1)) = \
+                    PIXEL_GET(s, target_frame, 1, i, j);
+                    *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 6 + 2)) = \
+                    PIXEL_GET(s, target_frame, 2, i, j);
+                }
+            }
+
+        case AV_PIX_FMT_RGBA64:
+            for (uint32_t i = 0; i < s->height; ++i) {
+                for (uint32_t j = 0; j < s->width; ++j) {
+                    *((uint64_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 8))
+                    = (uint64_t) \
+                      (((uint64_t) PIXEL_GET(s, target_frame, 3, i, j)) << 48) |
+                      (((uint64_t) PIXEL_GET(s, target_frame, 2, i, j)) << 32) |
+                      (((uint64_t) PIXEL_GET(s, target_frame, 1, i, j)) << 16) |
+                       ((uint64_t) PIXEL_GET(s, target_frame, 0, i, j));
+                }
+            }
+            break;
             
     }
 

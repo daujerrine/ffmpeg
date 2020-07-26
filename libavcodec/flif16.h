@@ -53,6 +53,15 @@
 
 static const uint8_t flif16_header[4] = "FLIF";
 
+// Pixeldata types
+static enum AVPixelFormat flif16_out_frame_type[][2] = {
+    { -1,  -1 },  // Padding
+    { AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY16 },
+    { -1 , -1 }, // Padding
+    { AV_PIX_FMT_RGB24, AV_PIX_FMT_RGB48  },
+    { AV_PIX_FMT_RGB32, AV_PIX_FMT_RGBA64 }
+};
+
 typedef enum FLIF16Plane {
     FLIF16_PLANE_Y = 0,
     FLIF16_PLANE_CO,
