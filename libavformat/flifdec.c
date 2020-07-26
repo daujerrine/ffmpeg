@@ -340,7 +340,6 @@ static int flif16_read_header(AVFormatContext *s)
     printf("Width: %u\nHeight: %u\nFrames: %u\nTotal duration: %ld\n", vlist[0], vlist[1], vlist[2], duration * loops);
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
-
     avpriv_set_pts_info(st, 64, 1, 1000);
     st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codecpar->codec_id   = AV_CODEC_ID_FLIF16;
@@ -350,8 +349,7 @@ static int flif16_read_header(AVFormatContext *s)
     st->duration             = duration * loops;
     st->start_time           = 0;
     st->nb_frames            = vlist[2];
-    st->codec_info_nb_frames = vlist[2] - 1;
-    st->need_parsing         = 1;
+    // st->need_parsing         = 1;
     dc->duration = st->duration;
 
     // Jump to start because flif16 decoder needs header data too
@@ -372,9 +370,6 @@ static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
     //  FFMIN(BUF_SIZE, avio_size(pb))
     ret = av_get_packet(pb, pkt, avio_size(pb));
     printf("Returning %d\n", ret);
-    pkt->dts      = dc->duration;
-    if (ret > 0)
-        pkt->duration = dc->duration;
     return ret;
 }
 

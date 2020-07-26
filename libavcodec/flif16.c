@@ -127,87 +127,38 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
 }
 
 
-static int ff_flif16_plane_alloc(FLIF16PixelData *frame, uint8_t num_planes,
-                                 uint32_t width, uint32_t height,
-                                 FLIF16PixelType *plane_type,
-                                 int32_t *cplane_value) // depth = log2(bpc)
+int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
+                          uint8_t *is_nonconst, uint8_t *const_plane_value)
 {
-    frame->data = av_mallocz(sizeof(*frame->data) * num_planes);
-    // TODO if constant, allocate a single integer for the plane.
-    // And set is_constant for that plane
-    /*
-    if (depth <= 8) {
-        if (num_planes > 0)
-            frame->data[0] = av_mallocz(sizeof(int32_t) * width * height);
-        if (num_planes > 1)
-            frame->data[1] = av_mallocz(sizeof(int32_t) * width * height);
-        if (num_planes > 2)
-            frame->data[2] = av_mallocz(sizeof(int32_t) * width * height);
-        if (num_planes > 3 ) {
-            if(constant_alpha)
-                frame->data[3] = av_mallocz(sizeof(int32_t) * width * height);
-            else
-                frame->data[3] = av_mallocz(sizeof(int32_t));
+    for (int j = 0; j < s->num_frames; ++j) {
+        frames[j].data = av_mallocz(sizeof(*frames->data) * s->num_planes);
+        printf("Frame: %d\n", j);
+        if (!frames[j].data) {
+            printf("fail1\n");
+            return AVERROR(ENOMEM);
         }
-    } else {
-        if (num_planes > 0)
-            frame->data[0] = av_mallocz(sizeof(int32_t) * width * height);
-        if (num_planes > 1)
-            frame->data[1] = av_mallocz(sizeof(int32_t) * width * height);
-        if (num_planes > 2)
-            frame->data[2] = av_mallocz(sizeof(int32_t) * width * height);
-        if (num_planes > 3) {
-            if(constant_alpha)
-                frame->data[3] = av_mallocz(sizeof(int32_t));
-            else
-                frame->data[3] = av_mallocz(sizeof(int32_t) * width * height);
+        for (int i = 0; i < s->num_planes; ++i) {
+            printf("Plane: %d ", i);
+            if (is_nonconst[i]) {
+                printf("NonConstant plane\n", i);
+                frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);
+            } else {
+                printf("Constant plane %d %d\n", i, const_plane_value[i]);
+                frames[j].data[i] = av_mallocz(sizeof(int32_t));
+                ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
+            }
+            if (!frames[j].data[i]) {
+                printf("fail2\n");
+                return AVERROR(ENOMEM);
+            }
         }
-    }
-    if (num_planes> 4)
-        frame->data[4] = av_malloc(sizeof(int32_t) * width * height);
-    */
-    /*
-    for (int i = 0; i < num_planes; ++i) {
-        switch (pixel_size[i]) {
-            case FLIF16_PIXEL_8:
-                frame->data[i] = av_mallocz(sizeof(uint8_t) * width * height);
-                break;
-
-            case FLIF16_PIXEL_16:
-                frame->data[i] = av_mallocz(sizeof(int16_t) * width * height);
-                break;
-
-            case FLIF16_PIXEL_16_UNSIGNED:
-                frame->data[i] = av_mallocz(sizeof(uint16_t) * width * height);
-                break;
-
-            case FLIF16_PIXEL_32:
-                frame->data[i] = av_mallocz(sizeof(int32_t) * width * height);
-                break;
-
-            // Insignigficant with respect to image size, hence only one type
-            // is added here.
-            case FLIF16_PIXEL_CONSTANT:
-                frame->data[i] = av_mallocz(sizeof(int32_t));
-                break;
-        }
-    }
-    */
-    for (int i = 0; i < num_planes; ++i) {
-        if (plane_type[i] == FLIF16_PIXEL_CONSTANT) {
-            frame->data[i] = av_mallocz(sizeof(int32_t));
-            ((int32_t *) frame->data[i])[0] = cplane_value[i];
-        } else
-            frame->data[i] = av_mallocz(sizeof(int32_t) * width * height);
-        if (!frame->data[i])
-            return -1;
     }
 
     return 0;
 }
 
 
-static void ff_flif16_plane_free(FLIF16PixelData *frame, uint8_t num_planes)
+static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes)
 {
     for(uint8_t i = 0; i < num_planes; ++i) {
         av_free(frame->data[i]);
@@ -215,22 +166,17 @@ static void ff_flif16_plane_free(FLIF16PixelData *frame, uint8_t num_planes)
     av_free(frame->data);
 }
 
-FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s, int32_t *cplane_value)
+FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s)
 {
     FLIF16PixelData *frames = av_mallocz(sizeof(*frames) * s->num_frames);
     if (!frames)
         return NULL;
 
     for (int i = 0; i < s->num_frames; ++i) {
-        if (ff_flif16_plane_alloc(&frames[i], s->num_planes, s->width, s->height,
-                                  s->plane_type, cplane_value) < 0)
-            return NULL;
         frames[i].seen_before = -1;
-        //frames[i].palette    = 0;
-        // Width?
-        // TODO check for the transform first.
-        frames[i].col_begin = av_mallocz(s->width * sizeof(*frames->col_begin));
-        frames[i].col_end   = av_mallocz(s->width * sizeof(*frames->col_end));
+        // frames[i].palette    = 0;
+        // frames[i].col_begin = av_mallocz(s->width * sizeof(*frames->col_begin));
+        // frames[i].col_end   = av_mallocz(s->width * sizeof(*frames->col_end));
     }
     return frames;
 }
@@ -238,6 +184,11 @@ FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s, int32_t *cplane_value)
 void ff_flif16_frames_free(FLIF16PixelData *frames, uint32_t num_frames,
                            uint32_t num_planes)
 {
-    for(int i = 0; i < num_frames; ++i)
-        ff_flif16_plane_free(&frames[i], num_planes);
+    for (int i = 0; i < num_frames; ++i) {
+        ff_flif16_planes_free(&frames[i], num_planes);
+        if (frames[i].col_begin)
+            av_freep(&frames[i].col_begin);
+        if (frames[i].col_end)
+            av_freep(&frames[i].col_end);
+    }
 }

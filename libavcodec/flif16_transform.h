@@ -47,7 +47,7 @@ typedef enum FLIF16RangesTypes{
     FLIF16_RANGES_DUP
 } FLIF16RangesTypes;
 
-typedef enum FLIF16TransformsTypes{
+typedef enum FLIF16TransformsTypes {
     FLIF16_TRANSFORM_CHANNELCOMPACT,
     FLIF16_TRANSFORM_YCOCG,
     FLIF16_TRANSFORM_RESERVED1,
@@ -61,7 +61,7 @@ typedef enum FLIF16TransformsTypes{
     FLIF16_TRANSFORM_DUPLICATEFRAME,
     FLIF16_TRANSFORM_FRAMESHAPE,
     FLIF16_TRANSFORM_FRAMELOOKBACK,
-}FLIF16TransformsTypes;
+} FLIF16TransformsTypes;
 
 extern FLIF16Ranges *flif16_ranges[14];
 extern FLIF16Transform *flif16_transforms[13];
