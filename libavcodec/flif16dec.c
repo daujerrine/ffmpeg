@@ -80,7 +80,7 @@ typedef struct FLIF16DecoderContext {
     // change to uint32_t
     uint32_t *framedelay; ///< Frame delay for each frame
 
-    uint8_t nonconst_plane[MAX_PLANES];
+    FLIF16PixelType plane_type[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;
@@ -514,7 +514,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
         case 3:
             end:
-            s->segment = 3;
+            s->segment = 3;   
             // Read invisible pixel predictor
             if (   s->alphazero && s->num_planes > 3
                 && ff_flif16_ranges_min(s->range, 3) <= 0
@@ -1017,6 +1017,16 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 
     if (s->grays)
             av_freep(&s->grays);
+
+    for(int k = 0; k < s->num_planes; ++k) {
+        for(int j = 0; j < s->height; ++j) {
+            for(int i = 0; i < s->width; ++i) {
+                printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->out_frames[0], k, j, i));
+            }
+            printf("\n");
+        }
+        printf("===\n");
+    }
 
     for(int i = 0; i < s->num_frames; i++) {
         for(int j = s->transform_top - 1; j >= 0; --j) {
@@ -1604,8 +1614,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     int p;// TODO put in ctx
     int zl_first, zl_second;// TODO put in ctx
     int z;// TODO put in ctx
-    // TODO replace constant_alpha. && constant_alpha below
-    uint8_t alpha_plane = (s->num_planes > 3 ) ? 3 : 0;
+    // TODO replace constant_alpha
+    uint8_t alpha_plane = (s->num_planes > 3 && s->out_frames[0].constant_alpha) ? 3 : 0;
     int the_predictor[5] = {0};
     int predictor;
     int breakpoints = 0;  // TODO change
@@ -1820,7 +1830,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     FLIF16DecoderContext *s = avctx->priv_data;
     ff_set_dimensions(avctx, s->width, s->height);
     s->final_out_frame->pict_type = AV_PICTURE_TYPE_I;
-    s->final_out_frame->key_frame = 1;
+    //s->final_out_frame->key_frame = 1;
 
     printf("<*****> In flif16_write_frame\n");
 
