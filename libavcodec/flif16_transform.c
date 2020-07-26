@@ -2644,19 +2644,19 @@ static FLIF16RangesContext* transform_frameshape_meta(FLIF16Context *ctx,
     for(unsigned int fr = 1; fr < frame_count; fr++){
         if(frame[fr].seen_before >= 0)
             continue;
+        frame[fr].col_begin = av_mallocz(ctx->width * sizeof(*frame->col_begin));
+        if (!frame[fr].col_begin) {
+            printf("fail3\n");
+            return NULL;
+        }
+        frame[fr].col_end   = av_mallocz(ctx->width * sizeof(*frame->col_end));
+        if (!frame[fr].col_end) {
+            printf("fail4\n");
+            return NULL;
+        }
         printf("Frameshape: Frame: %u\n", fr);
         for(uint32_t r = 0; r < ctx->height; r++){
             av_assert0(pos < data->nb);
-            frame[fr].col_begin = av_mallocz(ctx->width * sizeof(*frame->col_begin));
-            if (!frame[fr].col_begin) {
-                printf("fail3\n");
-                return NULL;
-            }
-            frame[fr].col_end   = av_mallocz(ctx->width * sizeof(*frame->col_end));
-            if (!frame[fr].col_end) {
-                printf("fail4\n");
-                return NULL;
-            }
             frame[fr].col_begin[r] = data->b[pos];
             frame[fr].col_end[r] = data->e[pos];
             printf("(%u, %u)\n", frame[fr].col_begin[r], frame[fr].col_end[r]);

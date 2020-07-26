@@ -80,7 +80,7 @@ typedef struct FLIF16DecoderContext {
     // change to uint32_t
     uint32_t *framedelay; ///< Frame delay for each frame
 
-    FLIF16PixelType plane_type[MAX_PLANES];
+    uint8_t nonconst_plane[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;
@@ -447,16 +447,18 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             // TODO Replace with switch statement
             switch (temp) {
                 case FLIF16_TRANSFORM_PALETTEALPHA:
-                    s->nonconst_plane[3] = 1;
+                    s->nonconst_plane[FLIF16_PLANE_ALPHA] = 1;
                     ff_flif16_transform_configure(s->transforms[s->transform_top],
                                                   s->alphazero);
 
                 case FLIF16_TRANSFORM_CHANNELCOMPACT:
+                    
+                    
                 case FLIF16_TRANSFORM_YCOCG:
                 case FLIF16_TRANSFORM_PALETTE:
-                    s->nonconst_plane[0] = 1;
-                    s->nonconst_plane[1] = 1;
-                    s->nonconst_plane[2] = 1;
+                    s->nonconst_plane[FLIF16_PLANE_Y] = 1;
+                    s->nonconst_plane[FLIF16_PLANE_CO] = 1;
+                    s->nonconst_plane[FLIF16_PLANE_CG] = 1;
                     break;
 
                 case FLIF16_TRANSFORM_DUPLICATEFRAME:
@@ -749,7 +751,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
     // TODO write in a packet size independent manner
     // FLIF16ColorVal s->min = 0, s->max = 0;
     FLIF16ColorVal curr;
-    uint32_t begin = 0, end = (!fr || !s->framedup) ? s->width : s->out_frames[fr].col_end[r];
+    uint32_t begin = 0, end = s->width;
     //printf("%u %u\n", begin, end);
     switch (s->segment2) {
         case 0:
@@ -759,6 +761,8 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 ff_flif16_copy_rows(CTX_CAST(s), &s->out_frames[fr], &s->out_frames[fr - 1], p, r, 0, s->width);
                 return 0;
             }
+             if (fr && s->frameshape)
+                end = s->out_frames[fr].col_end[r];
             // if this is not the first or only frame, fill the beginning of the row
             // before the actual pixel data
             // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
@@ -1614,8 +1618,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     int p;// TODO put in ctx
     int zl_first, zl_second;// TODO put in ctx
     int z;// TODO put in ctx
-    // TODO replace constant_alpha
-    uint8_t alpha_plane = (s->num_planes > 3 && s->out_frames[0].constant_alpha) ? 3 : 0;
+    // TODO replace constant_alpha.  && s->out_frames[0].constant_alpha below
+    uint8_t alpha_plane = (s->num_planes > 3) ? 3 : 0;
     int the_predictor[5] = {0};
     int predictor;
     int breakpoints = 0;  // TODO change
