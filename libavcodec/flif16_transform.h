@@ -71,10 +71,10 @@ FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
 
 static void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx){
     FLIF16Ranges* ranges = flif16_ranges[r_ctx->r_no];
-    if(ranges->priv_data_size){
+    if(ranges->close)
         ranges->close(r_ctx);
+    if(ranges->priv_data_size)
         av_free(r_ctx->priv_data);
-    }
     av_freep(&r_ctx);
 }
 

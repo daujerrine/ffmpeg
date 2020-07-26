@@ -1814,7 +1814,7 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     // p->key_frame = 1;
     // for(...)
     //     p->data[...] = ..
-    uint32_t temp;
+    // uint32_t temp;
     uint32_t target_frame;
     int ret;
     FLIF16DecoderContext *s = avctx->priv_data;
@@ -2099,16 +2099,14 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     if (s->frames)
         ff_flif16_frames_free(s->frames, s->num_frames, s->num_planes);
 
-    // TODO transforms close handle segfaults
-    //for (int i = s->transform_top - 1; i >= 0; --i)
-    //    ff_flif16_transforms_close(s->transforms[i]);
+    for (int i = s->transform_top - 1; i >= 0; --i)
+        ff_flif16_transforms_close(s->transforms[i]);
 
     ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes);
     av_frame_free(&s->out_frame);
 
-    // TODO handle this
-    //if (s->range)
-    //    ff_flif16_ranges_close(s->range);
+    if (s->range)
+        ff_flif16_ranges_close(s->range);
     return 0;
 }
 
