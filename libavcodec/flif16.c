@@ -128,28 +128,41 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
 
 
 int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
-                          uint8_t *is_nonconst, uint8_t *const_plane_value)
+                          uint8_t *plane_mode, uint8_t *const_plane_value)
 {
     for (int j = 0; j < s->num_frames; ++j) {
         frames[j].data = av_mallocz(sizeof(*frames->data) * s->num_planes);
         printf("Frame: %d\n", j);
+
         if (!frames[j].data) {
             printf("fail1\n");
             return AVERROR(ENOMEM);
         }
+
         for (int i = 0; i < s->num_planes; ++i) {
             printf("Plane: %d ", i);
-            if (is_nonconst[i]) {
-                printf("NonConstant plane\n", i);
-                frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);
-            } else {
-                printf("Constant plane %d %d\n", i, const_plane_value[i]);
-                frames[j].data[i] = av_mallocz(sizeof(int32_t));
-                ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
-            }
-            if (!frames[j].data[i]) {
-                printf("fail2\n");
-                return AVERROR(ENOMEM);
+            switch (plane_mode[i]) {
+                case FLIF16_PLANEMODE_NORMAL:
+                    printf("NonConstant plane\n", i);
+                    frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);
+                    break;
+
+                case FLIF16_PLANEMODE_CONSTANT:
+                    printf("Constant plane %d %d\n", i, const_plane_value[i]);
+                    frames[j].data[i] = av_mallocz(sizeof(int32_t));
+                    ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
+                    break;
+
+                case FLIF16_PLANEMODE_FILL:
+                    printf("Constant fill plane %d %d\n", i, const_plane_value[i]);
+                    frames[j].data[i] = av_mallocz(sizeof(int32_t));
+                    if (!frames[j].data[i]) {
+                        printf("fail2\n");
+                        return AVERROR(ENOMEM);
+                    }
+                    for (int k = 0; k < s->height * s->width; ++k)
+                            ((int32_t *) frames[j].data[i])[k] = const_plane_value[i];
+                    break;
             }
         }
     }
