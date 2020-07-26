@@ -398,11 +398,11 @@ static void ff_ycocg_minmax(FLIF16RangesContext *r_ctx ,const int p,
     }
 }
 
-// static void ff_ycocg_close(FLIF16RangesContext *r_ctx){
-//     ranges_priv_ycocg *data = r_ctx->priv_data;
-//     flif16_ranges[data->r_ctx->r_no]->close(data->r_ctx);
-//     av_free(data->r_ctx);
-// }
+static void ff_ycocg_close(FLIF16RangesContext *r_ctx){
+    ranges_priv_ycocg *data = r_ctx->priv_data;
+    flif16_ranges[data->r_ctx->r_no]->close(data->r_ctx);
+    av_free(data->r_ctx);
+}
 
 /*
  * PermutePlanesSubtract
@@ -1040,7 +1040,6 @@ static FLIF16RangesContext* transform_ycocg_meta(FLIF16Context *ctx,
     
     data->origmax4 = trans_data->origmax4;
     data->r_ctx    = trans_data->r_ctx;
-    printf("Ranges no : %d\n", data->r_ctx->r_no);
     r_ctx->num_planes = src_ctx->num_planes;
     return r_ctx;
 }
@@ -1099,11 +1098,6 @@ static int8_t transform_ycocg_reverse(FLIF16Context *ctx,
     }
     return 1;
 }
-
-// static void transform_ycocg_close(FLIF16TransformContext *ctx){
-//     transform_priv_ycocg *data = ctx->priv_data;
-//     av_free(data->r_ctx);
-// }
 
 /*
  * PermutePlanes
@@ -1258,21 +1252,8 @@ static int8_t transform_permuteplanes_reverse(FLIF16Context *ctx,
             }
         }
     }
-    // for(int p=0; p<data->r_ctx->num_planes; p++){
-    // for(r=0; r<height; r++){
-    //     for(c=0; c<width; c++){
-    //         printf("%d ", ff_flif16_pixel_get(ctx, frame, p, r, c));
-    //     }
-    //     printf("\n");
-    // }
-    // }
     return 1;
 }
-
-// static void transform_permuteplanes_close(FLIF16TransformContext *ctx){
-//     transform_priv_permuteplanes *data = ctx->priv_data;
-//     av_free(data->r_ctx);
-// }
 
 /*
  * ChannelCompact
@@ -1338,14 +1319,6 @@ static int8_t transform_channelcompact_read(FLIF16TransformContext * ctx,
     }
     
     end:
-        /*
-        printf("Channel Compact Read : \n");
-        for(int j=0; j<dec_ctx->num_planes; j++){
-            for(int i=0; i<data->CPalette_size[j]; i++)
-                printf("%d ", data->CPalette[j][i]);
-            printf("\n");
-        }
-        */
         ctx->segment = 0;
         return 1;
 
@@ -1466,9 +1439,6 @@ static int8_t transform_bounds_read(FLIF16TransformContext* ctx,
         ctx->segment = 0;
     }
     end:
-        // printf("[Bounds Result]\n");
-        // for(int i = 0; i < 3; ++i)
-        //     printf("%d (%d, %d)\n", i, data->bounds[i][0], data->bounds[i][1]);
         return 1;
 
     need_more_data:
@@ -1507,11 +1477,6 @@ static FLIF16RangesContext* transform_bounds_meta(FLIF16Context *ctx,
     }
     return r_ctx;
 }
-
-// static void transform_bounds_close(FLIF16TransformContext *ctx){
-//     transform_priv_bounds *data = ctx->priv_data;
-//     av_free(data->bounds);
-// }
 
 /*
  * Palette
@@ -1556,7 +1521,7 @@ static int8_t transform_palette_read(FLIF16TransformContext* ctx,
     switch (ctx->i)
     {
         case 0:
-            printf("Palette Read :\n");
+            // printf("Palette Read :\n");
             RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
                     &data->size, FLIF16_RAC_GNZ_INT);
             // printf("size : %ld\n", data->size);
@@ -1932,7 +1897,7 @@ static int8_t transform_palettealpha_reverse(FLIF16Context *ctx,
     int r, c;
     int P;
     transform_priv_palettealpha *data = t_ctx->priv_data;
-    printf("Palette Alpha inverse: \n");
+    // printf("Palette Alpha inverse: \n");
     for(r = 0; r < ctx->height; r += stride_row){
         for(c = 0; c < ctx->width; c += stride_col){
             P = ff_flif16_pixel_get(ctx, frame, 1, r, c);
@@ -1945,7 +1910,7 @@ static int8_t transform_palettealpha_reverse(FLIF16Context *ctx,
         }
         //frame->palette = 0;
     }
-    printf("\n");
+    // printf("\n");
     return 1;
 }
 
@@ -2500,11 +2465,6 @@ static int8_t transform_colorbuckets_read(FLIF16TransformContext *ctx,
         printf("need_more_data buckets_read\n");
         return AVERROR(EAGAIN);
 }
-
-// static void transform_colorbuckets_close(FLIF16TransformContext *ctx){
-//     transform_priv_colorbuckets *data = ctx->priv_data;
-//     av_free(data->cb);
-// }
 
 static int8_t transform_framedup_init(FLIF16TransformContext *ctx, 
                                       FLIF16RangesContext* src_ctx)
