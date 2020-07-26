@@ -1116,10 +1116,10 @@ static int8_t transform_permuteplanes_init(FLIF16TransformContext* ctx,
     FLIF16Ranges* ranges = flif16_ranges[r_ctx->r_no];
     ff_flif16_chancecontext_init(&data->ctx_a);
     
-    if( r_ctx->num_planes     < 3
-      ||ranges->min(r_ctx, 0) < 0
-      ||ranges->min(r_ctx, 1) < 0
-      ||ranges->min(r_ctx, 2) < 0) 
+    if(  r_ctx->num_planes     < 3
+      || ranges->min(r_ctx, 0) < 0
+      || ranges->min(r_ctx, 1) < 0
+      || ranges->min(r_ctx, 2) < 0) 
         return 0;
     
     data->r_ctx = r_ctx;
@@ -2561,8 +2561,7 @@ static FLIF16RangesContext* transform_framedup_meta(FLIF16Context *ctx,
                                                     FLIF16RangesContext* src_ctx)
 {
     transform_priv_framedup *data = t_ctx->priv_data;
-
-    for(unsigned int fr = 0; fr < frame_count; fr++){
+    for (unsigned int fr = 0; fr < frame_count; fr++) {
         frame[fr].seen_before = data->seen_before[fr];
     }
 
@@ -2660,6 +2659,16 @@ static FLIF16RangesContext* transform_frameshape_meta(FLIF16Context *ctx,
     for(unsigned int fr = 1; fr < frame_count; fr++){
         if(frame[fr].seen_before >= 0)
             continue;
+        frame[fr].col_begin = av_mallocz(ctx->width * sizeof(*frame->col_begin));
+        if (!frame[fr].col_begin) {
+            printf("fail3\n");
+            return NULL;
+        }
+        frame[fr].col_end   = av_mallocz(ctx->width * sizeof(*frame->col_end));
+        if (!frame[fr].col_end) {
+            printf("fail4\n");
+            return NULL;
+        }
         printf("Frameshape: Frame: %u\n", fr);
         for(uint32_t r = 0; r < ctx->height; r++){
             av_assert0(pos < data->nb);
