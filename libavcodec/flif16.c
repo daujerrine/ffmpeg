@@ -139,7 +139,6 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
         printf("Frame: %d\n", j);
 
         if (!frames[j].data) {
-            printf("fail1\n");
             return AVERROR(ENOMEM);
         }
 

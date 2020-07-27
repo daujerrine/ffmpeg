@@ -250,8 +250,11 @@ static int flif16_read_header(AVCodecContext *avctx)
     s->height++;
     (s->ia > 4) ? (s->num_frames += 2) : (s->num_frames = 1);
 
-    if (s->num_frames > 1)
+    if (s->num_frames > 1) {
         s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->num_frames);
+        if (!s->framedelay)
+            return AVERROR(ENOMEM);
+    }
 
     s->frames = ff_flif16_frames_init(CTX_CAST(s));
 
@@ -935,6 +938,8 @@ static FLIF16ColorVal *compute_grays(FLIF16RangesContext *ranges)
 {
     FLIF16ColorVal *grays; // a pixel with values in the middle of the bounds
     grays = av_malloc(ranges->num_planes * sizeof(*grays));
+    if (!grays)
+        return NULL;
     for (int p = 0; p < ranges->num_planes; p++)
         grays[p] = (ff_flif16_ranges_min(ranges, p) + ff_flif16_ranges_max(ranges, p)) / 2;
     return grays;
@@ -965,6 +970,8 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     switch (s->segment) {
         case 0:
             s->grays = compute_grays(s->range); // free later
+            if (!s->grays)
+                return AVERROR(ENOMEM)
             s->i = s->i2 = s->i3 = 0;
             if (   (s->range->num_planes > 3 && ff_flif16_ranges_max(s->range, 3) == 0)
                 || (s->range->num_planes > 3 && ff_flif16_ranges_min(s->range, 3) > 0))
@@ -986,6 +993,8 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                 s->properties = av_mallocz((s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]
                                                             : properties_ni_rgb_size[s->curr_plane]) 
                                                             * sizeof(*s->properties));
+                if (!s->properties)
+                    return AVERROR(ENOMEM);
                 // printf("sizeof s->properties: %u\n", (s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]:
                 //                                                        properties_ni_rgb_size[s->curr_plane]));
                 // printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
@@ -1635,6 +1644,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
             }
             for (int i = 0; i < s->num_planes; ++i) {
                 s->maniac_ctx.forest[i]->data = av_mallocz(sizeof(*s->maniac_ctx.forest[i]->data));
+                if (!s->maniac_ctx.forest[i]->data)
+                    return AVERROR(ENOMEM);
                 s->maniac_ctx.forest[i]->data[0].property = -1;
             }
         }
@@ -1670,6 +1681,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
 
         case 3:
             s->zoomlevels = av_malloc(nump * sizeof(*s->zoomlevels));
+            if (!s->zoomlevels)
+                return AVERROR(ENOMEM);
             memset(s->zoomlevels, begin_zl, nump);
             ++s->segment;
 
@@ -1756,6 +1769,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     s->properties = av_mallocz((s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
                                                                   : properties_rgb_size[s->curr_plane]) 
                                                                   * sizeof(*s->properties));
+                    if (!s->properties)
+                        return AVERROR(ENOMEM);
                     
         case 8:
                     if (!(z % 2)) {
@@ -1983,6 +1998,8 @@ static int flif16_decode_init(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     s->out_frame = av_frame_alloc();
+    if (!s->outframe)
+        return AVERROR(ENOMEM);
     return 0;
 }
 

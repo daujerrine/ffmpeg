@@ -147,6 +147,8 @@ FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void)
 {
     unsigned int len = MULTISCALE_CHANCETABLE_DEFAULT_SIZE;
     FLIF16MultiscaleChanceTable *ct = av_malloc(sizeof(*ct));
+    if (!ct)
+        return null
     for (int i = 0; i < len; ++i) {
         ff_flif16_chancetable_init(&ct->sub_table[i],
                                    flif16_multiscale_alphas[i],
