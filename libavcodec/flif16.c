@@ -194,14 +194,16 @@ FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s)
     return frames;
 }
 
-void ff_flif16_frames_free(FLIF16PixelData *frames, uint32_t num_frames,
+void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
                            uint32_t num_planes)
 {
     for (int i = 0; i < num_frames; ++i) {
-        ff_flif16_planes_free(&frames[i], num_planes);
-        if (frames[i].col_begin)
-            av_freep(&frames[i].col_begin);
-        if (frames[i].col_end)
-            av_freep(&frames[i].col_end);
+        ff_flif16_planes_free(&(*frames)[i], num_planes);
+        if ((*frames)[i].col_begin)
+            av_freep(&(*frames)[i].col_begin);
+        if ((*frames)[i].col_end)
+            av_freep(&(*frames)[i].col_end);
     }
+
+    av_freep(frames);
 }

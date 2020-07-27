@@ -177,7 +177,7 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
 
 FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s);
 
-void ff_flif16_frames_free(FLIF16PixelData *frames, uint32_t num_frames,
+void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
                            uint32_t num_planes);
 
 

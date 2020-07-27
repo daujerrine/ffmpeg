@@ -435,6 +435,7 @@ void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes)
         av_freep(&m->forest[i]);
     }
 
+    av_freep(&m->forest);
     // Should be already freed in maniac reading, but checking anyway.
     if(m->stack)
         av_freep(&m->stack);
