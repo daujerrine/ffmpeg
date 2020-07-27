@@ -173,12 +173,13 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
                                             uint8_t channels))[2];
 
 int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
-                          uint8_t *is_const, uint8_t *const_plane_value);
+                          uint8_t *is_const, uint8_t *const_plane_value,
+                          uint8_t lookback);
 
 FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s);
 
 void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
-                           uint32_t num_planes);
+                           uint32_t num_planes, uint8_t lookback);
 
 
 

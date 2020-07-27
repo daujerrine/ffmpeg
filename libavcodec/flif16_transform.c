@@ -1005,9 +1005,8 @@ static int8_t transform_ycocg_init(FLIF16TransformContext *ctx,
                                        FLIF16RangesContext* r_ctx)
 {   
     transform_priv_ycocg *data = ctx->priv_data;
-    av_assert0(data);
     FLIF16Ranges* src_ranges = flif16_ranges[r_ctx->r_no];
-    
+    av_assert0(data);
     if(   r_ctx->num_planes < 3   
        || src_ranges->min(r_ctx, 0) == src_ranges->max(r_ctx, 0) 
        || src_ranges->min(r_ctx, 1) == src_ranges->max(r_ctx, 1) 
@@ -1154,12 +1153,11 @@ static int8_t transform_permuteplanes_read(FLIF16TransformContext* ctx,
             ++ctx->segment;
     }
 
-    end:
-        ctx->segment = 0;
-        return 1;
+    ctx->segment = 0;
+    return 1;
 
     need_more_data:
-        return AVERROR(EAGAIN);
+    return AVERROR(EAGAIN);
 }
 
 static FLIF16RangesContext* transform_permuteplanes_meta(FLIF16Context *ctx,
@@ -1438,12 +1436,12 @@ static int8_t transform_bounds_read(FLIF16TransformContext* ctx,
         ctx->i = 0;
         ctx->segment = 0;
     }
-    end:
-        return 1;
+
+    return 1;
 
     need_more_data:
-        printf("need more data<bounds>\n");
-        return AVERROR(EAGAIN);
+    printf("need more data<bounds>\n");
+    return AVERROR(EAGAIN);
 }
 
 static FLIF16RangesContext* transform_bounds_meta(FLIF16Context *ctx,
@@ -2279,7 +2277,7 @@ static int8_t ff_load_bucket(FLIF16RangeCoder *rc,
                              const int plane,
                              FLIF16ColorVal *pixelL,
                              FLIF16ColorVal *pixelU)
-{
+{ 
     int temp;
     int exists;
     switch(cb->i){
@@ -2599,12 +2597,11 @@ static int8_t transform_frameshape_read(FLIF16TransformContext * ctx,
             data->i = 0;
     }
 
-    end:
-        ctx->i = 0;
-        return 1;
+    ctx->i = 0;
+    return 1;
 
     need_more_data:
-        return AVERROR(EAGAIN);
+    return AVERROR(EAGAIN);
 }
 
 static FLIF16RangesContext* transform_frameshape_meta(FLIF16Context *ctx,
@@ -2682,12 +2679,11 @@ static int8_t transform_framecombine_read(FLIF16TransformContext * ctx,
             printf("max_lookback : %d\n", data->max_lookback);
     }
 
-    end:
-        ctx->i = 0;
-        return 1;
+    ctx->i = 0;
+    return 1;
 
     need_more_data:
-        return AVERROR(EAGAIN);
+    return AVERROR(EAGAIN);
 }
 
 static FLIF16RangesContext* transform_framecombine_meta(FLIF16Context *ctx,

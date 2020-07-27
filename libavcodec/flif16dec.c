@@ -429,7 +429,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
             s->transforms[s->transform_top] = ff_flif16_transform_init(temp, s->range);
             if (!s->transforms[s->transform_top]) {
-                av_log(avctx, AV_LOG_ERROR, "failed to initialise transform\n", temp);
+                av_log(avctx, AV_LOG_ERROR, "failed to initialise transform %u\n", temp);
                 return AVERROR(ENOMEM);
             }
 
@@ -526,7 +526,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
         }
 
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
-                          const_plane_value) < 0) {
+                              const_plane_value, s->framelookback) < 0) {
         av_log(avctx, AV_LOG_ERROR, "could not allocate planes\n");
         return AVERROR(ENOMEM);
     }
@@ -749,7 +749,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
         case 0:
             // printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             // if this is a duplicate frame, copy the row from the frame being duplicated
-            // TODO replace seen before with actual frame.
+            // TODO add this condition in read_ni_image
             if (s->frames[fr].seen_before >= 0) {
                 //ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr], &s->frames[s->frames[fr].seen_before], p, r, 0, s->width);
                 return 0;
@@ -2110,7 +2110,7 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     if (s->prop_ranges)
         av_freep(&s->prop_ranges);
     if (s->frames)
-        ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes);
+        ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 
     for (int i = s->transform_top - 1; i >= 0; --i)
         ff_flif16_transforms_close(s->transforms[i]);
