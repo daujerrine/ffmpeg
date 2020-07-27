@@ -131,6 +131,9 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
                           uint8_t *plane_mode, uint8_t *const_plane_value)
 {
     for (int j = 0; j < s->num_frames; ++j) {
+        if (frames[j].seen_before >= 0)
+            continue;
+        
         frames[j].data = av_mallocz(sizeof(*frames->data) * s->num_planes);
         printf("Frame: %d\n", j);
 
@@ -198,6 +201,8 @@ void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
                            uint32_t num_planes)
 {
     for (int i = 0; i < num_frames; ++i) {
+        if ((*frames)[i].seen_before >= 0)
+            continue;
         ff_flif16_planes_free(&(*frames)[i], num_planes);
         if ((*frames)[i].col_begin)
             av_freep(&(*frames)[i].col_begin);

@@ -142,7 +142,7 @@ typedef struct FLIF16DecoderContext {
     int breakpoints;
 } FLIF16DecoderContext;
 
-// Cast values to FLIF16Context
+// Cast values to FLIF16Context for some functions.
 #define CTX_CAST(x) ((FLIF16Context *) (x))
 
 // TODO Remove PIXEL and PIXELY. Concerned with interlaced decoding
@@ -155,6 +155,10 @@ typedef struct FLIF16DecoderContext {
 #define PIXEL_GETZ(ctx, fr, p, z, r, c) ff_flif16_pixel_getz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c)
 #define PIXEL_GETFAST(ctx, fr, p, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
 #define PIXEL_SETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
+
+// If frame_dup exists, figure out what the previous frame actually is
+#define PREV_FRAME(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
+#define PREV_FRAMENUM(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
 
 // Static property values
 static const int properties_ni_rgb_size[] = {7, 8, 9, 7, 7};
@@ -747,7 +751,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
             // if this is a duplicate frame, copy the row from the frame being duplicated
             // TODO replace seen before with actual frame.
             if (s->frames[fr].seen_before >= 0) {
-                ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr], &s->frames[s->frames[fr].seen_before], p, r, 0, s->width);
+                //ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr], &s->frames[s->frames[fr].seen_before], p, r, 0, s->width);
                 return 0;
             }
 
@@ -766,10 +770,10 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                         if (PIXEL_GET(s, fr, 3, r, c) == 0)
                             PIXEL_SET(s, fr, p, r, c, flif16_ni_predict(s, &s->frames[fr], p, r, c, gray));
                         else
-                            PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, fr - 1, p, r, c)); 
+                            PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, c)); 
                 } else if (p != 4) {
                     ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr],
-                                        &s->frames[fr - 1], p, r, 0, begin);
+                                        PREV_FRAME(s->frames, fr), p, r, 0, begin);
                 }
             }
             ++s->segment2;
@@ -875,6 +879,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     if (s->framelookback && p < 4 &&
                         PIXEL_GET(s, fr, FLIF16_PLANE_LOOKBACK, r, s->c) > 0) {
                         //printf("<<>> 2\n");
+                        // TODO accomodate PRE_FRAME for this
                         PIXEL_SET(s, fr, p, r, s->c,
                         PIXEL_GET(s, fr - PIXEL_GET(s, fr, FLIF16_PLANE_LOOKBACK, r, s->c), p, r, s->c));
                         continue;
@@ -909,10 +914,10 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                             PIXEL_SET(s, fr,  p, r, s->c,
                             flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
                         else
-                            PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, fr - 1, p, r, s->c));
+                            PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, s->c));
                 } else if(p != 4) {
                      ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr],
-                     &s->frames[fr - 1], p, r, end, s->width);
+                     PREV_FRAME(s->frames, fr), p, r, end, s->width);
                 }
             }
     }
@@ -1025,6 +1030,8 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     }
 
     for(int i = 0; i < s->num_frames; i++) {
+        if (s->frames[i].seen_before >= 0)
+            continue;
         for(int j = s->transform_top - 1; j >= 0; --j) {
             ff_flif16_transform_reverse(CTX_CAST(s), s->transforms[j], &s->frames[i], 1, 1);
             printf("Transform Step %d\n===========\n", s->transforms[j]->t_no);
