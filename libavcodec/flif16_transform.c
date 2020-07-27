@@ -876,7 +876,7 @@ FLIF16Ranges flif16_ranges_ycocg = {
     .minmax         = &ff_ycocg_minmax,
     .snap           = &ff_static_snap,
     .is_static      = 0,
-    .close          = NULL
+    .close          = &ff_ycocg_close
 };
 
 FLIF16Ranges flif16_ranges_permuteplanessubtract = {
@@ -1363,6 +1363,7 @@ static FLIF16RangesContext *transform_channelcompact_meta(FLIF16Context *ctx,
     }
     r_ctx->priv_data = data;
     r_ctx->r_no = FLIF16_RANGES_CHANNELCOMPACT;
+    ff_flif16_ranges_close(r_ctx);
     return r_ctx;
 }
 
@@ -2071,7 +2072,7 @@ static void ff_prepare_snapvalues(ColorBucket *cb)
         av_freep(&cb->snapvalues);
         cb->snapvalues = av_mallocz((cb->max - cb->min) * sizeof(*cb->snapvalues));
         if (!cb->snapvalues)
-            return NULL;
+            return;
         cb->snapvalues_size = cb->max - cb->min;
         for (FLIF16ColorVal c = cb->min; c < cb->max; c++) {
             cb->snapvalues[i] = ff_snap_color_slow(cb, c);
@@ -2553,12 +2554,6 @@ static void transform_frameshape_configure(FLIF16TransformContext *ctx,
     transform_priv_frameshape *data = ctx->priv_data;
     if (data->nb == 0) {
         data->nb = setting;
-        data->b = av_mallocz(data->nb * sizeof(*data->b));
-        if (!data->b)
-            return NULL;
-        data->e = av_mallocz(data->nb * sizeof(*data->e));
-        if (!data->e)
-            return NULL;
     }
     else
         data->cols = setting;
@@ -2573,6 +2568,12 @@ static int8_t transform_frameshape_read(FLIF16TransformContext  *ctx,
 
     switch (ctx->i) {
         case 0:
+            data->b = av_mallocz(data->nb * sizeof(*data->b));
+            if (!data->b)
+                return -1;
+            data->e = av_mallocz(data->nb * sizeof(*data->e));
+            if (!data->e)
+                return -1;
             ctx->i = 1;
 
         case 1:
