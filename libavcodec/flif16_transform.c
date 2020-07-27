@@ -2071,8 +2071,7 @@ static void ff_prepare_snapvalues(ColorBucket *cb)
     if (cb->discrete) {
         av_freep(&cb->snapvalues);
         cb->snapvalues = av_mallocz((cb->max - cb->min) * sizeof(*cb->snapvalues));
-        if (!cb->snapvalues)
-            return;
+        av_assert0(cb->snapvalues != NULL);
         cb->snapvalues_size = cb->max - cb->min;
         for (FLIF16ColorVal c = cb->min; c < cb->max; c++) {
             cb->snapvalues[i] = ff_snap_color_slow(cb, c);
