@@ -971,7 +971,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
         case 0:
             s->grays = compute_grays(s->range); // free later
             if (!s->grays)
-                return AVERROR(ENOMEM)
+                return AVERROR(ENOMEM);
             s->i = s->i2 = s->i3 = 0;
             if (   (s->range->num_planes > 3 && ff_flif16_ranges_max(s->range, 3) == 0)
                 || (s->range->num_planes > 3 && ff_flif16_ranges_min(s->range, 3) > 0))
@@ -1998,7 +1998,7 @@ static int flif16_decode_init(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     s->out_frame = av_frame_alloc();
-    if (!s->outframe)
+    if (!s->out_frame)
         return AVERROR(ENOMEM);
     return 0;
 }
