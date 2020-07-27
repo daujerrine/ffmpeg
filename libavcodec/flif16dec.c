@@ -385,7 +385,6 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
         case 1:
             RAC_GET(&s->rc, NULL, 0, 13, &temp, FLIF16_RAC_UNI_INT8);
-            printf("Transform : %d\n", temp);
             if (!flif16_transforms[temp]) {
                 av_log(avctx, AV_LOG_ERROR, "transform %u not implemented\n", temp);
                 return AVERROR_PATCHWELCOME;
@@ -477,7 +476,6 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     for (int i = 0; i < ((s->num_planes > 4) ? 4 : s->num_planes); ++i)
         if (   s->plane_mode[i] != FLIF16_PLANEMODE_NORMAL
             && (ff_flif16_ranges_min(s->range, i) >= ff_flif16_ranges_max(s->range, i))) {
-            printf("Const value: %d %d\n", i, ff_flif16_ranges_min(s->range, i));
             const_plane_value[i] = ff_flif16_ranges_min(s->range, i);
         }
 
@@ -709,7 +707,6 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
                 PIXEL_SET(s, fr, p, r, s->c, curr);
-                __SUBST__
             }
             ++s->segment2;
 
@@ -726,7 +723,6 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
                 PIXEL_SET(s, fr, p, r, s->c, curr);
-                __SUBST__
             }
             ++s->segment2;
 
@@ -757,7 +753,6 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                                s->min - s->guess, s->max - s->guess, &curr);
                     curr += s->guess;
                     PIXEL_SET(s, fr, p, r, s->c, curr);
-                    __SUBST__
                 }
             } // End If
 
@@ -864,7 +859,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
     else
-        ret = flif16_read_image(avctx, 0);
+        return AVERROR(EINVAL);
 
     if(!ret)
         s->state = FLIF16_OUTPUT;
