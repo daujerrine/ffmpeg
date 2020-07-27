@@ -1363,7 +1363,7 @@ static FLIF16RangesContext *transform_channelcompact_meta(FLIF16Context *ctx,
     }
     r_ctx->priv_data = data;
     r_ctx->r_no = FLIF16_RANGES_CHANNELCOMPACT;
-    ff_flif16_ranges_close(r_ctx);
+    ff_flif16_ranges_close(src_ctx);
     return r_ctx;
 }
 
