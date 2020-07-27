@@ -408,13 +408,13 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
     rc->segment2 = 0;
     //for (int i = 0; i < 3; ++i)
     //    av_freep(&m->ctx[i]);
-    /*for(unsigned int i = 0; i < m->forest[channel]->size; ++i)
+    for(unsigned int i = 0; i < m->forest[channel]->size; ++i)
         printf("%u\t%d\t%d\t%d\t%d\t%d\n", i,
                                         m->forest[channel]->data[i].property,
                                         m->forest[channel]->data[i].count,
                                         m->forest[channel]->data[i].split_val,
                                         m->forest[channel]->data[i].child_id,
-                                        m->forest[channel]->data[i].leaf_id);*/
+                                        m->forest[channel]->data[i].leaf_id);
     return 0;
 
     need_more_data:

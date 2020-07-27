@@ -2619,12 +2619,12 @@ static FLIF16RangesContext* transform_frameshape_meta(FLIF16Context *ctx,
     for(unsigned int fr = 1; fr < frame_count; fr++){
         if(frame[fr].seen_before >= 0)
             continue;
-        frame[fr].col_begin = av_mallocz(ctx->width * sizeof(*frame->col_begin));
+        frame[fr].col_begin = av_mallocz(ctx->height * sizeof(*frame->col_begin));
         if (!frame[fr].col_begin) {
             printf("fail3\n");
             return NULL;
         }
-        frame[fr].col_end   = av_mallocz(ctx->width * sizeof(*frame->col_end));
+        frame[fr].col_end   = av_mallocz(ctx->height * sizeof(*frame->col_end));
         if (!frame[fr].col_end) {
             printf("fail4\n");
             return NULL;
