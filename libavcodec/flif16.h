@@ -34,13 +34,6 @@
 #include "libavutil/pixfmt.h"
 #include "flif16_rangecoder.h"
 
-// Remove these
-//#define __PLN__ printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-//#define MSG(fmt, ...) printf("[%s] " fmt, __func__, ##__VA_ARGS__)
-//#include <assert.h>
-//#define __PLN__ #error remove me
-//#define MSG(fmt,...) #error remove me
-
 #define MAX_PLANES 5
 #define MAX_PREDICTORS 2
 
@@ -191,7 +184,6 @@ static inline void ff_flif16_pixel_set(FLIF16Context *s, FLIF16PixelData *frame,
                                        uint8_t plane, uint32_t row, uint32_t col,
                                        FLIF16ColorVal value)
 {
-    //printf("w: plane = %u row = %u col = %u value = %d\n", plane, row, col, value);
     if (s->plane_mode[plane])
         ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col] = value;
     else
@@ -203,7 +195,6 @@ static inline FLIF16ColorVal ff_flif16_pixel_get(FLIF16Context *s,
                                                  uint8_t plane, uint32_t row,
                                                  uint32_t col)
 {
-    //printf("r: plane = %u row = %u col = %u\n", plane, row, col);
     if (s->plane_mode[plane])
         return ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col];
     else
@@ -250,8 +241,7 @@ static inline FLIF16ColorVal ff_flif16_pixel_get_fast(FLIF16Context *s,
 {
     if (s->plane_mode[plane])
         return ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]];
-    else
-        printf("check\n");
+
     return 0;
 }
 
@@ -262,8 +252,6 @@ static inline void ff_flif16_pixel_set_fast(FLIF16Context *s,
 {
     if (s->plane_mode[plane])
         ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]] = value;
-    else
-        printf("check\n");
 }
 
 static inline void ff_flif16_copy_rows(FLIF16Context *s,
@@ -273,7 +261,6 @@ static inline void ff_flif16_copy_rows(FLIF16Context *s,
                                        uint32_t col_end)
 {
     for(uint32_t col = col_start; col < col_end; ++col) {
-        //printf("[%s] col_start = %u col_end = %u plane = %u row = %u\n", __func__, col_start, col_end, plane, row);
         ff_flif16_pixel_set(s, dest, plane, row, col, ff_flif16_pixel_get(s, src, plane, row, col));
     }
 }
@@ -285,7 +272,6 @@ static inline void ff_flif16_copy_rows_stride(FLIF16Context *s,
                                               uint32_t col_end, uint32_t stride)
 {
     for(uint32_t col = col_start; col < col_end; col += stride) {
-        //printf("[%s] col_start = %u col_end = %u plane = %u row = %u\n", __func__, col_start, col_end, plane, row);
         ff_flif16_pixel_set(s, dest, plane, row, col, ff_flif16_pixel_get(s, src, plane, row, col));
     }
 }

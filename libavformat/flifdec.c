@@ -34,7 +34,6 @@
 
 #include "config.h"
 //remove
-#include <stdio.h>
 #if CONFIG_ZLIB
 #include <zlib.h>
 #endif
@@ -80,7 +79,6 @@ static int flif_inflate(FLIFDemuxContext *s, unsigned char *buf, int buf_size,
 
     stream->next_in  = buf;
     stream->avail_in = buf_size;
-    printf("buf_size: %d %ld \n", buf_size, stream->total_out);
     if(stream->total_out >= *out_buf_size) {
         out_buf = av_realloc(out_buf, (*out_buf_size) * 2);
         if (!out_buf)
@@ -92,9 +90,6 @@ static int flif_inflate(FLIFDemuxContext *s, unsigned char *buf, int buf_size,
     stream->avail_out = *out_buf_size - stream->total_out - 1; // Last byte should be NULL char
 
     ret = inflate(stream, Z_PARTIAL_FLUSH);
-
-    printf("avail_in: %d total_out: %ld avail_out: %d ret: %d\n", \
-           stream->avail_in, stream->total_out, stream->avail_out, ret);
 
     switch (ret) {
         case Z_NEED_DICT:
@@ -124,7 +119,6 @@ static int flif16_probe(const AVProbeData *p)
     uint32_t vlist[3] = {0};
     unsigned int count = 0, pos = 0;
 
-    //printf("[%s] called\n", __func__);
     // Magic Number
     if (memcmp(p->buf, flif16_header, 4)) {
         return 0;
@@ -178,14 +172,12 @@ static int flif16_read_header(AVFormatContext *s)
     uint8_t num_planes;
     uint8_t num_frames;
 
-    //printf("[%s] called\n", __func__);
     // Magic Number
     if (avio_rl32(pb) != (*((uint32_t *) flif16_header))) {
         av_log(s, AV_LOG_ERROR, "bad magic number\n");
         return AVERROR(EINVAL);
     }
 
-    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     st = avformat_new_stream(s, NULL);
     flag = avio_r8(pb);
     animated = (flag >> 4) > 4;
@@ -193,8 +185,6 @@ static int flif16_read_header(AVFormatContext *s)
     bpc = avio_r8(pb); // Bytes per channel
 
     num_planes = flag & 0x0F;
-
-    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     for (int i = 0; i < (2 + animated); ++i) {
         while ((temp = avio_r8(pb)) > 127) {
@@ -206,7 +196,6 @@ static int flif16_read_header(AVFormatContext *s)
         count = 4;
     }
 
-    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     ++vlist[0];
     ++vlist[1];
@@ -216,17 +205,12 @@ static int flif16_read_header(AVFormatContext *s)
         vlist[2] = 1;
 
     num_frames = vlist[2];
-    //printf("%d %d %d\n", vlist[0], vlist[1], vlist[2]);
-    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     while ((temp = avio_r8(pb))) {
-        //printf("??? %x\n", temp);
-        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         // Get metadata identifier
         tag[0] = temp;
         for(int i = 1; i <= 3; ++i)
             tag[i] = avio_r8(pb);
-        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         // Read varint
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
@@ -235,23 +219,19 @@ static int flif16_read_header(AVFormatContext *s)
         }
         VARINT_APPEND(metadata_size, temp);
         count = 4;
-        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+        
         #if 0
             // TODO see why this does not work.
             // CONFIG_ZLIB
             // Decompression Routines
             while (metadata_size > 0) {
-                printf("%s go: %d\n", tag, FFMIN(BUF_SIZE, metadata_size));
                 ret = avio_read(pb, metadata_buf, FFMIN(METADATA_BUF_SIZE, metadata_size));
                 metadata_size -= ret;
-                // TODO maybe remove out_buf_size
                 if((ret = flif_inflate(dc, metadata_buf, ret, out_buf, &out_buf_size)) < 0 &&
                    ret != AVERROR(EAGAIN)) {
                     av_log(s, AV_LOG_ERROR, "could not decode metadata\n");
-                    printf("ret: %d\n", ret);
                     return ret;
                 }
-                printf("out_buf:%s\n", out_buf);
             }
             av_dict_set(&s->metadata, tag, out_buf, 0);
         #else
@@ -268,12 +248,10 @@ static int flif16_read_header(AVFormatContext *s)
     avio_read(pb, buf, FLIF16_RAC_MAX_RANGE_BYTES);
     ff_flif16_rac_init(&rc, NULL, buf, FLIF16_RAC_MAX_RANGE_BYTES);
     ret = avio_read_partial(pb, buf, BUF_SIZE);
-    printf("%u\n", ret);
     bytestream2_init(&gb, buf, ret);
     rc.gb = &gb;
 
     while (1) {
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         switch (segment) {
             case 0:
                 if (bpc == '0') {
@@ -290,14 +268,12 @@ static int flif16_read_header(AVFormatContext *s)
                     goto end;
                 ++segment;
 
-                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             case 1:
                 if (num_planes > 3) {
                     RAC_GET(&rc, NULL, 0, 1, &temp, FLIF16_RAC_UNI_INT8);
                 }
                 ++segment;
 
-                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             case 2:
                 if (num_frames > 1) {
                     RAC_GET(&rc, NULL, 0, 100, &loops, FLIF16_RAC_UNI_INT8);
@@ -305,19 +281,16 @@ static int flif16_read_header(AVFormatContext *s)
                 loops = (!loops) ? 1 : loops;
                 ++segment;
 
-                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             case 3:
                 if (num_frames > 1) {
                     for (; i < num_frames; ++i) {
                         temp = 0;
                         RAC_GET(&rc, NULL, 0, 60000, &(temp), FLIF16_RAC_UNI_INT16);
                         duration += temp;
-                        printf("%u\n", temp);
                     }
                     i = 0;
                 }
                 goto end;
-                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         }
 
         need_more_data:
@@ -326,7 +299,6 @@ static int flif16_read_header(AVFormatContext *s)
     }
 
     end:
-    printf("Width: %u\nHeight: %u\nFrames: %u\nTotal duration: %ld\n", vlist[0], vlist[1], vlist[2], duration * loops);
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
 
@@ -351,7 +323,6 @@ static int flif16_read_header(AVFormatContext *s)
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)
         return AVERROR(EIO);
-    printf("Exiting\n");
     //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     return 0;
 }
@@ -362,10 +333,8 @@ static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
     FLIFDemuxContext *dc = s->priv_data;
     AVIOContext *pb  = s->pb;
     int ret;
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     //  FFMIN(BUF_SIZE, avio_size(pb))
     ret = av_get_packet(pb, pkt, avio_size(pb));
-    printf("Returning %d\n", ret);
     return ret;
 }
 

@@ -177,7 +177,7 @@ static const int properties_rgba_size[] = {9, 11, 10, 8, 8};
 // perceptually most important
 // Co and Cg are in that order because Co is perceptually slightly more
 // important than Cg [citation needed]
-static const int plane_ordering[] = {4, 3, 0, 1, 2}; // lookback (lookback), A, Y, Co, Cg
+static const int plane_ordering[] = {4,3,0,1,2}; // lookback (lookback), A, Y, Co, Cg
 
 enum FLIF16States {
     FLIF16_HEADER = 0,
@@ -594,14 +594,14 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
             }
             printf("%d s->segment = %d\n", __LINE__, s->segment);
             printf("Start:");
-            for (unsigned int i = 0; i < s->prop_ranges_size; ++i)
+            for(unsigned int i = 0; i < s->prop_ranges_size; ++i)
                 printf("%u: (%d, %d) ", i, s->prop_ranges[i][0], s->prop_ranges[i][1]);
             printf("\n");
             ret = ff_flif16_read_maniac_tree(&s->rc, &s->maniac_ctx, s->prop_ranges,
                                              s->prop_ranges_size, s->i);
             printf("Ret: %d\n", ret);
             if (ret) {
-                goto need_more_data;
+                goto error;
             }
             printf("%d s->segment = %d\n", __LINE__, s->segment);
             av_freep(&s->prop_ranges);
@@ -617,8 +617,7 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
     s->segment = 0;
     return 0;
 
-    need_more_data:
-    printf("%d s->segment = %d\n", __LINE__, s->segment);
+    error:
     return ret;
 }
 
@@ -776,9 +775,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                         } else {
                             printf("f %d %d %d %d\n", p, fr - 1, r, c);
                             PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, c)); 
-                        }
                 } else if (p != 4) {
-                    printf("g %d %d %d %d\n", p, fr - 1, r, begin);
                     ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr],
                                         PREV_FRAME(s->frames, fr), p, r, 0, begin);
                 }
@@ -1830,7 +1827,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
     else
-        ret = flif16_read_image(avctx, 0);
+        return AVERROR(EINVAL);
 
     if(!ret)
         s->state = FLIF16_OUTPUT;
