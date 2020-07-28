@@ -928,7 +928,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     for (uint32_t c = end; c < s->width; c++)
                         if (PIXEL_GET(s, fr, 3, r, s->c) == 0) {
                             printf("ee %d %d %d\n", r, c, gray);
-                            PIXEL_SET(s, fr,  p, r, s->c, flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
+                            PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
                         } else {
                             printf("ff %d %d %d %d\n", p, PREV_FRAMENUM(s->frames, fr), r, c);
                             PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, s->c));
@@ -1904,6 +1904,17 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     if (s->num_frames > 1) {
         s->out_frame->pts = s->pts;
         s->pts += s->framedelay[s->out_frames_count];
+    }
+
+    // Clear out transparent pixels
+    if (s->num_planes > 3) {
+        for (int i = 0; i < s->height; ++i)
+            for (int j = 0; j < s->width; ++j)
+                if (!PIXEL_GET(s, s->out_frames_count, FLIF16_PLANE_ALPHA, i, j)) {
+                    PIXEL_SET(s, s->out_frames_count, FLIF16_PLANE_Y, i, j, 0);
+                    PIXEL_SET(s, s->out_frames_count, FLIF16_PLANE_CO, i, j, 0);
+                    PIXEL_SET(s, s->out_frames_count, FLIF16_PLANE_CG, i, j, 0);
+                }
     }
 
     printf(">>>>>>>>>target: %d pts: %ld\n", target_frame, s->out_frame->pts);
