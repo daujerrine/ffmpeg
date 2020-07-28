@@ -399,7 +399,9 @@ static void ff_ycocg_minmax(FLIF16RangesContext *r_ctx ,const int p,
 static void ff_ycocg_close(FLIF16RangesContext *r_ctx)
 {
     ranges_priv_ycocg *data = r_ctx->priv_data;
-    flif16_ranges[data->r_ctx->r_no]->close(data->r_ctx);
+    FLIF16Ranges *range = flif16_ranges[data->r_ctx->r_no];
+    if (range->close)
+        range->close(data->r_ctx);
     av_free(data->r_ctx);
 }
 
