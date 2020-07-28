@@ -970,10 +970,11 @@ FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
                                                   unsigned int bpc)
 {
     FLIF16Ranges *r = flif16_ranges[FLIF16_RANGES_STATIC];
-    FLIF16RangesContext *ctx = av_mallocz(sizeof(*ctx));
+    FLIF16RangesContext *ctx;
+    ranges_priv_static *data;
+    ctx = av_mallocz(sizeof(*ctx));
     if (!ctx)
         return NULL;
-    ranges_priv_static *data;
     ctx->r_no       = FLIF16_RANGES_STATIC;
     ctx->num_planes = channels;
     ctx->priv_data  = av_mallocz(r->priv_data_size);
@@ -1016,8 +1017,9 @@ static void ff_flif16_planes_set(FLIF16Context *ctx, FLIF16PixelData *frame,
 static int8_t transform_ycocg_init(FLIF16TransformContext *ctx, FLIF16RangesContext *r_ctx)
 {   
     transform_priv_ycocg *data = ctx->priv_data;
-    av_assert0(data);
     FLIF16Ranges *src_ranges = flif16_ranges[r_ctx->r_no];
+
+    av_assert0(data);
     
     if (  r_ctx->num_planes < 3   
        || src_ranges->min(r_ctx, 0) == src_ranges->max(r_ctx, 0) 
@@ -1181,20 +1183,24 @@ static FLIF16RangesContext *transform_permuteplanes_meta(FLIF16Context *ctx,
                                                          FLIF16TransformContext *t_ctx,
                                                          FLIF16RangesContext *src_ctx)
 {
-    FLIF16RangesContext *r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
+    int i;
+    FLIF16RangesContext *r_ctx;
+    transform_priv_permuteplanes *data;
+    ranges_priv_permuteplanes *priv_data;
+
+    r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
     if (!r_ctx)
         return NULL;
-    transform_priv_permuteplanes *data = t_ctx->priv_data;
-    ranges_priv_permuteplanes *priv_data = av_mallocz(sizeof(ranges_priv_permuteplanes));
-    if (!r_ctx->priv_data)
+    data = t_ctx->priv_data;
+    priv_data = av_mallocz(sizeof(ranges_priv_permuteplanes));
+    if (!priv_data)
         return NULL;
-    int i;
     if (data->subtract)
         r_ctx->r_no = FLIF16_RANGES_PERMUTEPLANESSUBTRACT;
     else
         r_ctx->r_no = FLIF16_RANGES_PERMUTEPLANES;
     r_ctx->num_planes = src_ctx->num_planes;
-    for (i=0; i<5; i++) {
+    for (i = 0; i < 5; i++) {
         priv_data->permutation[i] = data->permutation[i];
     }
     priv_data->r_ctx       = data->r_ctx;
@@ -1351,13 +1357,17 @@ static FLIF16RangesContext *transform_channelcompact_meta(FLIF16Context *ctx,
                                                           FLIF16RangesContext *src_ctx)
 {
     int i;
-    FLIF16RangesContext *r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
+    FLIF16RangesContext *r_ctx;
+    ranges_priv_channelcompact *data;
+    transform_priv_channelcompact *trans_data;
+
+    r_ctx = av_mallocz(sizeof(*r_ctx));
     if (!r_ctx)
         return NULL;
-    ranges_priv_channelcompact *data = av_mallocz(sizeof(ranges_priv_channelcompact));
+    data = av_mallocz(sizeof(*data));
     if (!data)
         return NULL;
-    transform_priv_channelcompact *trans_data = t_ctx->priv_data;
+    trans_data = t_ctx->priv_data;
     r_ctx->num_planes = src_ctx->num_planes;
     for (i=0; i<src_ctx->num_planes; i++) {
         data->nb_colors[i] = trans_data->CPalette_size[i] - 1;
@@ -1657,11 +1667,15 @@ static FLIF16RangesContext *transform_palette_meta(FLIF16Context *ctx,
                                                    FLIF16TransformContext *t_ctx,
                                                    FLIF16RangesContext *src_ctx)
 {
-    FLIF16RangesContext *r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
+    FLIF16RangesContext *r_ctx;
+    transform_priv_palette *trans_data;
+    ranges_priv_palette *data;
+
+    r_ctx = av_mallocz(sizeof(*r_ctx));
     if (!r_ctx)
         return NULL;
-    transform_priv_palette *trans_data = t_ctx->priv_data;
-    ranges_priv_palette *data = av_mallocz(sizeof(ranges_priv_palette));
+    trans_data = t_ctx->priv_data;
+    data = av_mallocz(sizeof(*data));
     if (!data)
         return NULL;
     // int i;
@@ -1887,11 +1901,15 @@ static FLIF16RangesContext *transform_palettealpha_meta(FLIF16Context *ctx,
                                                         FLIF16TransformContext *t_ctx,
                                                         FLIF16RangesContext *src_ctx)
 {
-    FLIF16RangesContext *r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
+    FLIF16RangesContext *r_ctx;
+    transform_priv_palettealpha *data;
+    ranges_priv_palette *priv_data;
+    r_ctx = av_mallocz(sizeof(*r_ctx));
     if (!r_ctx)
         return NULL;
-    transform_priv_palettealpha *data = t_ctx->priv_data;
-    ranges_priv_palette *priv_data = av_mallocz(sizeof(ranges_priv_permuteplanes));
+    data = t_ctx->priv_data;
+    // ????
+    priv_data = av_mallocz(sizeof(ranges_priv_permuteplanes));
     if (!priv_data)
         return NULL;
     r_ctx->r_no = FLIF16_RANGES_PALETTEALPHA;
@@ -2202,15 +2220,18 @@ static FLIF16RangesContext *transform_colorbuckets_meta(FLIF16Context *ctx,
                                                         FLIF16TransformContext *t_ctx,
                                                         FLIF16RangesContext *src_ctx)
 {
-    FLIF16RangesContext *r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
-    if (!r_ctx)
-        return NULL;
+    FLIF16RangesContext *r_ctx;
     transform_priv_colorbuckets *trans_data = t_ctx->priv_data;
-    ranges_priv_colorbuckets *data = av_mallocz(sizeof(ranges_priv_palette));
-    if (!data)
-        return NULL;
+    ranges_priv_colorbuckets *data;
     ColorBuckets *cb = trans_data->cb;
     FLIF16ColorVal pixelL[2], pixelU[2];
+
+    r_ctx = av_mallocz(sizeof(*r_ctx));
+    if (!r_ctx)
+        return NULL;
+    data = av_mallocz(sizeof(ranges_priv_palette));
+    if (!data)
+        return NULL;
     if (ff_flif16_ranges_min(src_ctx, 2) < ff_flif16_ranges_max(src_ctx, 2)) {
         pixelL[0] = cb->min0;
         pixelU[0] = cb->min0 + CB0b -1;
@@ -2697,13 +2718,15 @@ static FLIF16RangesContext *transform_framecombine_meta(FLIF16Context *ctx,
                                                         FLIF16RangesContext *src_ctx)
 {
     transform_priv_framecombine *data = t_ctx->priv_data;
-    FLIF16RangesContext *ranges = av_mallocz(sizeof(*ranges));
+    ranges_priv_framecombine *rdata;
+    FLIF16RangesContext *ranges;
+    int lookback;
+    ranges = av_mallocz(sizeof(*ranges));
     if (!ranges)
         return NULL;
-    ranges_priv_framecombine *rdata = av_mallocz(sizeof(*rdata));
+    rdata = av_mallocz(sizeof(*rdata));
     if (!rdata)
         return NULL;
-    int lookback;
     av_assert0(data->max_lookback < frame_count);
     data->was_greyscale = (src_ctx->num_planes < 2);
     data->was_flat = (src_ctx->num_planes < 4);
