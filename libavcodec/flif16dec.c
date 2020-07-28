@@ -502,9 +502,9 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             s->range = ff_flif16_transform_meta(CTX_CAST(s), s->frames, s->num_frames,
                                                 s->transforms[s->transform_top],
                                                 prev_range);
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             if(!s->range)
                 return AVERROR(ENOMEM);
+            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             printf("Ranges : %d\n", s->range->r_no);
             s->segment = 0;
             ++s->transform_top;
