@@ -121,7 +121,8 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
 
 
 int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
-                          uint8_t *plane_mode, uint8_t *const_plane_value)
+                          uint8_t *plane_mode, uint8_t *const_plane_value,
+                          uint8_t lookback)
 {
     for (int j = 0; j < s->num_frames; ++j) {
         if (frames[j].seen_before >= 0)
@@ -133,7 +134,8 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
             return AVERROR(ENOMEM);
         }
 
-        for (int i = 0; i < s->num_planes; ++i) {
+        for (int i = 0; i < (s->num_planes + lookback); ++i) {
+            printf("Plane: %d ", i);
             switch (plane_mode[i]) {
                 case FLIF16_PLANEMODE_NORMAL:
                     frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);
@@ -159,9 +161,10 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
 }
 
 
-static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes)
+static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes,
+                                uint8_t lookback)
 {
-    for(uint8_t i = 0; i < num_planes; ++i) {
+    for(uint8_t i = 0; i < (num_planes + lookback); ++i) {
         av_free(frame->data[i]);
     }
     av_free(frame->data);
@@ -179,12 +182,12 @@ FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s)
 }
 
 void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
-                           uint32_t num_planes)
+                           uint32_t num_planes, uint8_t lookback)
 {
     for (int i = 0; i < num_frames; ++i) {
         if ((*frames)[i].seen_before >= 0)
             continue;
-        ff_flif16_planes_free(&(*frames)[i], num_planes);
+        ff_flif16_planes_free(&(*frames)[i], num_planes, lookback);
         if ((*frames)[i].col_begin)
             av_freep(&(*frames)[i].col_begin);
         if ((*frames)[i].col_end)

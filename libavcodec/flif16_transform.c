@@ -1166,12 +1166,11 @@ static int8_t transform_permuteplanes_read(FLIF16TransformContext *ctx,
             ++ctx->segment;
     }
 
-    end:
-        ctx->segment = 0;
-        return 1;
+    ctx->segment = 0;
+    return 1;
 
     need_more_data:
-        return AVERROR(EAGAIN);
+    return AVERROR(EAGAIN);
 }
 
 static FLIF16RangesContext *transform_permuteplanes_meta(FLIF16Context *ctx,
@@ -1463,8 +1462,8 @@ static int8_t transform_bounds_read(FLIF16TransformContext *ctx,
         ctx->i = 0;
         ctx->segment = 0;
     }
-    end:
-        return 1;
+
+    return 1;
 
     need_more_data:
         return AVERROR(EAGAIN);
@@ -2604,12 +2603,11 @@ static int8_t transform_frameshape_read(FLIF16TransformContext  *ctx,
             data->i = 0;
     }
 
-    end:
-        ctx->i = 0;
-        return 1;
+    ctx->i = 0;
+    return 1;
 
     need_more_data:
-        return AVERROR(EAGAIN);
+    return AVERROR(EAGAIN);
 }
 
 static FLIF16RangesContext *transform_frameshape_meta(FLIF16Context *ctx,
@@ -2683,12 +2681,11 @@ static int8_t transform_framecombine_read(FLIF16TransformContext *ctx,
                         &data->max_lookback, FLIF16_RAC_GNZ_INT);
     }
 
-    end:
-        ctx->i = 0;
-        return 1;
+    ctx->i = 0;
+    return 1;
 
     need_more_data:
-        return AVERROR(EAGAIN);
+    return AVERROR(EAGAIN);
 }
 
 static FLIF16RangesContext *transform_framecombine_meta(FLIF16Context *ctx,
