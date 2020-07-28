@@ -435,7 +435,8 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 av_log(avctx, AV_LOG_ERROR, "failed to initialise transform %u\n", temp);
                 return AVERROR(ENOMEM);
             }
-
+            
+            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             // TODO Replace with switch statement
             switch (temp) {
                 case FLIF16_TRANSFORM_PALETTEALPHA:
@@ -491,14 +492,17 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             ++s->segment;
 
         case 2:
+            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             //printf("%d\n", s->transforms[s->transform_top]->t_no);
             if(ff_flif16_transform_read(s->transforms[s->transform_top],
                                         CTX_CAST(s), s->range) <= 0)
                 goto need_more_data;
+            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             prev_range = s->range;
             s->range = ff_flif16_transform_meta(CTX_CAST(s), s->frames, s->num_frames,
                                                 s->transforms[s->transform_top],
                                                 prev_range);
+            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             if(!s->range)
                 return AVERROR(ENOMEM);
             printf("Ranges : %d\n", s->range->r_no);
@@ -508,6 +512,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
         case 3:
             end:
+            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             s->segment = 3;   
             // Read invisible pixel predictor
             if (   s->alphazero && s->num_planes > 3
@@ -520,20 +525,20 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     for (int i = 0; i < s->num_planes; ++i)
         printf("%d: %d, %d\n", i, ff_flif16_ranges_min(s->range, i),
         ff_flif16_ranges_max(s->range, i));
-
+    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     for (int i = 0; i < ((s->num_planes > 4) ? 4 : s->num_planes); ++i)
         if (   s->plane_mode[i] != FLIF16_PLANEMODE_NORMAL
             && (ff_flif16_ranges_min(s->range, i) >= ff_flif16_ranges_max(s->range, i))) {
             printf("Const value: %d %d\n", i, ff_flif16_ranges_min(s->range, i));
             const_plane_value[i] = ff_flif16_ranges_min(s->range, i);
         }
-
+    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
         av_log(avctx, AV_LOG_ERROR, "could not allocate planes\n");
         return AVERROR(ENOMEM);
     }
-        
+    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     // if (!(s->ia % 2))
     //    s->state = FLIF16_ROUGH_PIXELDATA;
@@ -544,7 +549,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     return 0;
 
     need_more_data:
-    printf("At:as [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     printf("need more data<>\n");
     return AVERROR(EAGAIN);
 }
@@ -774,7 +779,8 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                             PIXEL_SET(s, fr, p, r, c, flif16_ni_predict(s, &s->frames[fr], p, r, c, gray));
                         } else {
                             printf("f %d %d %d %d\n", p, fr - 1, r, c);
-                            PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, c)); 
+                            PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, c));
+                        }
                 } else if (p != 4) {
                     ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr],
                                         PREV_FRAME(s->frames, fr), p, r, 0, begin);
@@ -1983,7 +1989,10 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
                 }
             }
             break;
-            
+
+        default:
+            av_log(avctx, AV_LOG_ERROR, "Pixel format %d out of bounds?\n", avctx->pix_fmt);
+            return AVERROR_PATCHWELCOME;
     }
 
     av_frame_ref(data, s->out_frame);
@@ -2133,14 +2142,14 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     if (s->frames)
         ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 
-    for (int i = s->transform_top - 1; i >= 0; --i)
-        ff_flif16_transforms_close(s->transforms[i]);
+    //for (int i = s->transform_top - 1; i >= 0; --i)
+    //    ff_flif16_transforms_close(s->transforms[i]);
 
     ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes);
     av_frame_free(&s->out_frame);
 
-    if (s->range)
-        ff_flif16_ranges_close(s->range);
+    //if (s->range)
+    //    ff_flif16_ranges_close(s->range);
     return 0;
 }
 
