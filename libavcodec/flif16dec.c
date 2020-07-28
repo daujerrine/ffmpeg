@@ -521,24 +521,30 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 RAC_GET(&s->rc, NULL, 0, 2, &s->ipp, FLIF16_RAC_UNI_INT8)
     }
 
+    if (!s->transform_top) {
+        memset(s->plane_mode, FLIF16_PLANEMODE_NORMAL,
+               sizeof(s->plane_mode) / sizeof(s->plane_mode[0]));
+        goto notransform_end;
+    }
+
     printf("[Resultant Ranges]\n");
     for (int i = 0; i < s->num_planes; ++i)
         printf("%d: %d, %d\n", i, ff_flif16_ranges_min(s->range, i),
         ff_flif16_ranges_max(s->range, i));
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
     for (int i = 0; i < ((s->num_planes > 4) ? 4 : s->num_planes); ++i)
         if (   s->plane_mode[i] != FLIF16_PLANEMODE_NORMAL
             && (ff_flif16_ranges_min(s->range, i) >= ff_flif16_ranges_max(s->range, i))) {
             printf("Const value: %d %d\n", i, ff_flif16_ranges_min(s->range, i));
             const_plane_value[i] = ff_flif16_ranges_min(s->range, i);
         }
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
+    notransform_end:
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
         av_log(avctx, AV_LOG_ERROR, "could not allocate planes\n");
         return AVERROR(ENOMEM);
     }
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     // if (!(s->ia % 2))
     //    s->state = FLIF16_ROUGH_PIXELDATA;
