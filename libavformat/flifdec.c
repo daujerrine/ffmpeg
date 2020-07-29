@@ -212,10 +212,10 @@ static int flif16_read_header(AVFormatContext *s)
         tag[0] = temp;
         for(int i = 1; i <= 3; ++i)
             tag[i] = avio_r8(pb);
+        #else
+        avio_skip(pb, 3);
         #endif
-        
-        avio_seek(pb, 3, SEEK_CUR);
-
+    
         // Read varint
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
@@ -240,7 +240,7 @@ static int flif16_read_header(AVFormatContext *s)
         }
         av_dict_set(&s->metadata, tag, out_buf, 0);
         #else
-        avio_seek(pb, metadata_size, SEEK_CUR);
+        avio_skip(pb, metadata_size);
         #endif
     }
 

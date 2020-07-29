@@ -1093,7 +1093,6 @@ static int flif16_decode_frame(AVCodecContext *avctx,
     } while (!ret);
 
     return ret;
-    return ret;
 }
 
 static av_cold int flif16_decode_end(AVCodecContext *avctx)
