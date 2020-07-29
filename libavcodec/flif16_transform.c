@@ -2905,9 +2905,9 @@ FLIF16TransformContext *ff_flif16_transform_init(int t_no, FLIF16RangesContext *
     return ctx;
 }
 
-int8_t ff_flif16_transform_read(FLIF16TransformContext *ctx, 
-                                FLIF16Context *dec_ctx,
-                                FLIF16RangesContext *r_ctx)
+int ff_flif16_transform_read(FLIF16TransformContext *ctx, 
+                             FLIF16Context *dec_ctx,
+                             FLIF16RangesContext *r_ctx)
 {
     FLIF16Transform *trans = flif16_transforms[ctx->t_no];
     if (trans->read)
@@ -2937,10 +2937,10 @@ void ff_flif16_transform_configure(FLIF16TransformContext *ctx, const int settin
         trans->configure(ctx, setting);
 }
 
-int8_t ff_flif16_transform_reverse(FLIF16Context *ctx,
-                                   FLIF16TransformContext *t_ctx,
-                                   FLIF16PixelData *frame,
-                                   uint8_t stride_row, uint8_t stride_col)
+int ff_flif16_transform_reverse(FLIF16Context *ctx,
+                                FLIF16TransformContext *t_ctx,
+                                FLIF16PixelData *frame,
+                                uint8_t stride_row, uint8_t stride_col)
 {
     FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
     if (trans->reverse != NULL)
