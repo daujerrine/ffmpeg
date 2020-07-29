@@ -1636,8 +1636,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     int begin_zl, end_zl; // TODO put in ctx
     uint8_t nump = s->num_planes;
     // Replace with ctx vars
-    int quality = s->quality; // TODO put in ctx
-    int scale = s->scale;// TODO put in ctx
+    //int quality = s->quality; // TODO put in ctx
+    //int scale = s->scale;// TODO put in ctx
     uint8_t default_order;// TODO put in ctx
     int p;// TODO put in ctx
     int zl_first, zl_second;// TODO put in ctx
@@ -1646,7 +1646,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     uint8_t alpha_plane = (s->num_planes > 3) ? 3 : 0;
     int the_predictor[5] = {0};
     int predictor;
-    int breakpoints = 0;  // TODO change
+    //int breakpoints = 0;  // TODO change
 
     if (!rough) {
         begin_zl = s->rough_zl;
