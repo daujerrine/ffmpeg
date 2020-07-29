@@ -66,14 +66,7 @@ extern FLIF16Transform *flif16_transforms[13];
 FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
                                                   unsigned int bpc);
 
-static void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx){
-    FLIF16Ranges* ranges = flif16_ranges[r_ctx->r_no];
-    if(ranges->close)
-        ranges->close(r_ctx);
-    if(ranges->priv_data_size)
-        av_free(r_ctx->priv_data);
-    av_freep(&r_ctx);
-}
+void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx);
 
 static inline FLIF16ColorVal ff_flif16_ranges_min(FLIF16RangesContext *r_ctx, int p)
 {
@@ -113,8 +106,8 @@ void ff_flif16_transform_configure(FLIF16TransformContext *, const int);
 
 
 // Maybe put FLIF16Context at first in list
-int8_t ff_flif16_transform_read(FLIF16TransformContext *, FLIF16Context *,
-                                 FLIF16RangesContext *);
+int ff_flif16_transform_read(FLIF16TransformContext *, FLIF16Context *,
+                             FLIF16RangesContext *);
 
 FLIF16RangesContext* ff_flif16_transform_meta(FLIF16Context *,
                                               FLIF16PixelData *,
@@ -122,8 +115,8 @@ FLIF16RangesContext* ff_flif16_transform_meta(FLIF16Context *,
                                               FLIF16TransformContext *, 
                                               FLIF16RangesContext *);
 
-int8_t ff_flif16_transform_reverse(FLIF16Context *, FLIF16TransformContext*, FLIF16PixelData*,
-                                    uint8_t, uint8_t);
+int ff_flif16_transform_reverse(FLIF16Context *, FLIF16TransformContext*, FLIF16PixelData*,
+                                uint8_t, uint8_t);
 
 void ff_flif16_transforms_close(FLIF16TransformContext *);
 

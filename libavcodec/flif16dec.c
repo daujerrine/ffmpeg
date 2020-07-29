@@ -521,25 +521,20 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 RAC_GET(&s->rc, NULL, 0, 2, &s->ipp, FLIF16_RAC_UNI_INT8)
     }
 
-    if (!s->transform_top) {
-        memset(s->plane_mode, FLIF16_PLANEMODE_NORMAL,
-               sizeof(s->plane_mode) / sizeof(s->plane_mode[0]));
-        goto notransform_end;
-    }
-
     printf("[Resultant Ranges]\n");
     for (int i = 0; i < s->num_planes; ++i)
         printf("%d: %d, %d\n", i, ff_flif16_ranges_min(s->range, i),
-        ff_flif16_ranges_max(s->range, i));
+               ff_flif16_ranges_max(s->range, i));
 
-    for (int i = 0; i < ((s->num_planes > 4) ? 4 : s->num_planes); ++i)
-        if (   s->plane_mode[i] != FLIF16_PLANEMODE_NORMAL
-            && (ff_flif16_ranges_min(s->range, i) >= ff_flif16_ranges_max(s->range, i))) {
-            printf("Const value: %d %d\n", i, ff_flif16_ranges_min(s->range, i));
-            const_plane_value[i] = ff_flif16_ranges_min(s->range, i);
+    for (int i = 0; i < FFMIN(s->num_planes, 4); ++i) {
+        if (s->plane_mode[i] != FLIF16_PLANEMODE_NORMAL) {
+            if (ff_flif16_ranges_min(s->range, i) >= ff_flif16_ranges_max(s->range, i))
+                const_plane_value[i] = ff_flif16_ranges_min(s->range, i);
+            else
+                s->plane_mode[i] = FLIF16_PLANEMODE_NORMAL;
         }
+    }
 
-    notransform_end:
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
         av_log(avctx, AV_LOG_ERROR, "could not allocate planes\n");
@@ -1636,8 +1631,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     int begin_zl, end_zl; // TODO put in ctx
     uint8_t nump = s->num_planes;
     // Replace with ctx vars
-    int quality = s->quality; // TODO put in ctx
-    int scale = s->scale;// TODO put in ctx
+    //int quality = s->quality; // TODO put in ctx
+    //int scale = s->scale;// TODO put in ctx
     uint8_t default_order;// TODO put in ctx
     int p;// TODO put in ctx
     int zl_first, zl_second;// TODO put in ctx
@@ -1646,7 +1641,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     uint8_t alpha_plane = (s->num_planes > 3) ? 3 : 0;
     int the_predictor[5] = {0};
     int predictor;
-    int breakpoints = 0;  // TODO change
+    //int breakpoints = 0;  // TODO change
 
     if (!rough) {
         begin_zl = s->rough_zl;
@@ -2159,14 +2154,14 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     if (s->frames)
         ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 
-    //for (int i = s->transform_top - 1; i >= 0; --i)
-    //    ff_flif16_transforms_close(s->transforms[i]);
+    for (int i = s->transform_top - 1; i >= 0; --i)
+        ff_flif16_transforms_close(s->transforms[i]);
 
     ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes);
     av_frame_free(&s->out_frame);
 
-    //if (s->range)
-    //    ff_flif16_ranges_close(s->range);
+    if (s->range)
+        ff_flif16_ranges_close(s->range);
     return 0;
 }
 

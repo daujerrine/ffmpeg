@@ -147,7 +147,7 @@ static int flif16_probe(const AVProbeData *p)
 
 static int flif16_read_header(AVFormatContext *s)
 {
-    FLIFDemuxContext *dc = s->priv_data;
+    // FLIFDemuxContext *dc = s->priv_data;
     GetByteContext gb;
     FLIF16RangeCoder rc;
 
@@ -157,11 +157,11 @@ static int flif16_read_header(AVFormatContext *s)
     uint32_t vlist[3] = {0};
     uint32_t flag, animated, temp;
     uint32_t bpc = 0;
-    uint8_t tag[5] = {0};
+    // uint8_t tag[5] = {0};
     uint8_t buf[BUF_SIZE];
     uint32_t metadata_size = 0;
-    uint8_t *out_buf = NULL;
-    int out_buf_size = 0;
+    // uint8_t *out_buf = NULL;
+    // int out_buf_size = 0;
 
     unsigned int count = 4;
     int ret;
@@ -208,9 +208,14 @@ static int flif16_read_header(AVFormatContext *s)
 
     while ((temp = avio_r8(pb))) {
         // Get metadata identifier
+        #if 0
         tag[0] = temp;
         for(int i = 1; i <= 3; ++i)
             tag[i] = avio_r8(pb);
+        #else
+        avio_skip(pb, 3);
+        #endif
+    
         // Read varint
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
@@ -221,21 +226,21 @@ static int flif16_read_header(AVFormatContext *s)
         count = 4;
         
         #if 0
-            // TODO see why this does not work.
-            // CONFIG_ZLIB
-            // Decompression Routines
-            while (metadata_size > 0) {
-                ret = avio_read(pb, metadata_buf, FFMIN(METADATA_BUF_SIZE, metadata_size));
-                metadata_size -= ret;
-                if((ret = flif_inflate(dc, metadata_buf, ret, out_buf, &out_buf_size)) < 0 &&
-                   ret != AVERROR(EAGAIN)) {
-                    av_log(s, AV_LOG_ERROR, "could not decode metadata\n");
-                    return ret;
-                }
+        // TODO see why this does not work.
+        // CONFIG_ZLIB
+        // Decompression Routines
+        while (metadata_size > 0) {
+            ret = avio_read(pb, metadata_buf, FFMIN(METADATA_BUF_SIZE, metadata_size));
+            metadata_size -= ret;
+            if((ret = flif_inflate(dc, metadata_buf, ret, out_buf, &out_buf_size)) < 0 &&
+                ret != AVERROR(EAGAIN)) {
+                av_log(s, AV_LOG_ERROR, "could not decode metadata\n");
+                return ret;
             }
-            av_dict_set(&s->metadata, tag, out_buf, 0);
+        }
+        av_dict_set(&s->metadata, tag, out_buf, 0);
         #else
-            avio_seek(pb, metadata_size, SEEK_CUR);
+        avio_skip(pb, metadata_size);
         #endif
     }
 
@@ -318,7 +323,6 @@ static int flif16_read_header(AVFormatContext *s)
     st->start_time           = 0;
     st->nb_frames            = vlist[2];
     // st->need_parsing         = 1;
-    dc->duration = st->duration;
 
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)
@@ -330,7 +334,6 @@ static int flif16_read_header(AVFormatContext *s)
 
 static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
-    FLIFDemuxContext *dc = s->priv_data;
     AVIOContext *pb  = s->pb;
     int ret;
     //  FFMIN(BUF_SIZE, avio_size(pb))
