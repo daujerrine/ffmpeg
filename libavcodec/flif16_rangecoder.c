@@ -329,7 +329,8 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
     }
 
     end:
-    m->forest[channel]->data = av_realloc(m->forest[channel]->data, m->tree_top * sizeof(*m->forest[channel]->data)); // Maybe replace by fast realloc
+    m->forest[channel]->data = av_realloc(m->forest[channel]->data,
+                                          m->tree_top * sizeof(*m->forest[channel]->data)); // Maybe replace by fast realloc
     if (!m->forest[channel]->data)
         return AVERROR(ENOMEM);
     m->forest[channel]->size = m->tree_top;
@@ -395,7 +396,7 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
         } else if (nodes[pos].count > 0) {
             --nodes[pos].count;
             break;
-        } else { // count == 0
+        } else {
             --nodes[pos].count;
             if ((tree->leaves_top) >= tree->leaves_size) {
                 m->forest[channel]->leaves = av_realloc(m->forest[channel]->leaves,

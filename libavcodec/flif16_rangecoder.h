@@ -112,24 +112,24 @@ static uint16_t flif16_nz_int_chances[] = {
     2048, 2048,  // EXP:  28,  29
     2048, 2048,  // EXP:  30,  31
     2048, 2048,  // EXP:  32,  33
-    1900,        // MANT: 0:
-    1850,        // MANT: 1:
-    1800,        // MANT: 2:
-    1750,        // MANT: 3:
-    1650,        // MANT: 4:
-    1600,        // MANT: 5:
-    1600,        // MANT: 6:
-    2048,        // MANT: 7:
-    2048,        // MANT: 8:
-    2048,        // MANT: 9:
-    2048,        // MANT: 10:
-    2048,        // MANT: 11:
-    2048,        // MANT: 12:
-    2048,        // MANT: 13:
-    2048,        // MANT: 14:
-    2048,        // MANT: 15:
-    2048,        // MANT: 16:
-    2048         // MANT: 17:
+    1900,        // MANT: 0
+    1850,        // MANT: 1
+    1800,        // MANT: 2
+    1750,        // MANT: 3
+    1650,        // MANT: 4
+    1600,        // MANT: 5
+    1600,        // MANT: 6
+    2048,        // MANT: 7
+    2048,        // MANT: 8
+    2048,        // MANT: 9
+    2048,        // MANT: 10
+    2048,        // MANT: 11
+    2048,        // MANT: 12
+    2048,        // MANT: 13
+    2048,        // MANT: 14
+    2048,        // MANT: 15
+    2048,        // MANT: 16
+    2048         // MANT: 17
 };
 
 #define NZ_INT_ZERO (0)
@@ -139,12 +139,12 @@ static uint16_t flif16_nz_int_chances[] = {
 
 
 typedef struct FLIF16MultiscaleChanceContext {
-    FLIF16MultiscaleChance data[sizeof(flif16_nz_int_chances)/sizeof(flif16_nz_int_chances[0])];
+    FLIF16MultiscaleChance data[sizeof(flif16_nz_int_chances) / sizeof(flif16_nz_int_chances[0])];
 } FLIF16MultiscaleChanceContext;
 
 // Maybe rename to symbol context
 typedef struct FLIF16ChanceContext {
-    uint16_t data[sizeof(flif16_nz_int_chances)/sizeof(flif16_nz_int_chances[0])];
+    uint16_t data[sizeof(flif16_nz_int_chances) / sizeof(flif16_nz_int_chances[0])];
 } FLIF16ChanceContext;
 
 typedef struct FLIF16RangeCoder {
@@ -668,10 +668,11 @@ static inline int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
             rc->pos  = rc->e;
             ++rc->segment;__PLN__
 
-         /*
-          case 3 and case 4 mimic a for loop.
-          This is done to separate the RAC read statement.
-          for(pos = e; pos > 0; --pos) ...
+        /*
+         * case 3 and case 4 mimic a for loop.
+         * This is done to separate the RAC read statement.
+         * for(pos = e; pos > 0; --pos) ...
+         * TODO replace with actual for loop.
          */
         case 3:
             loop: /* start for */

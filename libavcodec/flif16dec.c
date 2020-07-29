@@ -1908,8 +1908,8 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
 
     // Clear out transparent pixels
     if (s->num_planes > 3) {
-        for (int i = 0; i < s->height; ++i)
-            for (int j = 0; j < s->width; ++j)
+        for (uint32_t i = 0; i < s->height; ++i)
+            for (uint32_t j = 0; j < s->width; ++j)
                 if (!PIXEL_GET(s, s->out_frames_count, FLIF16_PLANE_ALPHA, i, j)) {
                     PIXEL_SET(s, s->out_frames_count, FLIF16_PLANE_Y, i, j, 0);
                     PIXEL_SET(s, s->out_frames_count, FLIF16_PLANE_CO, i, j, 0);
