@@ -560,6 +560,7 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
  * ============================================================================
  */
 
+// TODO rework parameters
 
 static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
                                                   FLIF16PixelData *pixel,
@@ -841,10 +842,8 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                                                    s->grays[s->curr_plane],
                                                    min_p);
                         
-                        if (ret) {
-                            printf("Caught Ret: %u\n", ret);
+                        if (ret)
                             goto error;
-                        }
                     } // End for
                     s->i3 = 0;
                 } // End for

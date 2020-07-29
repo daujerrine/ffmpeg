@@ -254,7 +254,6 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             rc->oldmin = prop_ranges[p][0];
             rc->oldmax = prop_ranges[p][1];
             if (rc->oldmin >= rc->oldmax) {
-                printf("!!! rc->oldmin >= rc->oldmax\n");
                 return AVERROR(EINVAL);
             }
             ++rc->segment2;

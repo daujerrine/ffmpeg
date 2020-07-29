@@ -47,7 +47,7 @@
 static const uint8_t flif16_header[4] = "FLIF";
 
 // Pixeldata types
-static enum AVPixelFormat flif16_out_frame_type[][2] = {
+static const enum AVPixelFormat flif16_out_frame_type[][2] = {
     { -1,  -1 },  // Padding
     { AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY16 },
     { -1 , -1 }, // Padding
