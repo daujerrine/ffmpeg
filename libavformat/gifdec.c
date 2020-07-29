@@ -268,6 +268,7 @@ static int gif_read_packet(AVFormatContext *s, AVPacket *pkt)
         keyframe, frame_parsed = 0, ret;
     int64_t frame_start = avio_tell(pb), frame_end;
     unsigned char buf[6];
+
     if ((ret = avio_read(pb, buf, 6)) == 6) {
         keyframe = memcmp(buf, gif87a_sig, 6) == 0 ||
                    memcmp(buf, gif89a_sig, 6) == 0;

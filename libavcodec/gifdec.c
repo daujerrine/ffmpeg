@@ -468,7 +468,7 @@ static int gif_decode_frame(AVCodecContext *avctx, void *data, int *got_frame, A
 {
     GifState *s = avctx->priv_data;
     int ret;
-    printf("[%s]\n", __func__);
+
     bytestream2_init(&s->gb, avpkt->data, avpkt->size);
 
     s->frame->pts     = avpkt->pts;
