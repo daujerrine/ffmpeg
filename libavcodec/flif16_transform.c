@@ -835,14 +835,15 @@ static void ff_framecombine_snap(FLIF16RangesContext *src_ctx, const int p,
                                  FLIF16ColorVal *v)
 {
     ranges_priv_framecombine *data = src_ctx->priv_data;
-    FLIF16RangesContext r_ctx;
-    r_ctx.r_no = FLIF16_RANGES_FRAMELOOKBACK;
-    r_ctx.num_planes = 5;
-    r_ctx.priv_data = NULL;
+    // FLIF16RangesContext r_ctx;
+    // r_ctx.r_no = FLIF16_RANGES_FRAMELOOKBACK;
+    // r_ctx.num_planes = 5;
+    // r_ctx.priv_data = NULL;
     if (p >= 3)
-        ff_static_snap(&r_ctx, p, prev_planes, minv, maxv, v);
+        ff_static_snap(src_ctx, p, prev_planes, minv, maxv, v);
     else
         ff_flif16_ranges_snap(data->ranges, p, prev_planes, minv, maxv, v);
+    // printf("min : %d max : %d v : %d\n", *minv, *maxv, *v);
 }
 
 static void ff_framecombine_close(FLIF16RangesContext *r_ctx)
@@ -1475,6 +1476,7 @@ static int transform_bounds_read(FLIF16TransformContext *ctx,
                     return 0;
                 data->bounds[ctx->i][0] = data->min;
                 data->bounds[ctx->i][1] = max;
+                printf("bounds[%d].min : %d bounds[%d].max : %d\n", ctx->i, data->bounds[ctx->i][0], ctx->i, data->bounds[ctx->i][1]);
                 ctx->i++;
                 ctx->segment--;
                 goto start;
