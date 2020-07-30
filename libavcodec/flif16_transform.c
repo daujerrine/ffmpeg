@@ -768,6 +768,7 @@ static void ff_colorbuckets_snap(FLIF16RangesContext *src_ctx, const int p,
         return;
     }
     *v = ff_snap_color_bucket(b, v);
+    // printf("minv : %d maxv : %d v : %d\n", *minv, *maxv, *v);
 }
 
 static void ff_colorbuckets_minmax(FLIF16RangesContext *r_ctx, 
@@ -2072,6 +2073,7 @@ static uint8_t ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c)
 static FLIF16ColorVal ff_snap_color_slow(ColorBucket *cb, const FLIF16ColorVal c)
 {
     FLIF16ColorVal diff;
+    FLIF16ColorVal d;
     if (c <= cb->min)
         return cb->min;
     if (c >= cb->max)
@@ -2091,7 +2093,9 @@ static FLIF16ColorVal ff_snap_color_slow(ColorBucket *cb, const FLIF16ColorVal c
             if (temp->data > c)
                 break;
         }
-        return ff_colorvalCB_at(cb->values, best);
+        d = ff_colorvalCB_at(cb->values, best);
+        // printf("%d %d\n", best, d);
+        return d;
     }
     return c;
 }
@@ -2204,16 +2208,22 @@ static int transform_colorbuckets_init(FLIF16TransformContext *ctx,
     if (!cb->bucket1)
         return 0;
     cb->bucket1_size = ((ff_flif16_ranges_max(src_ctx, 0)
-                                   - cb->min0)/CB0a + 1);                              
+                                   - cb->min0)/CB0a + 1);
+    for (unsigned int i = 0; i < cb->bucket1_size; i++)
+        ff_init_bucket_default(&cb->bucket1[i]);
     cb->bucket2 = av_mallocz(length * sizeof(*cb->bucket2));
     if (!cb->bucket2)
         return 0;
     cb->bucket2_size = length;
-    for (int i = 0; i < length; i++) {
+    for (unsigned int i = 0; i < length; i++) {
         cb->bucket2_list_size = temp;
         cb->bucket2[i] = av_mallocz(temp * sizeof(*cb->bucket2[i]));
+        
         if (!cb->bucket2[i])
             return 0;
+
+        for (unsigned int j = 0; j < temp; j++)
+            ff_init_bucket_default(&cb->bucket2[i][j]);
     }
     ff_init_bucket_default(&cb->bucket3);
     for (uint8_t i = 0; i < 6; i++)
@@ -2268,10 +2278,14 @@ static FLIF16RangesContext *transform_colorbuckets_meta(FLIF16Context *ctx,
             pixelU[0] += CB0b;
         }
     }
+    // printf("bucket0 incoming\n");
     ff_prepare_snapvalues(&cb->bucket0);
+    // printf("bucket3 incoming\n");
     ff_prepare_snapvalues(&cb->bucket3);
+    // printf("bucket1 incoming\n");
     for (unsigned int i = 0; i < cb->bucket1_size; i++)
         ff_prepare_snapvalues(&cb->bucket1[i]);
+    // printf("bucket2 incoming\n");
     for (unsigned int i = 0; i < cb->bucket2_size; i++) {
         for (unsigned int j = 0; j < cb->bucket2_list_size; j++)
             ff_prepare_snapvalues(&cb->bucket2[i][j]);
@@ -2346,6 +2360,8 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                     goto end;
                 }
             }
+            cb->smin = 0;
+            cb->smax = 0;
             cb->i = 1;
 
         case 1:
