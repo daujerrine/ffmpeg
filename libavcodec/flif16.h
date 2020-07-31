@@ -66,11 +66,11 @@ typedef enum FLIF16Plane {
 
 typedef enum FLIF16PlaneMode {
     FLIF16_PLANEMODE_CONSTANT = 0,  ///< A true constant plane
-    FLIF16_PLANEMODE_NORMAL,        ///< A normal pixel matrix    
+    FLIF16_PLANEMODE_NORMAL,        ///< A normal pixel matrix
     FLIF16_PLANEMODE_FILL           /**< A constant plane that is later manipulated
                                          by transforms, making it nonconstant and
                                          allocating a plane for it */
-                                    
+
 } FLIF16PlaneMode;
 
 typedef struct FLIF16PixelData {
@@ -95,7 +95,7 @@ typedef struct FLIF16Context {
     uint32_t num_frames;
     uint32_t meta;        ///< Size of a meta chunk
 
-    // Primary Header     
+    // Primary Header
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint32_t bpc;         ///< 2 ^ Bytes per channel
     uint8_t  num_planes;  ///< Number of planes

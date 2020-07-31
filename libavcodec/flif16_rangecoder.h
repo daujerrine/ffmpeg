@@ -93,7 +93,7 @@ typedef struct FLIF16MultiscaleChance {
 } FLIF16MultiscaleChance;
 
 static uint16_t flif16_nz_int_chances[] = {
-    1000,        // ZERO 
+    1000,        // ZERO
     2048,        // SIGN (0)  (1)
     1000, 1000,  // EXP:  0,   1
     1200, 1200,  // EXP:  2,   3
@@ -768,7 +768,7 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
         if(!ff_flif16_rac_renorm(rc)) {
             return 0; // EAGAIN condition
         }
-        
+
         switch (type) {
             case FLIF16_RAC_BIT:
                 flag = ff_flif16_rac_read_bit(rc, (uint8_t *) target);

@@ -42,7 +42,7 @@ typedef enum FLIF16ParseStates {
 typedef struct FLIF16ParseContext {
     ParseContext pc;
     int state;          ///< The section of the file the parser is in currently.
-    unsigned int index; ///< An index based on the current state. 
+    unsigned int index; ///< An index based on the current state.
     uint8_t animated;   ///< Is image animated or not
     uint8_t varint;     ///< Number of varints to process in sequence
     uint32_t width;
@@ -81,11 +81,11 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                     case 1:
                         VARINT_APPEND(f->width, buf[index]);
                         break;
-                    
+
                     case 2:
                         VARINT_APPEND(f->height, buf[index]);
                         break;
-                    
+
                     case 3:
                         VARINT_APPEND(f->frames, buf[index]);
                         break;
@@ -165,15 +165,15 @@ static int flif16_parse(AVCodecParserContext *s, AVCodecContext *avctx,
 {
     FLIF16ParseContext *fpc = s->priv_data;
     int next;
-    
+
     next = flif16_find_frame(fpc, buf, buf_size);
-    
+
     if (ff_combine_frame(&fpc->pc, next, &buf, &buf_size) < 0) {
         *poutbuf      = NULL;
         *poutbuf_size = 0;
         return buf_size;
     }
-    printf("Width:%u\nHeight:%u\nFrames:%u\nEnd:%d\n", 
+    printf("Width:%u\nHeight:%u\nFrames:%u\nEnd:%d\n",
            fpc->width, fpc->height, fpc->frames, buf_size);
     *poutbuf      = buf;
     *poutbuf_size = buf_size;

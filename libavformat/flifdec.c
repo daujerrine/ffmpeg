@@ -39,7 +39,7 @@
 
 
 // Uncomment to disable metadata reading
-#undef CONFIG_ZLIB
+#define CONFIG_ZLIB 0
 
 #if CONFIG_ZLIB
 #include <zlib.h>
@@ -72,7 +72,7 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
         stream->avail_in = 0;
         stream->next_in  = Z_NULL;
         ret = inflateInit(stream);
-        
+
         if (ret != Z_OK)
             return ret;
 
@@ -166,7 +166,7 @@ static int flif16_read_header(AVFormatContext *s)
 
     AVIOContext     *pb  = s->pb;
     AVStream        *st;
-    
+
     uint32_t vlist[3] = {0};
     uint32_t flag, animated, temp;
     uint32_t bpc = 0;
@@ -228,7 +228,7 @@ static int flif16_read_header(AVFormatContext *s)
         #else
         avio_skip(pb, 3);
         #endif
-    
+
         // Read varint
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
@@ -237,7 +237,7 @@ static int flif16_read_header(AVFormatContext *s)
         }
         VARINT_APPEND(metadata_size, temp);
         count = 4;
-        
+
         #if CONFIG_ZLIB
         // Decompression Routines
         while (metadata_size > 0) {
