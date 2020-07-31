@@ -70,11 +70,11 @@ typedef struct FLIF16DecoderContext {
     uint32_t num_frames;
     uint32_t meta;       ///< Size of a meta chunk
 
-    // Primary Header
+    // Primary Header     
     uint8_t  ia;         ///< Is image interlaced or/and animated or not
     uint32_t bpc;        ///< 2 ^ Bytes per channel
     uint8_t  num_planes; ///< Number of planes
-
+    
     // change to uint8_t
     uint32_t loops;       ///< Number of times animation loops
     // change to uint32_t
@@ -92,7 +92,7 @@ typedef struct FLIF16DecoderContext {
     uint32_t out_frames_count;
     AVFrame *out_frame;
     int64_t pts;
-
+    
     uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
     uint8_t buf_count;    ///< Count for initial RAC buffer
     int state;            ///< The section of the file the parser is in currently.
@@ -123,7 +123,7 @@ typedef struct FLIF16DecoderContext {
     // MANIAC Trees
     int32_t (*prop_ranges)[2]; ///< Property Ranges
     uint32_t prop_ranges_size;
-
+    
     // Pixeldata
     uint8_t curr_plane;        ///< State variable. Current plane under processing
     FLIF16ColorVal *grays;
@@ -228,10 +228,10 @@ static int flif16_read_header(AVCodecContext *avctx)
         return AVERROR_PATCHWELCOME;
     }
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-
+    
     s->bpc = bytestream2_get_byte(&s->gb);
 
-
+    
 
     // Handle dimensions and frames
     for(int i = 0; i < 2 + ((s->ia > 4) ? 1 : 0); ++i) {
@@ -262,7 +262,7 @@ static int flif16_read_header(AVCodecContext *avctx)
         av_log(avctx, AV_LOG_ERROR, "Could not allocate frames\n");
         return AVERROR(ENOMEM);
     }
-
+    
     // Handle Metadata Chunk. Currently it discards all data.
 
     while ((temp = bytestream2_get_byte(&s->gb)) != 0) {
@@ -664,10 +664,10 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
               ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c-1) : (r > 0 ? top : left));
     gradientTL = left + top - topleft;
     guess = MEDIAN3(gradientTL, left, top);
-    printf("r %d %d %d\n", (c > 0) ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r, c-1) : 0,
-                           (r > 0) ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c) : 0,
-                           (r > 0 && c > 0) ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c-1) : 0);
-    //printf("g %d\n", guess);
+    // printf("r %d %d %d\n", (c > 0) ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r, c-1) : 0,
+    //                        (r > 0) ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c) : 0,
+    //                        (r > 0 && c > 0) ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r-1, c-1) : 0);
+    //printf("g %d\n", guess); 
     ff_flif16_ranges_snap(ranges_ctx, p, properties, min, max, &guess);
     //printf("g %d\n", guess);
     //printf("min = %d max = %d\n", *min, *max);
@@ -1039,31 +1039,31 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     if (s->grays)
             av_freep(&s->grays);
 
-    for (int k = 0; k < s->num_planes; ++k) {
-        for (int j = 0; j < s->height; ++j) {
-            for (int i = 0; i < s->width; ++i) {
-                printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[0], k, j, i));
-            }
-            printf("\n");
-        }
-        printf("===\n");
-    }
+    // for (int k = 0; k < s->num_planes; ++k) {
+    //     for (int j = 0; j < s->height; ++j) {
+    //         for (int i = 0; i < s->width; ++i) {
+    //             printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[0], k, j, i));
+    //         }
+    //         printf("\n");
+    //     }
+    //     printf("===\n");
+    // }
 
     for (int i = 0; i < s->num_frames; i++) {
         if (s->frames[i].seen_before >= 0)
             continue;
         for (int j = s->transform_top - 1; j >= 0; --j) {
             ff_flif16_transform_reverse(CTX_CAST(s), s->transforms[j], &s->frames[i], 1, 1);
-            printf("Transform Step %d\n===========\n", s->transforms[j]->t_no);
-            for (int k = 0; k < s->num_planes; ++k) {
-                for (int j = 0; j < s->height; ++j) {
-                    for (int i = 0; i < s->width; ++i) {
-                        printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[0], k, j, i));
-                    }
-                    printf("\n");
-                }
-                printf("===\n");
-            }
+            // printf("Transform Step %d\n===========\n", s->transforms[j]->t_no);
+            // for (int k = 0; k < s->num_planes; ++k) {
+            //     for (int j = 0; j < s->height; ++j) {
+            //         for (int i = 0; i < s->width; ++i) {
+            //             printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[0], k, j, i));
+            //         }
+            //         printf("\n");
+            //     }
+            //     printf("===\n");
+            // }
         }
     }
     s->state = FLIF16_OUTPUT;
@@ -1671,7 +1671,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                 ++s->zooms;
             begin_zl = s->zooms; //TODO MANAGE
             ++s->segment;
-
+            
         case 1:
             RAC_GET(&s->rc, NULL, 0, s->zooms, &s->rough_zl, FLIF16_RAC_UNI_INT32);
             end_zl = s->rough_zl; //TODO MANAGEs
