@@ -1733,6 +1733,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     printf("Corrupt file: invalid plane/zoomlevel\n");
                     return AVERROR(EINVAL);
                 }
+                for(int i = 0; i < s->num_planes; ++i)
+                    printf("plane: %d :: %d %d\n", i, s->frames[0].s_r[i], s->frames[0].s_c[i]);
                 //if (100 * pixels_done > quality * pixels_todo && endZL == 0) {
                 //    v_printf(5,"%lu subpixels done, %lu subpixels todo, quality target %i%% reached (%i%%)\n",(long unsigned)pixels_done,(long unsigned)pixels_todo,(int)quality,(int)(100*pixels_done/pixels_todo));
                 //    flif_decode_FLIF2_inner_interpol(images, ranges, p, endZL, -1, scale, zoomlevels, transforms);
@@ -1761,8 +1763,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                         return AVERROR(ENOMEM);
 
                     memset(s->properties, 0, (s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
-                                                               : properties_rgb_size[s->curr_plane])
-                                                               * sizeof(*s->properties));
+                                                                : properties_rgb_size[s->curr_plane])
+                                                                  * sizeof(*s->properties));
                     // ConstantPlane null_alpha(1);
                     // GeneralPlane &alpha = nump > 3 ? images[0].getPlane(3) : null_alpha;
                     
@@ -1774,7 +1776,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                                 if(ret = flif_decode_plane_zoomlevel_horizontal(s, s->properties, s->range, alpha_plane,
                                    p, z, fr, r, s->alphazero, s->framelookback, predictor, s->ipp))
                                     goto error;
-                            // TODO replac lookback
+                            // TODO replace lookback
                             }
                         }
                     } else {
@@ -1790,8 +1792,6 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     s->zoomlevels[p]--;
                 } else
                     s->zoomlevels[p]--;
-
-                av_freep(&s->properties);
                 s->segment = 6;
             } // End For
     } // End Switch
