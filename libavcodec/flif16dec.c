@@ -221,6 +221,7 @@ static int flif16_read_header(AVCodecContext *avctx)
     temp = bytestream2_get_byte(&s->gb);
     s->ia         = temp >> 4;
     s->num_planes = (0x0F & temp);
+    printf("num_planes : %d\n", s->num_planes);
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     if (!(s->ia % 2)) {
@@ -485,6 +486,11 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                     if(s->num_frames < 2)
                         return AVERROR(EINVAL);
                     s->framelookback = 1;
+                    s->num_planes = 5;
+                    // Turning this to 5 because lookback plane demands that
+                    // alpha plane must be there. See reference decoder framecombine's
+                    // meta/reverse functions. All they do is ensure that all 5
+                    // planes are present.
                     ff_flif16_transform_configure(s->transforms[s->transform_top],
                                                   s->num_frames);
                     break;
@@ -526,7 +532,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
         printf("%d: %d, %d\n", i, ff_flif16_ranges_min(s->range, i),
                ff_flif16_ranges_max(s->range, i));
 
-    for (int i = 0; i < FFMIN(s->num_planes, 4); ++i) {
+    for (int i = 0; i < s->num_planes - s->framelookback; ++i) {
         if (s->plane_mode[i] != FLIF16_PLANEMODE_NORMAL) {
             if (ff_flif16_ranges_min(s->range, i) >= ff_flif16_ranges_max(s->range, i))
                 const_plane_value[i] = ff_flif16_ranges_min(s->range, i);
