@@ -23,7 +23,7 @@
  * @file
  * Transforms for FLIF16.
  */
- 
+
 #ifndef FLIF16_TRANSFORM_H
 #define FLIF16_TRANSFORM_H
 
@@ -87,14 +87,14 @@ static inline FLIF16ColorVal ff_flif16_ranges_max(FLIF16RangesContext *r_ctx, in
 }
 
 static inline void ff_flif16_ranges_minmax(FLIF16RangesContext *r_ctx, int p,
-                                           FLIF16ColorVal *prev_planes, 
+                                           FLIF16ColorVal *prev_planes,
                                            FLIF16ColorVal *minv, FLIF16ColorVal *maxv)
 {
     flif16_ranges[r_ctx->r_no]->minmax(r_ctx, p, prev_planes, minv, maxv);
 }
 
 static inline void ff_flif16_ranges_snap(FLIF16RangesContext *r_ctx, int p,
-                                         FLIF16ColorVal *prev_planes, FLIF16ColorVal *minv, 
+                                         FLIF16ColorVal *prev_planes, FLIF16ColorVal *minv,
                                          FLIF16ColorVal *maxv, FLIF16ColorVal *v)
 {
     flif16_ranges[r_ctx->r_no]->snap(r_ctx, p, prev_planes, minv, maxv, v);
@@ -112,7 +112,7 @@ int ff_flif16_transform_read(FLIF16TransformContext *, FLIF16Context *,
 FLIF16RangesContext* ff_flif16_transform_meta(FLIF16Context *,
                                               FLIF16PixelData *,
                                               uint32_t,
-                                              FLIF16TransformContext *, 
+                                              FLIF16TransformContext *,
                                               FLIF16RangesContext *);
 
 int ff_flif16_transform_reverse(FLIF16Context *, FLIF16TransformContext*, FLIF16PixelData*,

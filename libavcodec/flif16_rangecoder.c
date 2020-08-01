@@ -44,7 +44,7 @@ void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
 
     if(buf_size < FLIF16_RAC_MAX_RANGE_BYTES)
         return;
-    
+
     bytestream2_init(&gbi, buf, buf_size);
 
     rc->range  = FLIF16_RAC_MAX_RANGE;
@@ -74,7 +74,7 @@ static void build_table(uint16_t *zero_state, uint16_t *one_state, size_t size,
 
     for (i = 0; i < size / 2; i++) {
         p8 = (size * p + one / 2) >> 32;
-        if (p8 <= last_p8) 
+        if (p8 <= last_p8)
             p8 = last_p8 + 1;
         if (last_p8 && last_p8 < size && p8 <= max_p)
             one_state[last_p8] = p8;
@@ -88,9 +88,9 @@ static void build_table(uint16_t *zero_state, uint16_t *one_state, size_t size,
         p = (i * one + size / 2) / size;
         p += ((one - p) * factor + one / 2) >> 32;
         p8 = (size * p + one / 2) >> 32; //FIXME try without the one
-        if (p8 <= i) 
+        if (p8 <= i)
             p8 = i + 1;
-        if (p8 > max_p) 
+        if (p8 > max_p)
             p8 = max_p;
         one_state[i] = p8;
     }
@@ -120,7 +120,7 @@ void ff_flif16_build_log4k_table(FLIF16Log4kTable *log4k)
 {
     log4k->table[0] = 0;
     for (int i = 1; i < 4096; i++)
-        log4k->table[i] = (log4kf(i, (65535UL << 16) / 12) + 
+        log4k->table[i] = (log4kf(i, (65535UL << 16) / 12) +
                           (1 << 15)) >> 16;
     log4k->scale = 65535 / 12;
 }
@@ -186,7 +186,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                     return AVERROR(ENOMEM);
 
                 m->stack = av_mallocz(MANIAC_TREE_BASE_SIZE * sizeof(*(m->stack)));
-            
+
                 if (!(m->stack))
                     return AVERROR(ENOMEM);
 
@@ -206,7 +206,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                 ++m->tree_top;
             }
             ++rc->segment2;
-        
+
         case 1:
             start:
             if(!m->stack_top)
@@ -301,7 +301,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             }
 
             temp = m->forest[channel]->data[m->stack[m->stack_top - 1].id].property;
-            
+
             // Parent
             m->stack[m->stack_top - 1].p    = temp;
             m->stack[m->stack_top - 1].max2 = rc->oldmax;
@@ -314,7 +314,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             m->stack[m->stack_top].mode    = 1;
             m->stack[m->stack_top].visited = 0;
             ++m->stack_top;
-            
+
             // Left Child
             m->stack[m->stack_top].id      = m->tree_top;
             m->stack[m->stack_top].p       = temp;
@@ -343,7 +343,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
     return AVERROR(EAGAIN);
 }
 
-void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes) 
+void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes)
 {
     for (int i = 0; i < num_planes; ++i) {
         if (!m->forest[i])
@@ -451,7 +451,7 @@ int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc,
             #else
             RAC_GET(rc, rc->maniac_ctx, min, max, target, FLIF16_RAC_NZ_INT);
             #endif
-            
+
     }
 
     end:

@@ -131,7 +131,7 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
     for (int j = 0; j < s->num_frames; ++j) {
         if (frames[j].seen_before >= 0)
             continue;
-        
+
         frames[j].data = av_mallocz(sizeof(*frames->data) * s->num_planes);
 
         if (!frames[j].data) {
