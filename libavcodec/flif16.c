@@ -124,6 +124,10 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
                           uint8_t *plane_mode, uint8_t *const_plane_value,
                           uint8_t lookback)
 {
+    // for(int i = 0; i < 5; i++){
+    //     printf("plane_mode[%d] : %d\n", i, plane_mode[i]);
+    // }
+    
     for (int j = 0; j < s->num_frames; ++j) {
         if (frames[j].seen_before >= 0)
             continue;
@@ -133,8 +137,8 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
         if (!frames[j].data) {
             return AVERROR(ENOMEM);
         }
-
-        for (int i = 0; i < (s->num_planes + lookback); ++i) {
+        // printf("s->num_planes : %d\n", s->num_planes);
+        for (int i = 0; i < s->num_planes; ++i) {
             printf("Plane: %d ", i);
             switch (plane_mode[i]) {
                 case FLIF16_PLANEMODE_NORMAL:
