@@ -747,7 +747,7 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
         properties[index++] = 0;
     }
 
-    for (int i = 0; i < properties_ni_rgb_size[p]; ++i)
+    for (int i = 0; i < properties_ni_rgba_size[p]; ++i)
         printf("%d ", properties[i]);
     printf("\n");
     printf("psl fallback = %d left = %d top = %d topleft = %d gradienttl = %d guess = %d\n", fallback, left, top, topleft, gradientTL, guess);
@@ -802,13 +802,14 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 if (s->alphazero && p < 3) {
                     for (uint32_t c = 0; c < begin; c++)
                         if (PIXEL_GET(s, fr, 3, r, c) == 0) {
-                            // printf("e %d %d %d\n", r, c, gray);
+                            printf("e %d %d %d\n", r, c, gray);
                             PIXEL_SET(s, fr, p, r, c, flif16_ni_predict(s, &s->frames[fr], p, r, c, gray));
                         } else {
-                            // printf("f %d %d %d %d\n", p, fr - 1, r, c);
+                            printf("f %d %d %d %d\n", p, fr - 1, r, c);
                             PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, c));
                         }
                 } else if (p != 4) {
+                    printf("g %d %d %d %d\n", p, fr - 1, r, begin);
                     ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr],
                                         PREV_FRAME(s->frames, fr), p, r, 0, begin);
                 }
@@ -937,7 +938,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                                s->min - s->guess, s->max - s->guess, &curr);
                     curr += s->guess;
                     printf("guess: %d curr: %d\n", s->guess, curr);
-                    printf("%d %d %d", p, r, s->c);
+                    printf("%d %d %d\n", p, r, s->c);
                     PIXEL_SET(s, fr, p, r, s->c, curr);
                     __SUBST__
                 }
