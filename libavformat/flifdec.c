@@ -38,7 +38,7 @@
 #include <stdio.h>
 
 
-// Uncomment to disable metadata reading
+// Uncomment to enable metadata reading
 #define CONFIG_ZLIB 0
 
 #if CONFIG_ZLIB
@@ -162,7 +162,7 @@ static int flif16_read_header(AVFormatContext *s)
 {
     FLIFDemuxContext *dc = s->priv_data;
     GetByteContext gb;
-    FLIF16RangeCoder rc;
+    FLIF16RangeCoder rc = (FLIF16RangeCoder) {0};
 
     AVIOContext     *pb  = s->pb;
     AVStream        *st;
