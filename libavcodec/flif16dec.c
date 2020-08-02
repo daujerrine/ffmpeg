@@ -541,9 +541,12 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 s->plane_mode[i] = FLIF16_PLANEMODE_NORMAL;
         }
     }
-
+    s->plane_mode[0] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[1] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[2] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[3] = FLIF16_PLANEMODE_FILL;
     s->plane_mode[4] = FLIF16_PLANEMODE_NORMAL;
-
+    const_plane_value[3] = 1;
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
         av_log(avctx, AV_LOG_ERROR, "could not allocate planes\n");
@@ -1069,14 +1072,16 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     if (s->grays)
             av_freep(&s->grays);
 
-    for (int k = 0; k < s->num_planes; ++k) {
-        for (int j = 0; j < s->height; ++j) {
-            for (int i = 0; i < s->width; ++i) {
-                printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[0], k, j, i));
+    for (int l = 0; l < s->num_frames; ++l) {
+        for (int k = 0; k < s->num_planes; ++k) {
+            for (int j = 0; j < s->height; ++j) {
+                for (int i = 0; i < s->width; ++i) {
+                    printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[l], k, j, i));
+                }
+                printf("\n");
             }
-            printf("\n");
+            printf("===\n");
         }
-        printf("===\n");
     }
 
     for (int i = 0; i < s->num_frames; i++) {
