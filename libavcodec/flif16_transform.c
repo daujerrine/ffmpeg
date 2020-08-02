@@ -1402,7 +1402,7 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
     size_t palette_size;
     transform_priv_channelcompact *data = t_ctx->priv_data;
     
-    for (p = 0; p < ctx->num_planes; p++) {
+    for (p = 0; p < FFMIN(ctx->num_planes, 3); p++) {
         palette      = data->CPalette[p];
         palette_size = data->CPalette_size[p];
 
@@ -1411,7 +1411,7 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
                 P = ff_flif16_pixel_get(ctx, frame, p, r, c);
                 if (P < 0 || P >= (int) palette_size)
                     P = 0;
-                printf("P : %d & palette_size : %d\n", P, palette_size);
+                // printf("P : %d & palette_size : %d\n", P, palette_size);
                 av_assert0(P < (int) palette_size);
                 ff_flif16_pixel_set(ctx, frame, p, r, c, palette[P]);
             }
