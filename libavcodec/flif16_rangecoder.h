@@ -155,8 +155,8 @@ typedef struct FLIF16RangeCoder {
                       ///  transfer state)
 
     // uni_int state management
-    uint32_t min;
-    uint32_t len;
+    int32_t min;
+    int32_t len;
 
     // nz_int state management
     uint8_t segment; ///< The "segment" the function currently is in
@@ -333,7 +333,7 @@ static inline uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
  * Reads a Uniform Symbol Coded Integer.
  */
 static inline int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
-                                             uint32_t min, uint32_t len,
+                                             int32_t min, int32_t len,
                                              int type,
                                              void *target)
 {
