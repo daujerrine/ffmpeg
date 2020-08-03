@@ -487,7 +487,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                     if(s->num_frames < 2)
                         return AVERROR(EINVAL);
                     s->framelookback = 1;
-                    s->num_planes = 5;
+
                     // Turning this to 5 because lookback plane demands that
                     // alpha plane must be there. See reference decoder framecombine's
                     // meta/reverse functions. All they do is ensure that all 5
@@ -521,6 +521,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             end:
             printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             s->segment = 3;
+            s->num_planes = MAX_PLANES;
             // Read invisible pixel predictor
             if (   s->alphazero && s->num_planes > 3
                 && ff_flif16_ranges_min(s->range, 3) <= 0
@@ -542,6 +543,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
         }
     }
     s->plane_mode[4] = FLIF16_PLANEMODE_NORMAL;
+
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
         av_log(avctx, AV_LOG_ERROR, "could not allocate planes\n");
@@ -1443,6 +1445,7 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
         case 1:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
+                    printf("guess: %d curr: %d\n", guess, curr);
                     PIXEL_SETFAST(s, fr, p, r, s->c, curr);
                 }
                 for (s->c = 2; s->c < end-2; s->c++) {
@@ -1455,6 +1458,7 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
         case 2:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
+                    printf("guess: %d curr: %d\n", guess, curr);
                     PIXEL_SETFAST(s, fr, p, r, s->c, curr);
                 }
                 for (s->c = end - 2; s->c < end; s->c++) {
@@ -1467,6 +1471,7 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
         case 3:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
+                    printf("guess: %d curr: %d\n", guess, curr);
                     PIXEL_SETFAST(s, fr, p, r, s->c, curr);
                 }
             } else {
@@ -1489,6 +1494,7 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
         case 4:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
+                    printf("guess: %d curr: %d\n", guess, curr);
                     //assert(curr >= ranges->min(p) && curr <= ranges->max(p));
                     //assert(curr >= min && curr <= max);
                     PIXEL_SETFAST(s, fr, p, r,c, curr);
@@ -1626,7 +1632,7 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
         case 4:
                     MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p, min - guess, max - guess, &curr);
                     curr += guess;
-
+                    printf("guess: %d curr: %d\n", guess, curr);
                     ////p.set(z,r,s->c, curr);
                     // assert(curr >= ranges->min(p) && curr <= ranges->max(p));
                     // assert(curr >= min && curr <= max);
