@@ -1402,8 +1402,9 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
     FLIF16ColorVal *palette;
     size_t palette_size;
     transform_priv_channelcompact *data = t_ctx->priv_data;
-    
-    for (p = 0; p < 3; p++) {
+
+    printf("Channels: %d\n", ctx->num_planes);
+    for (p = 0; p < ctx->num_planes; p++) {
         palette      = data->CPalette[p];
         palette_size = data->CPalette_size[p];
 
@@ -2735,7 +2736,7 @@ static int transform_framecombine_read(FLIF16TransformContext *ctx,
     }
 
     ctx->i = 0;
-    data->orig_num_planes = src_ctx->num_planes;
+    data->orig_num_planes = dec_ctx->num_planes;
     return 1;
 
     need_more_data:

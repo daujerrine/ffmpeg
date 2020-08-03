@@ -521,7 +521,6 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             end:
             printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
             s->segment = 3;
-            s->num_planes = MAX_PLANES;
             // Read invisible pixel predictor
             if (   s->alphazero && s->num_planes > 3
                 && ff_flif16_ranges_min(s->range, 3) <= 0
@@ -1068,18 +1067,6 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 
     if (s->grays)
             av_freep(&s->grays);
-
-    for (int l = 0; l < s->num_frames; ++l) {
-        for (int k = 0; k < s->num_planes; ++k) {
-            for (int j = 0; j < s->height; ++j) {
-                for (int i = 0; i < s->width; ++i) {
-                    printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[l], k, j, i));
-                }
-                printf("\n");
-            }
-            printf("===\n");
-        }
-    }
 
     for (int i = 0; i < s->num_frames; i++) {
         if (s->frames[i].seen_before >= 0)
