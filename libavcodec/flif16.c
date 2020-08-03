@@ -168,7 +168,7 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
 static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes,
                                 uint8_t lookback)
 {
-    for(uint8_t i = 0; i < (num_planes + lookback); ++i) {
+    for(uint8_t i = 0; i < (lookback ? MAX_PLANES : num_planes); ++i) {
         av_free(frame->data[i]);
     }
     av_free(frame->data);

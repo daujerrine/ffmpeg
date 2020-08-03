@@ -2178,8 +2178,8 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
         av_freep(&s->framedelay);
     if (s->prop_ranges)
         av_freep(&s->prop_ranges);
-    //if (s->frames)
-    //    ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
+    if (s->frames)
+        ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 
     for (int i = s->transform_top - 1; i >= 0; --i)
         ff_flif16_transforms_close(s->transforms[i]);
