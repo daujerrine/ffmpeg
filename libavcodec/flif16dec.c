@@ -1419,11 +1419,14 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                 }
             }
 
+            printf("z = %d r = %u lookback = %d begin = %u end = %u\n", z, r, s->framelookback, begin, end);
             // avoid branching for border cases
             if (r > 1 && r < ZOOM_HEIGHT(s->height, z)-1 && !lookback && begin == 0 && end > 3) {
                 for (s->c = begin; s->c < 2; ++s->c) {
+                    printf("h1\n");
                     // TODO change FLIF16_PLANE_ALPHA to variable as appropriate
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, FLIF16_PLANE_ALPHA, r, s->c) == 0) {
+                        printf("h_1\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
@@ -1436,7 +1439,9 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                     PIXEL_SETFAST(s, fr, p, r, s->c, curr);
                 }
                 for (s->c = 2; s->c < end-2; s->c++) {
+                    printf("h2\n");
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
+                        printf("h_2\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
@@ -1449,7 +1454,9 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                     PIXEL_SETFAST(s, fr, p, r, s->c, curr);
                 }
                 for (s->c = end - 2; s->c < end; s->c++) {
+                    printf("h3\n");
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
+                        printf("h_3\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
@@ -1463,11 +1470,14 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
                 }
             } else {
                 for (uint32_t c = begin; c < end; c++) {
+                    printf("h*1\n");
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
+                        printf("h*_1\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
                         continue;
                     }
                     if (lookback && p<4 && PIXEL_GETZ(s, fr, FLIF16_PLANE_LOOKBACK, z,r,c) > 0) {
+                        printf("h*_2\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, PIXEL_GETZ(s, fr - PIXEL_GETZ(s, fr, FLIF16_PLANE_LOOKBACK, z, r, s->c), p, z, r, s->c));
                         continue;
                     }
@@ -1558,11 +1568,15 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
 
                 }
             }
+
+            printf("z = %d r = %u lookback = %d begin = %u end = %u\n", z, r, s->framelookback, begin, end);
             // avoid branching for border cases
             if (r > 1 && r < ZOOM_HEIGHT(s->height, z)-1 && !lookback && end == ZOOM_WIDTH(s->width, z) && end > 5 && begin == 1) {
                 s->c = begin;
                 for (; s->c < 3; s->c += 2) {
+                    printf("v1\n");
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r,s->c) == 0) {
+                        printf("v_3\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, flif16_predict_vertical(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
@@ -1575,7 +1589,9 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                     PIXEL_SETFAST(s, fr, p, r, s->c, curr);
                 }
                 for (; s->c < end - 2; s->c += 2) {
+                    printf("v3\n");
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
+                        printf("v_3\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c,flif16_predict_vertical(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
@@ -1588,7 +1604,9 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                     PIXEL_SETFAST(s, fr, p, r, s->c, curr);
                 }
                 for (; s->c < end; s->c += 2) {
+                    printf("v4\n");
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
+                        printf("v_4\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, flif16_predict_vertical(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
@@ -1602,11 +1620,14 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
                 }
             } else {
                 for (s->c = begin; s->c < end; s->c += 2) {
+                    printf("v*1\n");
                     if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
+                        printf("v*_1\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c,flif16_predict_vertical(CTX_CAST(s), &s->frames[fr], z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
                         continue;
                     }
                     if (lookback && p < 4 && PIXEL_GETZ(s, fr, FLIF16_PLANE_LOOKBACK, z, r, s->c) > 0) {
+                        printf("v*_2\n");
                         PIXEL_SETFAST(s, fr, p, r, s->c, PIXEL_GETZ(s, fr - PIXEL_GETZ(s, fr, FLIF16_PLANE_LOOKBACK, z, r, s->c), p, z, r, s->c));
                         continue;
                     }
