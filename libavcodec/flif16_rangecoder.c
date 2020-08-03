@@ -174,6 +174,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
     int oldp = 0, p = 0, split_val = 0, temp;
 
     switch (rc->segment2) {
+        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         default: case 0:
             rc->segment2 = 0;
             if (!(m->forest[channel])) {
@@ -245,6 +246,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             #endif
             p = --(m->forest[channel]->data[m->stack[m->stack_top - 1].id].property);
             if (p == -1) {
+                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 --m->stack_top;
                 rc->segment2 = 1;
                 goto start;
@@ -371,6 +373,7 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
                                                int32_t *properties)
 #endif
 {
+    printf("findleaf called\n");
     unsigned int pos = 0;
     uint32_t old_leaf;
     uint32_t new_leaf;
