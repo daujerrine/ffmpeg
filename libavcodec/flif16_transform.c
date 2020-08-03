@@ -1413,7 +1413,7 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
                 P = ff_flif16_pixel_get(ctx, frame, p, r, c);
                 if (P < 0 || P >= (int) palette_size)
                     P = 0;
-                printf("P : %d & palette_size : %d\n", P, palette_size);
+                // printf("P : %d & palette_size : %d\n", P, palette_size);
                 av_assert0(P < (int) palette_size);
                 ff_flif16_pixel_set(ctx, frame, p, r, c, palette[P]);
             }
@@ -2736,7 +2736,6 @@ static int transform_framecombine_read(FLIF16TransformContext *ctx,
     }
 
     ctx->i = 0;
-    data->orig_num_planes = dec_ctx->num_planes;
     return 1;
 
     need_more_data:
@@ -2762,6 +2761,9 @@ static FLIF16RangesContext *transform_framecombine_meta(FLIF16Context *ctx,
     av_assert0(data->max_lookback < frame_count);
     data->was_greyscale = (src_ctx->num_planes < 2);
     data->was_flat = (src_ctx->num_planes < 4);
+
+    data->orig_num_planes = ctx->num_planes;
+    ctx->num_planes = 5;
 
     lookback = frame_count - 1;
     if (lookback > data->max_lookback)
@@ -2796,7 +2798,7 @@ FLIF16Transform flif16_transform_channelcompact = {
     .init           = &transform_channelcompact_init,
     .read           = &transform_channelcompact_read,
     .meta           = &transform_channelcompact_meta,
-    .forward        = NULL,//&transform_channelcompact_forward,
+    .forward        = NULL,    // &transform_channelcompact_forward,
     .reverse        = &transform_channelcompact_reverse,
     .close          = &transform_channelcompact_close
 };

@@ -488,10 +488,6 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                         return AVERROR(EINVAL);
                     s->framelookback = 1;
 
-                    // Turning this to 5 because lookback plane demands that
-                    // alpha plane must be there. See reference decoder framecombine's
-                    // meta/reverse functions. All they do is ensure that all 5
-                    // planes are present.
                     ff_flif16_transform_configure(s->transforms[s->transform_top],
                                                   s->num_frames);
                     break;
