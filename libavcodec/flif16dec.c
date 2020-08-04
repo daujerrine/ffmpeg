@@ -538,6 +538,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
         }
     }
     s->plane_mode[4] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[0] = FLIF16_PLANEMODE_NORMAL;
 
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
@@ -1201,8 +1202,9 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16Context *s,
     int index = 0;
     printf(">>>p = %d\n", p);
     if (p < 3) {
-        if (p > 0)
+        if (p > 0) {
             properties[index++] = PIXELY(z,r,c);
+        }
         if (p > 1)
             properties[index++] = ff_flif16_pixel_getz(s, frame, FLIF16_PLANE_CO, z, r, c);
         if (s->num_planes > 3)
@@ -1274,6 +1276,9 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16Context *s,
         properties[index++] = top - ((topleft + topright) >> 1);
         bottomright = (nobordercases || (rightPresent && bottomPresent) ? PIXEL(z, r + 1, c + 1) : right);
         properties[index++] = right-((bottomright + topright) >> 1);
+        printf("t: %d l: %d tl: %d tr: %d bl: %d r: %d avg: %d tlg: %d m: %d guess: %d bp: %d rp: %d\n",
+                top, left, topleft, topright, bottomleft, right, avg, topleftgradient, median,
+                guess, bottomPresent, rightPresent);
     }
     properties[index++] = guess;
 //    if (p < 1 || p > 2) properties[index++]=which;
@@ -1806,14 +1811,14 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                         if (p < 3 && s->num_planes > 3)
                             ff_flif16_prepare_zoomlevel(CTX_CAST(s), &s->frames[fr], 3, z);
                     }
-                    s->properties = av_realloc(s->properties, (s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
-                                                                   : properties_rgb_size[s->curr_plane])
+                    s->properties = av_realloc(s->properties, (s->num_planes > 3 ? properties_rgba_size[p]
+                                                                   : properties_rgb_size[p])
                                                                    * sizeof(*s->properties));
                     if (!s->properties)
                         return AVERROR(ENOMEM);
 
-                    memset(s->properties, 0, (s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
-                                                                : properties_rgb_size[s->curr_plane])
+                    memset(s->properties, 0, (s->num_planes > 3 ? properties_rgba_size[p]
+                                                                : properties_rgb_size[p])
                                                                   * sizeof(*s->properties));
                     // ConstantPlane null_alpha(1);
                     // GeneralPlane &alpha = nump > 3 ? images[0].getPlane(3) : null_alpha;
@@ -1873,6 +1878,7 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
     else {
+        // TODO remove this later or relocate ni_image part.
         ret = flif16_read_image(avctx, (s->state == FLIF16_ROUGH_PIXELDATA));
     }
 
@@ -1920,6 +1926,24 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     }
     */
 
+    if (!(s->ia % 2)) {
+        for (int i = 0; i < s->num_frames; i++) {
+            if (s->frames[i].seen_before >= 0)
+                continue;
+            for (int j = s->transform_top - 1; j >= 0; --j) {
+                ff_flif16_transform_reverse(CTX_CAST(s), s->transforms[j], &s->frames[i], 1, 1);
+            }
+        }
+    }
+    for(int k = 0; k < s->num_planes; ++k) {
+        for(int j = 0; j < s->height; ++j) {
+            for(int i = 0; i < s->width; ++i) {
+                printf("%d ", ff_flif16_pixel_get(CTX_CAST(s), &s->frames[0], k, j, i));
+            }
+            printf("\n");
+        }
+        printf("===\n");
+    }
     if (s->bpc > 65535) {
         av_log(avctx, AV_LOG_ERROR, "depth per channel greater than 16 bits not supported\n");
         return AVERROR_PATCHWELCOME;
@@ -2169,7 +2193,6 @@ static int flif16_decode_frame(AVCodecContext *avctx,
         printf("MANIAC Tree first node:\n" \
                "property value: %d\n", s->maniac_ctx.forest[0]->data[0].property);
     }*/
-
     /*if(s->frames) {
         for(int k = 0; k < s->num_planes; ++k) {
             for(int j = 0; j < s->height; ++j) {

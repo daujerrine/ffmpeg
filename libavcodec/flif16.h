@@ -248,8 +248,8 @@ static inline FLIF16ColorVal ff_flif16_pixel_get_fast(FLIF16Context *s,
                                                       uint32_t col)
 {
     if (s->plane_mode[plane]) {
-        printf("getfast: row: %u col: %u %u sr %u sc %u\n", row, col, row * frame->s_r[plane] + col * frame->s_c[plane],
-        frame->s_r[plane], frame->s_c[plane]);
+        // printf("getfast: row: %u col: %u %u sr %u sc %u\n", row, col, row * frame->s_r[plane] + col * frame->s_c[plane],
+        //frame->s_r[plane], frame->s_c[plane]);
         return ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]];
     } else
         return ((FLIF16ColorVal *) frame->data[plane])[0];
@@ -261,8 +261,11 @@ static inline void ff_flif16_pixel_set_fast(FLIF16Context *s,
                                             uint8_t plane, uint32_t row,
                                             uint32_t col, FLIF16ColorVal value)
 {
-    if (s->plane_mode[plane])
+    if (s->plane_mode[plane]) {
+        printf("setfast: row: %u col: %u %u sr %u sc %u\n", row, col, row * frame->s_r[plane] + col * frame->s_c[plane],
+        frame->s_r[plane], frame->s_c[plane]);
         ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]] = value;
+    }
 }
 
 static inline void ff_flif16_copy_rows(FLIF16Context *s,
