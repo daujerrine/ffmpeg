@@ -297,6 +297,7 @@ static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
 static inline uint8_t ff_flif16_rac_get(FLIF16RangeCoder *rc, uint32_t chance,
                                         uint8_t *target)
 {
+    printf("low = %d range = %d chance = %d\n", rc->low, rc->range, chance);
     if (rc->low >= rc->range - chance) {
         rc->low -= rc->range - chance;
         rc->range = chance;
@@ -345,9 +346,10 @@ static inline int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
         rc->len = len;
         rc->active = 1;
     }
-
+    printf("uni int called %d %d ", rc->min, rc->len);
     if ((rc->len) > 0) {
         ff_flif16_rac_read_bit(rc, &bit);
+        printf("%d\n", bit);
         med = (rc->len) / 2;
         if (bit) {
             rc->min += med + 1;
@@ -357,17 +359,18 @@ static inline int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
         }
         return 0;
     } else {
+        printf("\n");
         switch (type) {
             case FLIF16_RAC_UNI_INT8:
-                *((uint8_t *) target) = rc->min;
+                *((int8_t *) target) = rc->min;
                 break;
 
             case FLIF16_RAC_UNI_INT16:
-                *((uint16_t *) target) = rc->min;
+                *((int16_t *) target) = rc->min;
                 break;
 
             case FLIF16_RAC_UNI_INT32:
-                *((uint32_t *) target) = rc->min;
+                *((int32_t *) target) = rc->min;
                 break;
         }
         rc->active = 0;
