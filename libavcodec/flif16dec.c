@@ -35,6 +35,7 @@
 #include "bytestream.h"
 #include "avcodec.h"
 #include "internal.h"
+#include "libavutil/crc.h"
 
 #define __SUBST__
 /*\
@@ -84,8 +85,13 @@ typedef struct FLIF16DecoderContext {
     uint8_t framedup;
     uint8_t frameshape;
     uint8_t framelookback;
+
+    // Checksum
+    AVCRC *crc_table;
+    AVCRC crc;
     /* End Inheritance from FLIF16Context */
 
+    AVCRC crc_org;
     FLIF16PixelData  *frames;
     uint32_t out_frames_count;
     AVFrame *out_frame;
@@ -2046,9 +2052,60 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     return 0;
 }
 
+static void ff_flif16_compute_checksum(FLIF16DecoderContext *s)
+{
+    // for (unsigned int i = 0; i < s->out_frames_count)   
+
+    for (unsigned int p = 0; p < s->num_planes; p++) {
+        s->crc = av_crc(s->crc_table, s->crc, s->frames[0].data[p],
+                        s->width * s->height * s->bpc);
+    }
+}
+
 static int flif16_read_checksum(AVCodecContext *avctx)
 {
+    // FLIF16DecoderContext *s = avctx->priv_data;
+    // uint8_t contains_checksum;
+    // uint16_t temp;
+    // printf("Reading checksum\n");
+    
+    // switch (s->segment) {
+    //     case 0:
+    //         RAC_GET(&s->rc, NULL, 0, 1, &contains_checksum, FLIF16_RAC_UNI_INT8);
+    //         if (contains_checksum){
+    //             printf("contains_checksum : yes\n");
+    //             s->segment = 1;
+    //         } else {
+    //             s->segment = 0;
+    //             break;
+    //         }
+
+    //     case 1:
+    //         s->crc_table = av_crc_get_table(AV_CRC_32_IEEE);
+    //         RAC_GET(&s->rc, NULL, 0, (1 << 16) - 1, &s->crc_org, FLIF16_RAC_UNI_INT32);
+    //         s->crc_org *= 0x10000;
+    //         s->segment = 2;
+        
+    //     case 2:
+    //         RAC_GET(&s->rc, NULL, 0, (1 << 16) - 1, &temp, FLIF16_RAC_UNI_INT16);
+    //         s->crc_org += temp;
+    //         printf("original checksum : %d\n", s->crc_org);
+    //         s->crc = (s->width << 16) + s->height;
+    //         s->segment = 3;
+        
+    //     case 3:
+    //         ff_flif16_compute_checksum(s);
+    //         printf("computed checksum : %X\n", s->crc);
+    //         if (s->crc == s->crc_org) {
+    //             printf("Checksum matched\n");
+    //         } else {
+    //             printf("Corrupted image data\n");
+    //         }
+    // }
     return AVERROR_EOF;
+
+    // need_more_data:
+    //     return AVERROR(EAGAIN);
 }
 
 static int flif16_decode_init(AVCodecContext *avctx)
@@ -2105,6 +2162,8 @@ static int flif16_decode_frame(AVCodecContext *avctx,
 
             case FLIF16_PIXELDATA:
                 ret = flif16_read_pixeldata(avctx);
+                s->state = FLIF16_CHECKSUM;
+                s->segment = 0;
                 break;
 
             case FLIF16_CHECKSUM:
