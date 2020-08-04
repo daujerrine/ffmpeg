@@ -285,6 +285,7 @@ static inline void ff_flif16_copy_rows_stride(FLIF16Context *s,
                                               uint32_t row, uint32_t col_start,
                                               uint32_t col_end, uint32_t stride)
 {
+    printf("r: %d cs: %d ce: %d s: %d\n", row, col_start, col_end, stride);
     for(uint32_t col = col_start; col < col_end; col += stride) {
         ff_flif16_pixel_set(s, dest, plane, row, col, ff_flif16_pixel_get(s, src, plane, row, col));
     }
