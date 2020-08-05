@@ -172,12 +172,13 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                                unsigned int channel)
 {
     int oldp = 0, p = 0, split_val = 0, temp;
-
+    printf("rc->segment2: %d\n", rc->segment2);
     switch (rc->segment2) {
-        printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+        //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
         default: case 0:
             rc->segment2 = 0;
             if (!(m->forest[channel])) {
+                printf("ALLOCATING\n");
                 m->forest[channel] = av_mallocz(sizeof(*(m->forest[channel])));
                 if (!(m->forest[channel]))
                     return AVERROR(ENOMEM);
@@ -246,7 +247,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             #endif
             p = --(m->forest[channel]->data[m->stack[m->stack_top - 1].id].property);
             if (p == -1) {
-                printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+                //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
                 --m->stack_top;
                 rc->segment2 = 1;
                 goto start;
