@@ -151,11 +151,11 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
              * processing, we will simply return each read chunk as a packet
              * to the decoder.
              */
-            printf("<Bitstream chunk size %dd>\n", buf_size);
+            //printf("<Bitstream chunk size %dd>\n", buf_size);
             return buf_size;
         }
     }
-    printf("End not found\n");
+    //printf("End not found\n");
     return next;
 }
 
@@ -173,8 +173,8 @@ static int flif16_parse(AVCodecParserContext *s, AVCodecContext *avctx,
         *poutbuf_size = 0;
         return buf_size;
     }
-    printf("Width:%u\nHeight:%u\nFrames:%u\nEnd:%d\n",
-           fpc->width, fpc->height, fpc->frames, buf_size);
+    //printf("Width:%u\nHeight:%u\nFrames:%u\nEnd:%d\n",
+    //       fpc->width, fpc->height, fpc->frames, buf_size);
     *poutbuf      = buf;
     *poutbuf_size = buf_size;
     return next;
