@@ -1,8 +1,6 @@
 /*
  * Range coder for FLIF16
- * Copyright (c) 2004, Michael Niedermayer,
- *               2010-2016, Jon Sneyers & Pieter Wuille,
- *               2020, Anamitra Ghorui <aghorui@teknik.io>
+ * Copyright (c) 2020, Anamitra Ghorui <aghorui@teknik.io>
  *
  * This file is part of FFmpeg.
  *
@@ -31,8 +29,6 @@
 #include "flif16_rangecoder.h"
 #include "flif16.h"
 
-// TODO write separate function for RAC encoder
-
 // The coder requires a certain number of bytes for initiialization. buf
 // provides it. gb is used by the coder functions for actual coding.
 void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
@@ -56,14 +52,13 @@ void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
     }
 }
 
-void ff_flif16_rac_free(FLIF16RangeCoder *rc)
-{
-    if (!rc)
-        return;
-    av_freep(rc);
-}
-
-// TODO Maybe restructure rangecoder.c/h to fit a more generic case
+/*
+ * Ported from rangecoder.c.
+ * FLIF's reference decoder uses a slightly modified version of this function.
+ * The copyright of rangecoder.c is in 2004, and therefore this function counts
+ * as prior art to the function in the reference decoder (earliest copyright
+ * 2010.)
+ */
 static void build_table(uint16_t *zero_state, uint16_t *one_state, size_t size,
                         uint32_t factor, unsigned int max_p)
 {
@@ -99,14 +94,18 @@ static void build_table(uint16_t *zero_state, uint16_t *one_state, size_t size,
         zero_state[i] = size - one_state[size - i];
 }
 
-static inline uint32_t log4kf(int x, uint32_t base)
+/*
+ * Ported from FLIF's reference decoder.
+ * https://github.com/FLIF-hub/FLIF
+ */
+static inline uint32_t log4kf(int32_t x, uint32_t base)
 {
-    int bits     = 8 * sizeof(int) - ff_clz(x);
-    uint64_t y   = ((uint64_t)x) << (32 - bits);
+    int bits     = 8 * sizeof(int32_t) - ff_clz(x);
+    uint64_t y   = ((uint64_t) x) << (32 - bits);
     uint32_t res = base * (13 - bits);
     uint32_t add = base;
     while ((add > 1) && ((y & 0x7FFFFFFF) != 0)) {
-        y = (((uint64_t)y) * y + 0x40000000) >> 31;
+        y = (((uint64_t) y) * y + 0x40000000) >> 31;
         add >>= 1;
         if ((y >> 32) != 0) {
             res -= add;
@@ -116,6 +115,10 @@ static inline uint32_t log4kf(int x, uint32_t base)
     return res;
 }
 
+/*
+ * Ported from FLIF's reference decoder.
+ * https://github.com/FLIF-hub/FLIF
+ */
 void ff_flif16_build_log4k_table(FLIF16Log4kTable *log4k)
 {
     log4k->table[0] = 0;
@@ -132,8 +135,6 @@ void ff_flif16_chancetable_init(FLIF16ChanceTable *ct, int alpha, int cut)
 
 void ff_flif16_chancecontext_init(FLIF16ChanceContext *ctx)
 {
-    if(!ctx)
-        return;
     memcpy(&ctx->data, &flif16_nz_int_chances, sizeof(flif16_nz_int_chances));
 }
 
@@ -157,8 +158,7 @@ FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void)
  */
 void ff_flif16_multiscale_chancecontext_init(FLIF16MultiscaleChanceContext *ctx)
 {
-    for (int i = 0; i < sizeof(flif16_nz_int_chances) /
-                        sizeof(flif16_nz_int_chances[0]); i++)
+    for (int i = 0; i < FF_ARRAY_ELEMS(flif16_nz_int_chances)); i++)
         ff_flif16_multiscale_chance_set(&ctx->data[i], flif16_nz_int_chances[i]);
     return ctx;
 }
@@ -366,21 +366,20 @@ void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes)
     }
 
     av_freep(&m->forest);
-    // Should be already freed in maniac reading, but checking anyway.
+
+    /* Should be already freed in maniac reading, but checking anyway. */
     if(m->stack)
         av_freep(&m->stack);
 }
 
-static const int properties_rgb_size[] = {8, 10, 9, 8, 8};
-
 #ifdef MULTISCALE_CHANCES_ENABLED
-FLIF16MultiscaleChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
-                                                         uint8_t channel,
-                                                         int32_t *properties)
+static FLIF16MultiscaleChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
+                                                                uint8_t channel,
+                                                                int32_t *properties)
 #else
-FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
-                                               uint8_t channel,
-                                               int32_t *properties)
+static FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
+                                                      uint8_t channel,
+                                                      int32_t *properties)
 #endif
 {
     unsigned int pos = 0;
@@ -388,11 +387,6 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
     uint32_t new_leaf;
     FLIF16MANIACTree *tree = m->forest[channel];
     FLIF16MANIACNode *nodes = tree->data;
-
-    printf("findleaf called\n");
-    for (int i = 0; i < properties_rgb_size[channel]; i++)
-            printf("%d ", properties[i]);
-        printf("\n");
 
     if (!m->forest[channel]->leaves) {
         m->forest[channel]->leaves = av_mallocz(MANIAC_TREE_BASE_SIZE *
@@ -432,24 +426,18 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
             nodes[nodes[pos].child_id].leaf_id = old_leaf;
             nodes[nodes[pos].child_id + 1].leaf_id = new_leaf;
 
-            if (properties[nodes[pos].property] > nodes[pos].split_val) {
-                printf("leaf: %d\n", old_leaf);
+            if (properties[nodes[pos].property] > nodes[pos].split_val)
                 return &m->forest[channel]->leaves[old_leaf];
-            } else {
-                printf("leaf: %d\n", new_leaf);
+            else
                 return &m->forest[channel]->leaves[new_leaf];
-            }
         }
     }
 
-    printf("leaf: %d\n", m->forest[channel]->data[pos].leaf_id);
     return &m->forest[channel]->leaves[m->forest[channel]->data[pos].leaf_id];
 }
 
-int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc,
-                              FLIF16MANIACContext *m,
-                              int32_t *properties,
-                              uint8_t channel,
+int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
+                              int32_t *properties, uint8_t channel,
                               int min, int max, int *target)
 {
     if (!rc->maniac_ctx)

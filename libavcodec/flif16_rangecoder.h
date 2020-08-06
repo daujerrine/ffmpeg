@@ -252,13 +252,8 @@ void ff_flif16_multiscale_chancecontext_init(FLIF16MultiscaleChanceContext *ctx)
 
 FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void);
 
-FLIF16MultiscaleChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
-                                                         uint8_t channel,
-                                                         int32_t *properties);
 #else
-FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
-                                               uint8_t channel,
-                                               int32_t *properties);
+
 #endif
 
 int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc,

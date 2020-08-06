@@ -34,7 +34,8 @@
 #include <stdlib.h>
 
 typedef enum FLIF16ParseStates {
-    FLIF16_HEADER = 1,
+    FLIF16_INIT_STATE = 0,
+    FLIF16_HEADER,
     FLIF16_METADATA,
     FLIF16_BITSTREAM
 } FLIF16ParseStates;
