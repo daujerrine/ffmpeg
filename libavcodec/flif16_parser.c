@@ -64,7 +64,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
         if (!f->state) {
             if (!memcmp(flif16_header, buf + index, 4))
                 f->state = FLIF16_HEADER;
-            ++f->index;
+            f->index++;
         } else if (f->state == FLIF16_HEADER) {
             if (f->index == 3 + 1) {
                 // See whether image is animated or not

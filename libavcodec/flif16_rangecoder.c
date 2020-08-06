@@ -144,7 +144,7 @@ FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void)
     FLIF16MultiscaleChanceTable *ct = av_malloc(sizeof(*ct));
     if (!ct)
         return null
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; i++) {
         ff_flif16_chancetable_init(&ct->sub_table[i],
                                    flif16_multiscale_alphas[i],
                                    MULTISCALE_CHANCETABLE_DEFAULT_CUT);
@@ -158,7 +158,7 @@ FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void)
 void ff_flif16_multiscale_chancecontext_init(FLIF16MultiscaleChanceContext *ctx)
 {
     for (int i = 0; i < sizeof(flif16_nz_int_chances) /
-                        sizeof(flif16_nz_int_chances[0]); ++i)
+                        sizeof(flif16_nz_int_chances[0]); i++)
         ff_flif16_multiscale_chance_set(&ctx->data[i], flif16_nz_int_chances[i]);
     return ctx;
 }
@@ -192,7 +192,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                 if (!(m->stack))
                     return AVERROR(ENOMEM);
 
-                for (int i = 0; i < 3; ++i) {
+                for (int i = 0; i < 3; i++) {
                     #ifdef MULTISCALE_CHANCES_ENABLED
                     ff_flif16_multiscale_chancecontext_init(&m->ctx[i]);
                     #else
@@ -204,10 +204,10 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                 m->stack_size = MANIAC_TREE_BASE_SIZE;
                 m->stack[m->stack_top].id   = m->tree_top;
                 m->stack[m->stack_top].mode = 0;
-                ++m->stack_top;
-                ++m->tree_top;
+                m->stack_top++;
+                m->tree_top++;
             }
-            ++rc->segment2;
+            rc->segment2++;
 
         case 1:
             start:
@@ -228,12 +228,12 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                 }
             } else {
                 prop_ranges[oldp][1] = m->stack[m->stack_top - 1].max2;
-                --m->stack_top;
+                m->stack_top--;
                 rc->segment2 = 1;
                 goto start;
             }
             m->stack[m->stack_top - 1].visited = 1;
-            ++rc->segment2;
+            rc->segment2++;
 
         case 2:
             #ifdef MULTISCALE_CHANCES_ENABLED
@@ -260,7 +260,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                 printf("!!! rc->oldmin >= rc->oldmax\n");
                 return AVERROR_INVALIDDATA;
             }
-            ++rc->segment2;
+            rc->segment2++;
 
         case 3:
             #ifdef MULTISCALE_CHANCES_ENABLED
@@ -272,7 +272,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                     &m->forest[channel]->data[m->stack[m->stack_top - 1].id].count,
                     FLIF16_RAC_GNZ_INT);
             #endif
-            ++rc->segment2;
+            rc->segment2++;
 
         case 4:
             #ifdef MULTISCALE_CHANCES_ENABLED
@@ -285,7 +285,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                     FLIF16_RAC_GNZ_INT);
             #endif
             split_val = m->forest[channel]->data[m->stack[m->stack_top - 1].id].split_val;
-            ++rc->segment2;
+            rc->segment2++;
 
         case 5:
             if ((m->tree_top + 2) >= m->forest[channel]->size) {
@@ -316,7 +316,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             m->stack[m->stack_top].max     = split_val;
             m->stack[m->stack_top].mode    = 1;
             m->stack[m->stack_top].visited = 0;
-            ++m->stack_top;
+            m->stack_top++;
 
             // Left Child
             m->stack[m->stack_top].id      = m->tree_top;
@@ -324,7 +324,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             m->stack[m->stack_top].min     = split_val + 1;
             m->stack[m->stack_top].mode    = 2;
             m->stack[m->stack_top].visited = 0;
-            ++m->stack_top;
+            m->stack_top++;
 
             m->tree_top += 2;
             rc->segment2 = 1;
@@ -336,7 +336,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                                           m->tree_top * sizeof(*m->forest[channel]->data)); // Maybe replace by fast realloc
     if (!m->forest[channel]->data)
         return AVERROR(ENOMEM);
-    for(unsigned int i = 0; i < m->tree_top; ++i)
+    for(unsigned int i = 0; i < m->tree_top; i++)
         printf("%u\t%d\t%d\t%d\t%d\t%d\n", i,
                                            m->forest[channel]->data[i].property,
                                            m->forest[channel]->data[i].count,
@@ -355,7 +355,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
 
 void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes)
 {
-    for (int i = 0; i < num_planes; ++i) {
+    for (int i = 0; i < num_planes; i++) {
         if (!m->forest[i])
             continue;
         if (m->forest[i]->data)
@@ -390,7 +390,7 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
     FLIF16MANIACNode *nodes = tree->data;
 
     printf("findleaf called\n");
-    for (int i = 0; i < properties_rgb_size[channel]; ++i)
+    for (int i = 0; i < properties_rgb_size[channel]; i++)
             printf("%d ", properties[i]);
         printf("\n");
 
@@ -428,7 +428,7 @@ FLIF16ChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext *m,
             memcpy(&m->forest[channel]->leaves[tree->leaves_top],
                    &m->forest[channel]->leaves[nodes[pos].leaf_id],
                    sizeof(*m->forest[channel]->leaves));
-            ++tree->leaves_top;
+            tree->leaves_top++;
             nodes[nodes[pos].child_id].leaf_id = old_leaf;
             nodes[nodes[pos].child_id + 1].leaf_id = new_leaf;
 
@@ -465,7 +465,7 @@ int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc,
             if(!rc->maniac_ctx) {
                 return AVERROR(ENOMEM);
             }
-            ++rc->segment2;
+            rc->segment2++;
 
         case 1:
             #ifdef MULTISCALE_CHANCES_ENABLED
