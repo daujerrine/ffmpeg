@@ -150,16 +150,16 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
         for (int i = 0; i < s->num_planes; ++i) {
             switch (plane_mode[i]) {
                 case FLIF16_PLANEMODE_NORMAL:
-                    frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);
+                    frames[j].data[i] = av_malloc(sizeof(int32_t) * s->width * s->height);
                     break;
 
                 case FLIF16_PLANEMODE_CONSTANT:
-                    frames[j].data[i] = av_mallocz(sizeof(int32_t));
+                    frames[j].data[i] = av_malloc(sizeof(int32_t));
                     ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
                     break;
 
                 case FLIF16_PLANEMODE_FILL:
-                    frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);;
+                    frames[j].data[i] = av_malloc(sizeof(int32_t) * s->width * s->height);;
                     if (!frames[j].data[i])
                         return AVERROR(ENOMEM);
                     for (int k = 0; k < s->height * s->width; ++k)

@@ -484,29 +484,24 @@ static inline int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
             rc->segment++;
 
             while (rc->pos > 0) {
-        case 3:
                 (rc->pos)--;
                 rc->left >>= 1;
                 rc->minabs1 = (rc->have) | (1 << (rc->pos));
                 rc->maxabs0 = (rc->have) | (rc->left);
-                rc->segment++;
 
                 if ((rc->minabs1) > (rc->amax)) {
-                    rc->segment--;
                     continue;
                 } else if ((rc->maxabs0) >= (rc->amin)) {
-        case 4:
+        case 3:
                     RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
                     if (temp)
                         rc->have = rc->minabs1;
                     temp = 0;
                 } else
                     rc->have = rc->minabs1;
-                rc->segment--;
             }
     }
 
-    end:
     *target = ((rc->sign) ? (rc->have) : -(rc->have));
     rc->active = 0;
     return 1;
@@ -753,7 +748,7 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
 {
     int flag = 0;
     while (!flag) {
-        if(!ff_flif16_rac_renorm(rc)) {
+        if (!ff_flif16_rac_renorm(rc)) {
             return 0; // EAGAIN condition
         }
 

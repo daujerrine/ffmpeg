@@ -252,7 +252,6 @@ static int flif16_read_header(AVCodecContext *avctx)
         while ((temp = bytestream2_get_byte(&s->gb)) > 127) {
             VARINT_APPEND(*vlist[i], temp);
             if (!(count--)) {
-                av_log(avctx, AV_LOG_ERROR, "image dimensions too big\n");
                 return AVERROR(ENOMEM);
             }
         }
@@ -273,7 +272,6 @@ static int flif16_read_header(AVCodecContext *avctx)
     s->frames = ff_flif16_frames_init(CTX_CAST(s));
 
     if (!s->frames) {
-        av_log(avctx, AV_LOG_ERROR, "Could not allocate frames\n");
         return AVERROR(ENOMEM);
     }
     
@@ -285,7 +283,6 @@ static int flif16_read_header(AVCodecContext *avctx)
         while ((temp = bytestream2_get_byte(&s->gb)) > 127) {
             VARINT_APPEND(s->meta, temp);
             if (!(count--)) {
-                av_log(avctx, AV_LOG_ERROR, "metadata chunk too big \n");
                 return AVERROR(ENOMEM);
             }
         }
@@ -540,7 +537,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
         printf("%d: %d, %d\n", i, ff_flif16_ranges_min(s->range, i),
                ff_flif16_ranges_max(s->range, i));
 
-    for (int i = 0; i < s->num_planes - s->framelookback; i++) {
+    for (int i = 0; i < FFMIN(s->num_planes, 4); i++) {
         if (s->plane_mode[i] != FLIF16_PLANEMODE_NORMAL) {
             if (ff_flif16_ranges_min(s->range, i) >= ff_flif16_ranges_max(s->range, i))
                 const_plane_value[i] = ff_flif16_ranges_min(s->range, i);
@@ -548,12 +545,11 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 s->plane_mode[i] = FLIF16_PLANEMODE_NORMAL;
         }
     }
-    s->plane_mode[4] = FLIF16_PLANEMODE_NORMAL;
-    s->plane_mode[0] = FLIF16_PLANEMODE_NORMAL;
+    
+    s->plane_mode[4] = FLIF16_PLANEMODE_FILL;
 
     if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
-        av_log(avctx, AV_LOG_ERROR, "could not allocate planes\n");
         return AVERROR(ENOMEM);
     }
 
@@ -597,7 +593,7 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
 {
     int ret;
     FLIF16DecoderContext *s = avctx->priv_data;
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
+
     if (!s->maniac_ctx.forest) {
         s->maniac_ctx.forest = av_mallocz((s->num_planes) * sizeof(*(s->maniac_ctx.forest)));
         if (!s->maniac_ctx.forest) {
@@ -605,45 +601,35 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
         }
         s->segment = s->i = 0; // Remove later
     }
-    printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-    switch (s->segment) {
-        case 0:
-            loop:
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-            if (s->i >= s->num_planes)
-                goto end;
 
-            if (!(s->ia % 2))
-                s->prop_ranges = ff_flif16_maniac_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                   s->i, s->num_planes);
-            else
-                s->prop_ranges = ff_flif16_maniac_ni_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                      s->i, s->num_planes);
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-            if(!s->prop_ranges)
-                return AVERROR(ENOMEM);
-            s->segment++;
+    switch (s->segment) {
+            for (;s->i < s->num_planes; s->i++) {
+        case 0:
+                if (!(s->ia % 2))
+                    s->prop_ranges = ff_flif16_maniac_prop_ranges_init(&s->prop_ranges_size, s->range,
+                                                                       s->i, s->num_planes);
+                else
+                    s->prop_ranges = ff_flif16_maniac_ni_prop_ranges_init(&s->prop_ranges_size, s->range,
+                                                                          s->i, s->num_planes);
+                if(!s->prop_ranges)
+                    return AVERROR(ENOMEM);
+                s->segment++;
 
         case 1:
-            if (ff_flif16_ranges_min(s->range, s->i) >= ff_flif16_ranges_max(s->range, s->i)) {
-                s->i++;
+                if (ff_flif16_ranges_min(s->range, s->i) >= ff_flif16_ranges_max(s->range, s->i)) {
+                    s->segment--;
+                    continue;
+                }
+                ret = ff_flif16_read_maniac_tree(&s->rc, &s->maniac_ctx, s->prop_ranges,
+                                                 s->prop_ranges_size, s->i);
+                if (ret)
+                    goto error;
+
+                av_freep(&s->prop_ranges);
                 s->segment--;
-                goto loop;
             }
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-            ret = ff_flif16_read_maniac_tree(&s->rc, &s->maniac_ctx, s->prop_ranges,
-                                             s->prop_ranges_size, s->i);
-            printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
-            if (ret) {
-                goto error;
-            }
-            av_freep(&s->prop_ranges);
-            s->segment--;
-            s->i++;
-            goto loop;
     }
 
-    end:
     s->state = FLIF16_PIXELDATA;
     s->segment = 0;
     return 0;
