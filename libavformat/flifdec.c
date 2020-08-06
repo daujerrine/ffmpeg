@@ -310,7 +310,8 @@ static int flif16_read_header(AVFormatContext *s)
         }
 
         need_more_data:
-            ret = avio_read_partial(pb, buf, BUF_SIZE);
+            if ((ret = avio_read_partial(pb, buf, BUF_SIZE)) < 0)
+                return ret;
             bytestream2_init(&gb, buf, ret);
     }
 
@@ -332,7 +333,7 @@ static int flif16_read_header(AVFormatContext *s)
     st->duration             = duration * loops;
     st->start_time           = 0;
     st->nb_frames            = vlist[2];
-    // st->need_parsing         = 1;
+    st->need_parsing         = 1;
 
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)

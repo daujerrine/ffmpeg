@@ -203,14 +203,8 @@ static inline void ff_flif16_pixel_setz(FLIF16Context *s,
                                         uint8_t plane, int z, uint32_t row,
                                         uint32_t col, FLIF16ColorVal value)
 {
-    if (s->plane_mode[plane]) {
-        ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z)) * s->width +
-                                                (col * ZOOM_COLPIXELSIZE(z))] = value;
-        printf("set: %u\n", (row * ZOOM_ROWPIXELSIZE(z)) * s->width + (col * ZOOM_COLPIXELSIZE(z)));
-    } else {
-        ((FLIF16ColorVal *) frame->data[plane])[0] = value;
-        printf("set: 0\n");
-    }
+    ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z)) * s->width +
+                                            (col * ZOOM_COLPIXELSIZE(z))] = value;
 }
 
 static inline FLIF16ColorVal ff_flif16_pixel_getz(FLIF16Context *s,

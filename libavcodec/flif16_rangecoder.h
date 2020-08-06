@@ -252,8 +252,6 @@ void ff_flif16_multiscale_chancecontext_init(FLIF16MultiscaleChanceContext *ctx)
 
 FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void);
 
-#else
-
 #endif
 
 int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc,
@@ -485,35 +483,27 @@ static inline int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
             rc->pos  = rc->e;
             rc->segment++;
 
-         /*
-          case 3 and case 4 mimic a for loop.
-          This is done to separate the RAC read statement.
-          for(pos = e; pos > 0; --pos) ...
-          TODO replace entirely with an actual for loop.
-         */
+            while (rc->pos > 0) {
         case 3:
-            loop: /* start for */
-            if ((rc->pos) <= 0)
-                goto end;
-            (rc->pos)--;
-            rc->left >>= 1;
-            rc->minabs1 = (rc->have) | (1 << (rc->pos));
-            rc->maxabs0 = (rc->have) | (rc->left);
-            rc->segment++;
+                (rc->pos)--;
+                rc->left >>= 1;
+                rc->minabs1 = (rc->have) | (1 << (rc->pos));
+                rc->maxabs0 = (rc->have) | (rc->left);
+                rc->segment++;
 
+                if ((rc->minabs1) > (rc->amax)) {
+                    rc->segment--;
+                    continue;
+                } else if ((rc->maxabs0) >= (rc->amin)) {
         case 4:
-            if ((rc->minabs1) > (rc->amax)) {
-                rc->segment--;
-                goto loop; /* continue; */
-            } else if ((rc->maxabs0) >= (rc->amin)) {
-                RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
-                if (temp)
+                    RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
+                    if (temp)
+                        rc->have = rc->minabs1;
+                    temp = 0;
+                } else
                     rc->have = rc->minabs1;
-                temp = 0;
-            } else
-                rc->have = rc->minabs1;
-            rc->segment--;
-            goto loop; /* end for */
+                rc->segment--;
+            }
     }
 
     end:
