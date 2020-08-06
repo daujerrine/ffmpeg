@@ -220,13 +220,13 @@ static int flif16_read_header(AVCodecContext *avctx)
     if (bytestream2_size(&s->gb) < 8) {
         av_log(avctx, AV_LOG_ERROR, "buf size too small (%d)\n",
                bytestream2_size(&s->gb));
-        return AVERROR(EINVAL);
+        return AVERROR_INVALIDDATA;
     }
     printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
 
     if (bytestream2_get_le32(&s->gb) != (*((uint32_t *) flif16_header))) {
         av_log(avctx, AV_LOG_ERROR, "bad magic number\n");
-        return AVERROR(EINVAL);
+        return AVERROR_INVALIDDATA;
     }
 
     s->state = FLIF16_HEADER;
@@ -472,7 +472,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 case FLIF16_TRANSFORM_DUPLICATEFRAME:
                     s->framedup = 1;
                     if(s->num_frames < 2)
-                         return AVERROR(EINVAL);
+                         return AVERROR_INVALIDDATA;
                     ff_flif16_transform_configure(s->transforms[s->transform_top],
                                                   s->num_frames);
                     break;
@@ -480,14 +480,14 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 case FLIF16_TRANSFORM_FRAMESHAPE:
                     s->frameshape = 1;
                     if (s->num_frames < 2)
-                        return AVERROR(EINVAL);
+                        return AVERROR_INVALIDDATA;
                     unique_frames = s->num_frames - 1;
                     for (unsigned int i = 0; i < s->num_frames; i++) {
                         if(s->frames[i].seen_before >= 0)
                             unique_frames--;
                     }
                     if (unique_frames < 1)
-                        return AVERROR(EINVAL);
+                        return AVERROR_INVALIDDATA;
                     printf("unique_frames : %d\n", unique_frames);
                     ff_flif16_transform_configure(s->transforms[s->transform_top],
                                                   (unique_frames) * s->height);
@@ -497,7 +497,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
                 case FLIF16_TRANSFORM_FRAMELOOKBACK:
                     if(s->num_frames < 2)
-                        return AVERROR(EINVAL);
+                        return AVERROR_INVALIDDATA;
                     s->framelookback = 1;
 
                     ff_flif16_transform_configure(s->transforms[s->transform_top],
@@ -1803,7 +1803,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                 s->curr_zoom = s->zoomlevels[s->curr_plane];
                 if (s->curr_zoom < 0) {
                     printf("Corrupt file: invalid plane/zoomlevel\n");
-                    return AVERROR(EINVAL);
+                    return AVERROR_INVALIDDATA;
                 }
                 for(int i = 0; i < s->num_planes; ++i)
                     printf("plane: %d :: %d %d\n", i, s->frames[0].s_r[i], s->frames[0].s_c[i]);
