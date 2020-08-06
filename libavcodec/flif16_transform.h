@@ -60,7 +60,7 @@ typedef enum FLIF16TransformsTypes {
     FLIF16_TRANSFORM_FRAMELOOKBACK,
 } FLIF16TransformsTypes;
 
-extern FLIF16Ranges *flif16_ranges[14];
+extern const FLIF16Ranges *flif16_ranges[14];
 extern FLIF16Transform *flif16_transforms[13];
 
 FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
@@ -70,7 +70,7 @@ void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx);
 
 static inline FLIF16ColorVal ff_flif16_ranges_min(FLIF16RangesContext *r_ctx, int p)
 {
-    FLIF16Ranges *ranges = flif16_ranges[r_ctx->r_no];
+    const FLIF16Ranges *ranges = flif16_ranges[r_ctx->r_no];
     if(ranges->min)
         return ranges->min(r_ctx, p);
     else
@@ -79,7 +79,7 @@ static inline FLIF16ColorVal ff_flif16_ranges_min(FLIF16RangesContext *r_ctx, in
 
 static inline FLIF16ColorVal ff_flif16_ranges_max(FLIF16RangesContext *r_ctx, int p)
 {
-    FLIF16Ranges *ranges = flif16_ranges[r_ctx->r_no];
+    const FLIF16Ranges *ranges = flif16_ranges[r_ctx->r_no];
     if(ranges->max)
         return ranges->max(r_ctx, p);
     else
