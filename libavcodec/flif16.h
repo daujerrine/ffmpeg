@@ -42,7 +42,7 @@
 #define ZOOM_COLPIXELSIZE(zoomlevel) (1 << (((zoomlevel)) / 2))
 #define ZOOM_HEIGHT(h, z) ((!h) ? 0 : (1 + ((h) - 1) / ZOOM_ROWPIXELSIZE(z)))
 #define ZOOM_WIDTH(w, z) ((!w) ? 0 : (1 + ((w) - 1) / ZOOM_COLPIXELSIZE(z)))
-#define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ? (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
+#define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ?  (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
 
 static const uint8_t flif16_header[4] = "FLIF";
 
@@ -78,10 +78,15 @@ typedef struct FLIF16PixelData {
     uint32_t *col_end;   // Required by FrameShape
     int s_r[MAX_PLANES];
     int s_c[MAX_PLANES];
-    void **data;
+    void *data[MAX_PLANES];
 } FLIF16PixelData;
 
 typedef int32_t FLIF16ColorVal;
+
+typedef struct FLIF16MinMax {
+    int min;
+    int max;
+} FLIF16MinMax;
 
 typedef struct FLIF16Context {
     GetByteContext gb;
@@ -116,7 +121,6 @@ typedef struct FLIF16RangesContext {
 
 typedef struct FLIF16Ranges {
     uint8_t priv_data_size;
-
     FLIF16ColorVal (*min)(FLIF16RangesContext *ranges, int plane);
     FLIF16ColorVal (*max)(FLIF16RangesContext *ranges, int plane);
     void (*minmax)(FLIF16RangesContext *ranges, const int plane,
@@ -143,9 +147,8 @@ typedef struct FLIF16Transform {
     int (*init) (FLIF16TransformContext *t_ctx, FLIF16RangesContext *r_ctx);
     int (*read) (FLIF16TransformContext *t_ctx, FLIF16Context *ctx,
                     FLIF16RangesContext *r_ctx);
-    FLIF16RangesContext *(*meta) (FLIF16Context *ctx,
-                                  FLIF16PixelData *frame, uint32_t frame_count,
-                                  FLIF16TransformContext *t_ctx,
+    FLIF16RangesContext *(*meta) (FLIF16Context *ctx, FLIF16PixelData *frame,
+                                  uint32_t frame_count, FLIF16TransformContext *t_ctx,
                                   FLIF16RangesContext *r_ctx);
     int (*forward) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
     int (*reverse) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
@@ -213,11 +216,9 @@ static inline FLIF16ColorVal ff_flif16_pixel_getz(FLIF16Context *s,
                                                   size_t row, size_t col)
 {
     if (s->plane_mode[plane]) {
-        printf("getz: %lu\n", (row * ZOOM_ROWPIXELSIZE(z)) * s->width + (col * ZOOM_COLPIXELSIZE(z)));
         return ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z)) *
                                                        s->width + (col * ZOOM_COLPIXELSIZE(z))];
     } else {
-        printf("get: 0\n");
         return ((FLIF16ColorVal *) frame->data[plane])[0];
     }
 }

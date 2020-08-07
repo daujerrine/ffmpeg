@@ -139,12 +139,12 @@ static uint16_t flif16_nz_int_chances[] = {
 
 
 typedef struct FLIF16MultiscaleChanceContext {
-    FLIF16MultiscaleChance data[sizeof(flif16_nz_int_chances) / sizeof(flif16_nz_int_chances[0])];
+    FLIF16MultiscaleChance data[FF_ARRAY_ELEMS(flif16_nz_int_chances) ];
 } FLIF16MultiscaleChanceContext;
 
 // Maybe rename to symbol context
 typedef struct FLIF16ChanceContext {
-    uint16_t data[sizeof(flif16_nz_int_chances) / sizeof(flif16_nz_int_chances[0])];
+    uint16_t data[FF_ARRAY_ELEMS(flif16_nz_int_chances)];
 } FLIF16ChanceContext;
 
 typedef struct FLIF16RangeCoder {
