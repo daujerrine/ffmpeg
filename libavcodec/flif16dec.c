@@ -114,7 +114,7 @@ typedef struct FLIF16DecoderContext {
 
     // MANIAC Trees
     //FLIF16MinMax *prop_ranges; ///< Property Ranges
-    int32_t (*prop_ranges)[2]; ///< Property Ranges
+    FLIF16MinMax prop_ranges[20]; ///< Property Ranges
     uint32_t prop_ranges_size;
     
     // Pixeldata
@@ -549,27 +549,32 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
     switch (s->segment) {
         for (;s->i < s->num_planes; s->i++) {
     case 0:
+            printf("channel: %d %d\n", s->i, __LINE__);
             if (!(s->ia % 2))
-                s->prop_ranges = ff_flif16_maniac_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                   s->i, s->num_planes);
+                ff_flif16_maniac_prop_ranges_init(s->prop_ranges, &s->prop_ranges_size, s->range,
+                                                  s->i, s->num_planes);
             else
-                s->prop_ranges = ff_flif16_maniac_ni_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                      s->i, s->num_planes);
-            if(!s->prop_ranges)
-                return AVERROR(ENOMEM);
+                ff_flif16_maniac_ni_prop_ranges_init(s->prop_ranges, &s->prop_ranges_size, s->range,
+                                                     s->i, s->num_planes);
+            for (int i = 0; i < s->prop_ranges_size; ++i)
+                printf("%d %d\n", s->prop_ranges[i].min, s->prop_ranges[i].max);
             s->segment++;
 
     case 1:
+            printf("channel: %d %d\n", s->i, __LINE__);
             if (ff_flif16_ranges_min(s->range, s->i) >= ff_flif16_ranges_max(s->range, s->i)) {
                 s->segment--;
                 continue;
             }
+            printf("channel: %d %d\n", s->i, __LINE__);
             ret = ff_flif16_read_maniac_tree(&s->rc, &s->maniac_ctx, s->prop_ranges,
                                              s->prop_ranges_size, s->i);
-            if (ret)
+            printf("channel: %d %d\n", s->i, __LINE__);
+            if (ret) {
+                printf("Error return\n");
                 goto error;
-
-            av_freep(&s->prop_ranges);
+            }
+            printf("channel: %d %d\n", s->i, __LINE__);
             s->segment--;
         }
     }
@@ -1846,8 +1851,6 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     FLIF16DecoderContext *s = avctx->priv_data;
     if (s->framedelay)
         av_freep(&s->framedelay);
-    if (s->prop_ranges)
-        av_freep(&s->prop_ranges);
     if (s->frames)
         ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 

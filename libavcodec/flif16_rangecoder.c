@@ -169,7 +169,7 @@ void ff_flif16_multiscale_chancecontext_init(FLIF16MultiscaleChanceContext *ctx)
 
 int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                                FLIF16MANIACContext *m,
-                               int32_t (*prop_ranges)[2],
+                               FLIF16MinMax *prop_ranges,
                                unsigned int prop_ranges_size,
                                unsigned int channel)
 {
@@ -212,16 +212,16 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             if (!m->stack[m->stack_top - 1].visited) {
                 switch (m->stack[m->stack_top - 1].mode) {
                 case 1:
-                    prop_ranges[oldp][0] = m->stack[m->stack_top - 1].min;
-                    prop_ranges[oldp][1] = m->stack[m->stack_top - 1].max;
+                    prop_ranges[oldp].min = m->stack[m->stack_top - 1].min;
+                    prop_ranges[oldp].max = m->stack[m->stack_top - 1].max;
                     break;
 
                 case 2:
-                    prop_ranges[oldp][0] = m->stack[m->stack_top - 1].min;
+                    prop_ranges[oldp].min = m->stack[m->stack_top - 1].min;
                     break;
                 }
             } else {
-                prop_ranges[oldp][1] = m->stack[m->stack_top - 1].max2;
+                prop_ranges[oldp].max = m->stack[m->stack_top - 1].max2;
                 m->stack_top--;
                 rc->segment2 = 1;
                 continue;
@@ -247,8 +247,8 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
             }
 
             m->forest[channel]->data[m->stack[m->stack_top - 1].id].child_id = m->tree_top;
-            rc->oldmin = prop_ranges[p][0];
-            rc->oldmax = prop_ranges[p][1];
+            rc->oldmin = prop_ranges[p].min;
+            rc->oldmax = prop_ranges[p].max;
             if (rc->oldmin >= rc->oldmax) {
                 return AVERROR_INVALIDDATA;
             }

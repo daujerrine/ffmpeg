@@ -146,6 +146,11 @@ typedef struct FLIF16ChanceContext {
     uint16_t data[FF_ARRAY_ELEMS(flif16_nz_int_chances)];
 } FLIF16ChanceContext;
 
+typedef struct FLIF16MinMax {
+    int32_t min;
+    int32_t max;
+} FLIF16MinMax;
+
 typedef struct FLIF16RangeCoder {
     uint_fast32_t range;
     uint_fast32_t low;
@@ -239,7 +244,7 @@ void ff_flif16_build_log4k_table(FLIF16Log4kTable *log4k);
 
 int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
                                FLIF16MANIACContext *m,
-                               int32_t (*prop_ranges)[2],
+                               FLIF16MinMax *prop_ranges,
                                unsigned int prop_ranges_size,
                                unsigned int channel);
 
