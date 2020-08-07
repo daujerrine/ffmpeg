@@ -114,7 +114,7 @@ typedef struct FLIF16DecoderContext {
 
     // MANIAC Trees
     //FLIF16MinMax *prop_ranges; ///< Property Ranges
-    FLIF16MinMax prop_ranges[20]; ///< Property Ranges
+    FLIF16MinMax prop_ranges[MAX_PROP_RANGES]; ///< Property Ranges
     uint32_t prop_ranges_size;
     
     // Pixeldata
@@ -197,6 +197,7 @@ static int flif16_read_header(AVCodecContext *avctx)
 {
     int ret;
     uint8_t temp, count = 4;
+    uint8_t header[4];
     FLIF16DecoderContext *s = avctx->priv_data;
     uint32_t *vlist[] = { &s->width, &s->height, &s->num_frames };
 
@@ -210,7 +211,9 @@ static int flif16_read_header(AVCodecContext *avctx)
         return AVERROR_INVALIDDATA;
     }
 
-    if (bytestream2_get_le32(&s->gb) != (*((uint32_t *) flif16_header))) {
+    bytestream2_get_bufferu(&s->gb, header, 4);
+
+    if (memcmp(header, flif16_header, 4)) {
         av_log(avctx, AV_LOG_ERROR, "bad magic number\n");
         return AVERROR_INVALIDDATA;
     }
@@ -549,32 +552,23 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
     switch (s->segment) {
         for (;s->i < s->num_planes; s->i++) {
     case 0:
-            printf("channel: %d %d\n", s->i, __LINE__);
             if (!(s->ia % 2))
                 ff_flif16_maniac_prop_ranges_init(s->prop_ranges, &s->prop_ranges_size, s->range,
                                                   s->i, s->num_planes);
             else
                 ff_flif16_maniac_ni_prop_ranges_init(s->prop_ranges, &s->prop_ranges_size, s->range,
                                                      s->i, s->num_planes);
-            for (int i = 0; i < s->prop_ranges_size; ++i)
-                printf("%d %d\n", s->prop_ranges[i].min, s->prop_ranges[i].max);
             s->segment++;
 
     case 1:
-            printf("channel: %d %d\n", s->i, __LINE__);
             if (ff_flif16_ranges_min(s->range, s->i) >= ff_flif16_ranges_max(s->range, s->i)) {
                 s->segment--;
                 continue;
             }
-            printf("channel: %d %d\n", s->i, __LINE__);
             ret = ff_flif16_read_maniac_tree(&s->rc, &s->maniac_ctx, s->prop_ranges,
                                              s->prop_ranges_size, s->i);
-            printf("channel: %d %d\n", s->i, __LINE__);
-            if (ret) {
-                printf("Error return\n");
+            if (ret)
                 goto error;
-            }
-            printf("channel: %d %d\n", s->i, __LINE__);
             s->segment--;
         }
     }

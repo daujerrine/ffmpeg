@@ -29,7 +29,6 @@
 #include "libavutil/avassert.h"
 #include "libavutil/bswap.h"
 
-#include <stdio.h> //remove
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -53,8 +52,6 @@ typedef struct FLIF16ParseContext {
     uint32_t count;
 } FLIF16ParseContext;
 
-
-// TODO revamp this function
 static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                              int buf_size)
 {
@@ -62,11 +59,14 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
     int index;
 
     for (index = 0; index < buf_size; index++) {
-        if (!f->state) {
+        switch (f->state) {
+        case FLIF16_INIT_STATE:
             if (!memcmp(flif16_header, buf + index, 4))
                 f->state = FLIF16_HEADER;
             f->index++;
-        } else if (f->state == FLIF16_HEADER) {
+            break;
+
+        case FLIF16_HEADER:
             if (f->index == 3 + 1) {
                 // See whether image is animated or not
                 f->animated = (((buf[index] >> 4) > 4)?1:0);
@@ -117,7 +117,9 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                 }
             }
             f->index++;
-        } else if (f->state == FLIF16_METADATA) {
+            break;
+
+        case FLIF16_METADATA:
             if (f->index == 0) {
                 // Identifier for the bitstream chunk is a null byte.
                 if (buf[index] == 0) {
@@ -147,16 +149,18 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                 continue;
             }
             f->index++;
-        } else if (f->state == FLIF16_BITSTREAM) {
-            /* Since we cannot find the end of the bitstream without any
+            break;
+
+        case FLIF16_BITSTREAM:
+            /*
+             * Since we cannot find the end of the bitstream without any
              * processing, we will simply return each read chunk as a packet
              * to the decoder.
              */
-            //printf("<Bitstream chunk size %dd>\n", buf_size);
             return buf_size;
         }
     }
-    //printf("End not found\n");
+
     return next;
 }
 
@@ -174,10 +178,10 @@ static int flif16_parse(AVCodecParserContext *s, AVCodecContext *avctx,
         *poutbuf_size = 0;
         return buf_size;
     }
-    //printf("Width:%u\nHeight:%u\nFrames:%u\nEnd:%d\n",
-    //       fpc->width, fpc->height, fpc->frames, buf_size);
+
     *poutbuf      = buf;
     *poutbuf_size = buf_size;
+
     return next;
 }
 

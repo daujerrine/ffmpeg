@@ -32,25 +32,24 @@
 /*
  * The coder requires a certain number of bytes for initiialization. buf
  * provides it. gb is used by the coder functions for actual coding. This is
- * done to be able to use leftover bytes from a previous packet
+ * done to be able to use leftover bytes from a previous packet. This prevents
+ * the creation of an additional buffer to append the new packet to the
+ * bytestream.
  */
-
 void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
                         uint8_t buf_size)
 {
-    GetByteContext gbi;
-
+    // This function shouldn't be called if this condition is true.
     if(buf_size < FLIF16_RAC_MAX_RANGE_BYTES)
         return;
-
-    bytestream2_init(&gbi, buf, buf_size);
 
     rc->range  = FLIF16_RAC_MAX_RANGE;
     rc->gb     = gb;
 
     for (uint32_t r = FLIF16_RAC_MAX_RANGE; r > 1; r >>= 8) {
         rc->low <<= 8;
-        rc->low |= bytestream2_get_byte(&gbi);
+        rc->low |= *buf;
+        buf++;
     }
 }
 
