@@ -955,16 +955,16 @@ static const FLIF16Ranges flif16_ranges_framecombine = {
 };
 
 const FLIF16Ranges *flif16_ranges[] = {
-    &flif16_ranges_channelcompact,        // FLIF16_RANGES_CHANNELCOMPACT,
-    &flif16_ranges_ycocg,                 // FLIF16_RANGES_YCOCG,
-    &flif16_ranges_permuteplanes,         // FLIF16_RANGES_PERMUTEPLANES,
-    &flif16_ranges_permuteplanessubtract, // FLIF16_RANGES_PERMUTEPLANESSUBTRACT,
-    &flif16_ranges_bounds,                // FLIF16_RANGES_BOUNDS,
-    &flif16_ranges_static,                // FLIF16_RANGES_STATIC,
-    &flif16_ranges_palettealpha,          // FLIF16_RANGES_PALETTEALPHA,
-    &flif16_ranges_palette,               // FLIF16_RANGES_PALETTE,
-    &flif16_ranges_colorbuckets,          // FLIF16_RANGES_COLORBUCKETS,
-    &flif16_ranges_framecombine           // FLIF16_RANGES_FRAMELOOKBACK
+    [FLIF16_RANGES_PERMUTEPLANESSUBTRACT] = &flif16_ranges_permuteplanessubtract,
+    [FLIF16_RANGES_CHANNELCOMPACT]        = &flif16_ranges_channelcompact,
+    [FLIF16_RANGES_FRAMELOOKBACK]         = &flif16_ranges_framecombine,
+    [FLIF16_RANGES_PERMUTEPLANES]         = &flif16_ranges_permuteplanes,
+    [FLIF16_RANGES_COLORBUCKETS]          = &flif16_ranges_colorbuckets,
+    [FLIF16_RANGES_PALETTEALPHA]          = &flif16_ranges_palettealpha,
+    [FLIF16_RANGES_PALETTE]               = &flif16_ranges_palette,
+    [FLIF16_RANGES_BOUNDS]                = &flif16_ranges_bounds,
+    [FLIF16_RANGES_STATIC]                = &flif16_ranges_static,
+    [FLIF16_RANGES_YCOCG]                 = &flif16_ranges_ycocg
 };
 
 FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
@@ -979,12 +979,17 @@ FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
     ctx->r_no       = FLIF16_RANGES_STATIC;
     ctx->num_planes = channels;
     ctx->priv_data  = av_mallocz(r->priv_data_size);
-    if (!ctx->priv_data)
+    if (!ctx->priv_data){
+        av_free(ctx);
         return NULL;
+    }
     data = ctx->priv_data;
     data->bounds = av_mallocz(sizeof(*data->bounds) * channels);
-    if (!data->bounds)
+    if (!data->bounds){
+        av_free(ctx);
+        av_free(ctx->priv_data);
         return NULL;
+    }
     for (unsigned int i = 0; i < channels; ++i) {
         data->bounds[i][0] = 0;
         data->bounds[i][1] = bpc;
@@ -1155,7 +1160,7 @@ static int transform_permuteplanes_read(FLIF16TransformContext *ctx,
     TransformPrivPermuteplanes *data = ctx->priv_data;
 
     switch (ctx->segment) {
-        case 0:
+    case 0:
             RAC_GET(&dec_ctx->rc, &data->ctx_a, 0, 1, &data->subtract,
                     FLIF16_RAC_NZ_INT);
             
