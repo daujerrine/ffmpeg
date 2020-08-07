@@ -36,6 +36,7 @@
 
 #define MAX_PLANES 5
 #define MAX_PREDICTORS 2
+#define MAX_PROP_RANGES 12
 
 #define VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint32_t) ((x) & 127)
 #define ZOOM_ROWPIXELSIZE(zoomlevel) (1 << (((zoomlevel) + 1) / 2))
@@ -227,8 +228,6 @@ static inline void ff_flif16_prepare_zoomlevel(FLIF16Context *s,
                                                FLIF16PixelData *frame,
                                                uint8_t plane, int z)
 {
-    printf("prep zoomlevel: z: %d, r: %u, c: %u\n", z, ZOOM_ROWPIXELSIZE(z) * s->width,
-           ZOOM_COLPIXELSIZE(z));
     frame->s_r[plane] = ZOOM_ROWPIXELSIZE(z) * s->width;
     frame->s_c[plane] = ZOOM_COLPIXELSIZE(z);
 }
@@ -239,8 +238,6 @@ static inline FLIF16ColorVal ff_flif16_pixel_get_fast(FLIF16Context *s,
                                                       uint32_t col)
 {
     if (s->plane_mode[plane]) {
-        // printf("getfast: row: %u col: %u %u sr %u sc %u\n", row, col, row * frame->s_r[plane] + col * frame->s_c[plane],
-        //frame->s_r[plane], frame->s_c[plane]);
         return ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]];
     } else
         return ((FLIF16ColorVal *) frame->data[plane])[0];

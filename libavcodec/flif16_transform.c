@@ -345,13 +345,13 @@ static FLIF16ColorVal ff_ycocg_min(FLIF16RangesContext *r_ctx, int p)
     RangesPrivYCoCg *data = r_ctx->priv_data;
     const FLIF16Ranges *ranges = flif16_ranges[data->r_ctx->r_no];
     switch (p) {
-        case FLIF16_PLANE_Y:
-            return 0;
-        case FLIF16_PLANE_CO:
-        case FLIF16_PLANE_CG:
-            return -4 * data->origmax4 + 1;
-        default:
-            return ranges->min(data->r_ctx, p);
+    case FLIF16_PLANE_Y:
+        return 0;
+    case FLIF16_PLANE_CO:
+    case FLIF16_PLANE_CG:
+        return -4 * data->origmax4 + 1;
+    default:
+        return ranges->min(data->r_ctx, p);
     }
 }
 
@@ -360,12 +360,12 @@ static FLIF16ColorVal ff_ycocg_max(FLIF16RangesContext *r_ctx, int p)
     RangesPrivYCoCg *data = r_ctx->priv_data;
     const FLIF16Ranges *ranges = flif16_ranges[data->r_ctx->r_no];
     switch (p) {
-        case FLIF16_PLANE_Y:
-        case FLIF16_PLANE_CO:
-        case FLIF16_PLANE_CG:
-            return 4 * data->origmax4 - 1;
-        default:
-            return ranges->max(data->r_ctx, p);
+    case FLIF16_PLANE_Y:
+    case FLIF16_PLANE_CO:
+    case FLIF16_PLANE_CG:
+        return 4 * data->origmax4 - 1;
+    default:
+        return ranges->max(data->r_ctx, p);
     }
 }
 
@@ -376,20 +376,20 @@ static void ff_ycocg_minmax(FLIF16RangesContext *r_ctx ,const int p,
     RangesPrivYCoCg *data = r_ctx->priv_data;
     const FLIF16Ranges *ranges = flif16_ranges[data->r_ctx->r_no];
     switch (p) {
-        case FLIF16_PLANE_Y:
-            *minv = 0;
-            *maxv = ff_get_max_y(data->origmax4);
-            break;
-        case FLIF16_PLANE_CO:
-            *minv = ff_get_min_co(data->origmax4, prev_planes[0]);
-            *maxv = ff_get_max_co(data->origmax4, prev_planes[0]);
-            break;    
-        case FLIF16_PLANE_CG:
-            *minv = ff_get_min_cg(data->origmax4, prev_planes[0], prev_planes[1]);
-            *maxv = ff_get_max_cg(data->origmax4, prev_planes[0], prev_planes[1]);
-            break;
-        default:
-            ranges->minmax(data->r_ctx, p, prev_planes, minv, maxv);
+    case FLIF16_PLANE_Y:
+        *minv = 0;
+        *maxv = ff_get_max_y(data->origmax4);
+        break;
+    case FLIF16_PLANE_CO:
+        *minv = ff_get_min_co(data->origmax4, prev_planes[0]);
+        *maxv = ff_get_max_co(data->origmax4, prev_planes[0]);
+        break;    
+    case FLIF16_PLANE_CG:
+        *minv = ff_get_min_cg(data->origmax4, prev_planes[0], prev_planes[1]);
+        *maxv = ff_get_max_cg(data->origmax4, prev_planes[0], prev_planes[1]);
+        break;
+    default:
+        ranges->minmax(data->r_ctx, p, prev_planes, minv, maxv);
     }
 }
 
@@ -620,16 +620,16 @@ static FLIF16ColorVal ff_palettealpha_max(FLIF16RangesContext *r_ctx, int p)
 {
     RangesPrivPalette *data = r_ctx->priv_data;
     switch (p) {
-        case FLIF16_PLANE_Y:
-            return 0;
-        case FLIF16_PLANE_CO:
-            return data->nb_colors-1;
-        case FLIF16_PLANE_CG:
-            return 0;
-        case FLIF16_PLANE_ALPHA:
-            return 1;
-        default:
-            return ff_flif16_ranges_max(data->r_ctx, p);
+    case FLIF16_PLANE_Y:
+        return 0;
+    case FLIF16_PLANE_CO:
+        return data->nb_colors-1;
+    case FLIF16_PLANE_CG:
+        return 0;
+    case FLIF16_PLANE_ALPHA:
+        return 1;
+    default:
+        return ff_flif16_ranges_max(data->r_ctx, p);
     }
 }
 
@@ -766,7 +766,6 @@ static void ff_colorbuckets_snap(FLIF16RangesContext *src_ctx, const int p,
         return;
     }
     *v = ff_snap_color_bucket(b, *v);
-    // printf("minv : %d maxv : %d v : %d\n", *minv, *maxv, *v);
 }
 
 static void ff_colorbuckets_minmax(FLIF16RangesContext *r_ctx, 
@@ -842,7 +841,6 @@ static void ff_framecombine_snap(FLIF16RangesContext *src_ctx, const int p,
         ff_static_snap(src_ctx, p, prev_planes, minv, maxv, v);
     else
         ff_flif16_ranges_snap(data->ranges, p, prev_planes, minv, maxv, v);
-    // printf("min : %d max : %d v : %d\n", *minv, *maxv, *v);
 }
 
 static void ff_framecombine_close(FLIF16RangesContext *r_ctx)
@@ -1400,7 +1398,6 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
     size_t palette_size;
     TransformPrivChannelcompact *data = t_ctx->priv_data;
 
-    printf("Channels: %d\n", ctx->num_planes);
     for (p = 0; p < ctx->num_planes; p++) {
         palette      = data->cpalette[p];
         palette_size = data->cpalette_size[p];
@@ -1410,7 +1407,6 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
                 P = ff_flif16_pixel_get(ctx, frame, p, r, c);
                 if (P < 0 || P >= (int) palette_size)
                     P = 0;
-                // printf("P : %d & palette_size : %d\n", P, palette_size);
                 av_assert0(P < (int) palette_size);
                 ff_flif16_pixel_set(ctx, frame, p, r, c, palette[P]);
             }
@@ -1477,7 +1473,6 @@ static int transform_bounds_read(FLIF16TransformContext *ctx,
                     return 0;
                 data->bounds[ctx->i][0] = data->min;
                 data->bounds[ctx->i][1] = max;
-                printf("bounds[%d].min : %d bounds[%d].max : %d\n", ctx->i, data->bounds[ctx->i][0], ctx->i, data->bounds[ctx->i][1]);
                 ctx->i++;
                 ctx->segment--;
                 goto start;
@@ -1761,129 +1756,128 @@ static int transform_palettealpha_read(FLIF16TransformContext *ctx,
                                           FLIF16RangesContext *src_ctx)
 {
     TransformPrivPalettealpha *data = ctx->priv_data;
-    switch (ctx->i)
-    {
-        case 0:
-            RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
-                    &data->size, FLIF16_RAC_GNZ_INT);
-            data->Palette = av_mallocz(data->size * sizeof(*data->Palette));
-            if (!data->Palette)
-                return 0;
-            ctx->i++;
-        
-        case 1:
-            RAC_GET(&dec_ctx->rc, &data->ctx, 0, 1,
-                    &data->sorted, FLIF16_RAC_GNZ_INT);
-            if (data->sorted) {
-                ctx->i = 2;
-                data->min[0] = ff_flif16_ranges_min(src_ctx, 3);
-                data->max[0] = ff_flif16_ranges_max(src_ctx, 3);
-                for (int i = 1; i < 4; i++) {
-                    data->min[i] = ff_flif16_ranges_min(src_ctx, i-1);
-                    data->max[i] = ff_flif16_ranges_max(src_ctx, i-1);
-                    data->Palette[0][i] = -1;
-                }
-                data->prev = data->Palette[0];
-            }
-            else {
-                ctx->i = 6;
-                goto unsorted;
-            }
-        
-        loop:
-        if (data->p < data->size) {
-        case 2:
-            RAC_GET(&dec_ctx->rc, &data->ctxA, data->min[0], data->max[0],
-                    &data->A, FLIF16_RAC_GNZ_INT);
-            if (data->alpha_zero_special && data->A == 0) {
-                for (int i = 0; i < 4; i++)
-                    data->Palette[data->p][i] = 0;
-                data->p++;
-                goto loop;
-            }
-            ctx->i++;
-
-        case 3:
-            RAC_GET(&dec_ctx->rc, &data->ctxY, 
-                    data->prev[0] == data->A ? data->prev[1] : data->min[1],
-                    data->max[1],
-                    &data->Y, FLIF16_RAC_GNZ_INT);
-            data->pp[0] = data->Y;
-            ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[2], &data->max[2]);
-            ctx->i++;
-
-        case 4:
-            RAC_GET(&dec_ctx->rc, &data->ctxI, 
-                    data->min[2], data->max[2],
-                    &data->I, FLIF16_RAC_GNZ_INT);
-            data->pp[1] = data->I;
-            ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[3], &data->max[3]);
-            ctx->i++;
-
-        case 5:
-            RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[3], data->max[3],
-                    &data->Q, FLIF16_RAC_GNZ_INT);
-            data->Palette[data->p][0] = data->A;
-            data->Palette[data->p][1] = data->Y;
-            data->Palette[data->p][2] = data->I;
-            data->Palette[data->p][3] = data->Q;
-            data->min[0] = data->A;
-            data->prev = data->Palette[data->p];
-            data->p++;
+    switch (ctx->i) {
+    case 0:
+        RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
+                &data->size, FLIF16_RAC_GNZ_INT);
+        data->Palette = av_mallocz(data->size * sizeof(*data->Palette));
+        if (!data->Palette)
+            return 0;
+        ctx->i++;
+    
+    case 1:
+        RAC_GET(&dec_ctx->rc, &data->ctx, 0, 1,
+                &data->sorted, FLIF16_RAC_GNZ_INT);
+        if (data->sorted) {
             ctx->i = 2;
-            goto loop;
+            data->min[0] = ff_flif16_ranges_min(src_ctx, 3);
+            data->max[0] = ff_flif16_ranges_max(src_ctx, 3);
+            for (int i = 1; i < 4; i++) {
+                data->min[i] = ff_flif16_ranges_min(src_ctx, i-1);
+                data->max[i] = ff_flif16_ranges_max(src_ctx, i-1);
+                data->Palette[0][i] = -1;
+            }
+            data->prev = data->Palette[0];
         }
         else {
-            ctx->i = 0;
-            data->p = 0;
-            goto end;
-        }
-        
-        unsorted:
-        if (data->p < data->size) {
-        case 6:
-            RAC_GET(&dec_ctx->rc, &data->ctxA,
-            ff_flif16_ranges_min(src_ctx, 3), ff_flif16_ranges_max(src_ctx, 3),
-            &data->A, FLIF16_RAC_GNZ_INT);
-            if (data->alpha_zero_special && data->A == 0) {
-                for (int i = 0; i < 4; i++)
-                    data->Palette[data->p][i] = 0;
-                data->p++;
-                goto loop;
-            }
-            ctx->i++;
-        
-        case 7:
-            ff_flif16_ranges_minmax(src_ctx, 0, data->pp, &data->min[0], &data->max[0]);
-            RAC_GET(&dec_ctx->rc, &data->ctxY, data->min[0], data->max[0],
-                    &data->Y, FLIF16_RAC_GNZ_INT);
-            data->pp[0] = data->Y;
-            ctx->i++;
-
-        case 8:
-            ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[0], &data->max[0]);
-            RAC_GET(&dec_ctx->rc, &data->ctxI, data->min[0], data->max[0],
-                    &data->I, FLIF16_RAC_GNZ_INT);
-            data->pp[1] = data->I;
-            ctx->i++;
-
-        case 9:
-            ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[0], &data->max[0]);
-            RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[0], data->max[0],
-                    &data->Q, FLIF16_RAC_GNZ_INT);
-            data->Palette[data->p][0] = data->A;
-            data->Palette[data->p][1] = data->Y;
-            data->Palette[data->p][2] = data->I;
-            data->Palette[data->p][3] = data->Q;
-            data->p++;
             ctx->i = 6;
             goto unsorted;
         }
-        else {
-            data->p = 0;
-            ctx->i = 0;
-            goto end;
+    
+    loop:
+    if (data->p < data->size) {
+    case 2:
+        RAC_GET(&dec_ctx->rc, &data->ctxA, data->min[0], data->max[0],
+                &data->A, FLIF16_RAC_GNZ_INT);
+        if (data->alpha_zero_special && data->A == 0) {
+            for (int i = 0; i < 4; i++)
+                data->Palette[data->p][i] = 0;
+            data->p++;
+            goto loop;
         }
+        ctx->i++;
+
+    case 3:
+        RAC_GET(&dec_ctx->rc, &data->ctxY, 
+                data->prev[0] == data->A ? data->prev[1] : data->min[1],
+                data->max[1],
+                &data->Y, FLIF16_RAC_GNZ_INT);
+        data->pp[0] = data->Y;
+        ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[2], &data->max[2]);
+        ctx->i++;
+
+    case 4:
+        RAC_GET(&dec_ctx->rc, &data->ctxI, 
+                data->min[2], data->max[2],
+                &data->I, FLIF16_RAC_GNZ_INT);
+        data->pp[1] = data->I;
+        ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[3], &data->max[3]);
+        ctx->i++;
+
+    case 5:
+        RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[3], data->max[3],
+                &data->Q, FLIF16_RAC_GNZ_INT);
+        data->Palette[data->p][0] = data->A;
+        data->Palette[data->p][1] = data->Y;
+        data->Palette[data->p][2] = data->I;
+        data->Palette[data->p][3] = data->Q;
+        data->min[0] = data->A;
+        data->prev = data->Palette[data->p];
+        data->p++;
+        ctx->i = 2;
+        goto loop;
+    }
+    else {
+        ctx->i = 0;
+        data->p = 0;
+        goto end;
+    }
+    
+    unsorted:
+    if (data->p < data->size) {
+    case 6:
+        RAC_GET(&dec_ctx->rc, &data->ctxA,
+        ff_flif16_ranges_min(src_ctx, 3), ff_flif16_ranges_max(src_ctx, 3),
+        &data->A, FLIF16_RAC_GNZ_INT);
+        if (data->alpha_zero_special && data->A == 0) {
+            for (int i = 0; i < 4; i++)
+                data->Palette[data->p][i] = 0;
+            data->p++;
+            goto loop;
+        }
+        ctx->i++;
+    
+    case 7:
+        ff_flif16_ranges_minmax(src_ctx, 0, data->pp, &data->min[0], &data->max[0]);
+        RAC_GET(&dec_ctx->rc, &data->ctxY, data->min[0], data->max[0],
+                &data->Y, FLIF16_RAC_GNZ_INT);
+        data->pp[0] = data->Y;
+        ctx->i++;
+
+    case 8:
+        ff_flif16_ranges_minmax(src_ctx, 1, data->pp, &data->min[0], &data->max[0]);
+        RAC_GET(&dec_ctx->rc, &data->ctxI, data->min[0], data->max[0],
+                &data->I, FLIF16_RAC_GNZ_INT);
+        data->pp[1] = data->I;
+        ctx->i++;
+
+    case 9:
+        ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[0], &data->max[0]);
+        RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[0], data->max[0],
+                &data->Q, FLIF16_RAC_GNZ_INT);
+        data->Palette[data->p][0] = data->A;
+        data->Palette[data->p][1] = data->Y;
+        data->Palette[data->p][2] = data->I;
+        data->Palette[data->p][3] = data->Q;
+        data->p++;
+        ctx->i = 6;
+        goto unsorted;
+    }
+    else {
+        data->p = 0;
+        ctx->i = 0;
+        goto end;
+    }
     
     }
     end:
@@ -2094,7 +2088,6 @@ static FLIF16ColorVal ff_snap_color_slow(ColorBucket *cb, const FLIF16ColorVal c
                 break;
         }
         d = ff_colorvalCB_at(cb->values, best);
-        // printf("%d %d\n", best, d);
         return d;
     }
     return c;
@@ -2278,14 +2271,10 @@ static FLIF16RangesContext *transform_colorbuckets_meta(FLIF16Context *ctx,
             pixelU[0] += 1;
         }
     }
-    // printf("bucket0 incoming\n");
     ff_prepare_snapvalues(&cb->bucket0);
-    // printf("bucket3 incoming\n");
     ff_prepare_snapvalues(&cb->bucket3);
-    // printf("bucket1 incoming\n");
     for (unsigned int i = 0; i < cb->bucket1_size; i++)
         ff_prepare_snapvalues(&cb->bucket1[i]);
-    // printf("bucket2 incoming\n");
     for (unsigned int i = 0; i < cb->bucket2_size; i++) {
         for (unsigned int j = 0; j < cb->bucket2_list_size; j++)
             ff_prepare_snapvalues(&cb->bucket2[i][j]);
@@ -2353,80 +2342,80 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
     int temp;
     int exists;
     switch (cb->i) {
-        case 0:
-            if (plane < FLIF16_PLANE_ALPHA)
-            for (int p = 0; p < plane; p++) {
-                if (!ff_colorbuckets_exists(cb, p, pixelL, pixelU)) {
-                    goto end;
-                }
-            }
-            cb->smin = 0;
-            cb->smax = 0;
-            cb->i = 1;
-
-        case 1:
-            transform_colorbuckets_minmax(src_ctx, plane,
-                                          pixelL, pixelU,
-                                          &cb->smin, &cb->smax);
-            RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
-            if (exists == 0) {
-                goto end; // empty bucket
-            }
-            if (cb->smin == cb->smax) {
-                b->min = cb->smin;
-                b->max = cb->smin;
-                b->discrete = 0;
+    case 0:
+        if (plane < FLIF16_PLANE_ALPHA)
+        for (int p = 0; p < plane; p++) {
+            if (!ff_colorbuckets_exists(cb, p, pixelL, pixelU)) {
                 goto end;
             }
-            cb->i = 2;
+        }
+        cb->smin = 0;
+        cb->smax = 0;
+        cb->i = 1;
 
-        case 2:
-            RAC_GET(rc, &chancectx[1], cb->smin, cb->smax, &b->min, FLIF16_RAC_GNZ_INT);
-            cb->i = 3;
-            
-        case 3:
-            RAC_GET(rc, &chancectx[2], b->min, cb->smax, &b->max, FLIF16_RAC_GNZ_INT);
-            if (b->min == b->max) {
-                b->discrete = 0;
+    case 1:
+        transform_colorbuckets_minmax(src_ctx, plane,
+                                      pixelL, pixelU,
+                                      &cb->smin, &cb->smax);
+        RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
+        if (exists == 0) {
+            goto end; // empty bucket
+        }
+        if (cb->smin == cb->smax) {
+            b->min = cb->smin;
+            b->max = cb->smin;
+            b->discrete = 0;
+            goto end;
+        }
+        cb->i = 2;
+
+    case 2:
+        RAC_GET(rc, &chancectx[1], cb->smin, cb->smax, &b->min, FLIF16_RAC_GNZ_INT);
+        cb->i = 3;
+        
+    case 3:
+        RAC_GET(rc, &chancectx[2], b->min, cb->smax, &b->max, FLIF16_RAC_GNZ_INT);
+        if (b->min == b->max) {
+            b->discrete = 0;
+            goto end;
+        }
+        if (b->min + 1 == b->max) {
+            b->discrete = 0;
+            goto end;
+        }
+        cb->i = 4;
+
+    case 4:
+        RAC_GET(rc, &chancectx[3], 0, 1, &b->discrete, FLIF16_RAC_GNZ_INT);
+        cb->i = 5;
+
+    case 5:
+        if (b->discrete) {
+            RAC_GET(rc, &chancectx[4], 2, 
+                    FFMIN(max_per_colorbucket[plane], b->max - b->min),
+                    &cb->nb, FLIF16_RAC_GNZ_INT);
+            b->values = 0;
+            b->values = ff_insert_colorvalCB(b->values, 0, b->min);
+            cb->v = b->min;
+            cb->i = 6;
+            cb->i2 = 1;
+
+            for (; cb->i2 < cb->nb - 1; cb->i2++) {    
+    case 6:     
+                RAC_GET(rc, &chancectx[5], cb->v + 1,
+                        b->max + 1 - cb->nb + cb->i2, &temp,
+                        FLIF16_RAC_GNZ_INT);
+                b->values = ff_insert_colorvalCB(b->values, cb->i2, temp);
+                cb->v = temp;
+            }
+
+            if (b->min < b->max) {
+                b->values = ff_insert_colorvalCB(b->values, cb->nb - 1, b->max);
+                b->values_size = cb->nb;
                 goto end;
             }
-            if (b->min + 1 == b->max) {
-                b->discrete = 0;
-                goto end;
-            }
-            cb->i = 4;
-
-        case 4:
-            RAC_GET(rc, &chancectx[3], 0, 1, &b->discrete, FLIF16_RAC_GNZ_INT);
-            cb->i = 5;
-
-        case 5:
-            if (b->discrete) {
-                RAC_GET(rc, &chancectx[4], 2, 
-                        FFMIN(max_per_colorbucket[plane], b->max - b->min),
-                        &cb->nb, FLIF16_RAC_GNZ_INT);
-                b->values = 0;
-                b->values = ff_insert_colorvalCB(b->values, 0, b->min);
-                cb->v = b->min;
-                cb->i = 6;
-                cb->i2 = 1;
-
-                for (; cb->i2 < cb->nb - 1; cb->i2++) {    
-        case 6:     
-                    RAC_GET(rc, &chancectx[5], cb->v + 1,
-                            b->max + 1 - cb->nb + cb->i2, &temp,
-                            FLIF16_RAC_GNZ_INT);
-                    b->values = ff_insert_colorvalCB(b->values, cb->i2, temp);
-                    cb->v = temp;
-                }
-
-                if (b->min < b->max) {
-                    b->values = ff_insert_colorvalCB(b->values, cb->nb - 1, b->max);
-                    b->values_size = cb->nb;
-                    goto end;
-                }
-                b->values_size = cb->nb - 1;
-            }
+            b->values_size = cb->nb - 1;
+        }
     }
 
     end:
@@ -2448,64 +2437,64 @@ static int transform_colorbuckets_read(FLIF16TransformContext *ctx,
     int8_t ret;
 
     switch (data->i) {
-        case 0:
-            ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket0, cb,
-                                 src_ctx, 0, data->pixelL, data->pixelU);
+    case 0:
+        ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket0, cb,
+                             src_ctx, 0, data->pixelL, data->pixelU);
+        if (ret <= 0)
+            goto need_more_data;
+        data->pixelL[0] = (cb->min0);
+        data->pixelU[0] = (cb->min0 + (int)1 - 1);
+        data->i = 1;
+
+        for (; data->j < cb->bucket1_size; data->j++) {
+    case 1:
+            ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
+                                 &cb->bucket1[data->j], cb,
+                                 src_ctx, 1, data->pixelL, data->pixelU);
             if (ret <= 0)
                 goto need_more_data;
-            data->pixelL[0] = (cb->min0);
-            data->pixelU[0] = (cb->min0 + (int)1 - 1);
-            data->i = 1;
+            data->pixelL[0] += 1;
+            data->pixelU[0] += 1;
+        }
+        data->j = 0;
 
-            for (; data->j < cb->bucket1_size; data->j++) {
-        case 1:
-                ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
-                                     &cb->bucket1[data->j], cb,
-                                     src_ctx, 1, data->pixelL, data->pixelU);
-                if (ret <= 0)
-                    goto need_more_data;
+        if (ff_flif16_ranges_min(src_ctx, 2) < ff_flif16_ranges_max(src_ctx, 2)) {
+            data->pixelL[0] = cb->min0;
+            data->pixelU[0] = cb->min0 + 1 - 1;
+            data->pixelL[1] = cb->min1;
+            data->pixelU[1] = cb->min1 + 4 - 1;
+            for (; data->j < cb->bucket2_size; data->j++) {
+                data->pixelL[1] = cb->min1;
+                data->pixelU[1] = cb->min1 + 4 - 1;
+                data->i = 2;
+
+                for (; data->k < cb->bucket2_list_size; data->k++) {
+    case 2:
+                    ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
+                                         &cb->bucket2[data->j][data->k], cb,
+                                         src_ctx, 2, data->pixelL, data->pixelU);
+                    if (ret <= 0)
+                        goto need_more_data;
+                    data->pixelL[1] += 4;
+                    data->pixelU[1] += 4;
+                }
+                data->k = 0;
                 data->pixelL[0] += 1;
                 data->pixelU[0] += 1;
             }
             data->j = 0;
-
-            if (ff_flif16_ranges_min(src_ctx, 2) < ff_flif16_ranges_max(src_ctx, 2)) {
-                data->pixelL[0] = cb->min0;
-                data->pixelU[0] = cb->min0 + 1 - 1;
-                data->pixelL[1] = cb->min1;
-                data->pixelU[1] = cb->min1 + 4 - 1;
-                for (; data->j < cb->bucket2_size; data->j++) {
-                    data->pixelL[1] = cb->min1;
-                    data->pixelU[1] = cb->min1 + 4 - 1;
-                    data->i = 2;
-
-                    for (; data->k < cb->bucket2_list_size; data->k++) {
-        case 2:
-                        ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
-                                             &cb->bucket2[data->j][data->k], cb,
-                                             src_ctx, 2, data->pixelL, data->pixelU);
-                        if (ret <= 0)
-                            goto need_more_data;
-                        data->pixelL[1] += 4;
-                        data->pixelU[1] += 4;
-                    }
-                    data->k = 0;
-                    data->pixelL[0] += 1;
-                    data->pixelU[0] += 1;
-                }
-                data->j = 0;
-            }
-            data->i = 3;
+        }
+        data->i = 3;
+        
+        if (src_ctx->num_planes > 3) {
+    case 3:
+            ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket3, cb,
+                                 src_ctx, 3, data->pixelL, data->pixelU);
+            if (ret <= 0)
+                goto need_more_data;
+        }
             
-            if (src_ctx->num_planes > 3) {
-        case 3:
-                ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket3, cb,
-                                     src_ctx, 3, data->pixelL, data->pixelU);
-                if (ret <= 0)
-                    goto need_more_data;
-            }
-                
-            goto end;        
+        goto end;        
     }
 
     end:
@@ -2542,21 +2531,21 @@ static int transform_framedup_read(FLIF16TransformContext  *ctx,
     TransformPrivFramedup *data = ctx->priv_data;
     
     switch (ctx->i) {
-        case 0:
-            data->seen_before = av_mallocz(data->nb * sizeof(*data->seen_before));
-            if (!data->seen_before)
-                return 0;
-            data->seen_before[0] = -1;
-            ctx->i = 1;
-            data->i = 1;
+    case 0:
+        data->seen_before = av_mallocz(data->nb * sizeof(*data->seen_before));
+        if (!data->seen_before)
+            return 0;
+        data->seen_before[0] = -1;
+        ctx->i = 1;
+        data->i = 1;
 
-        case 1:
-            for (; data->i < data->nb; data->i++) {
-                RAC_GET(&dec_ctx->rc, &data->chancectx, -1, data->i - 1,
-                        &data->seen_before[data->i], FLIF16_RAC_NZ_INT);
-            }
-            data->i = 0;
-            goto end;
+    case 1:
+        for (; data->i < data->nb; data->i++) {
+            RAC_GET(&dec_ctx->rc, &data->chancectx, -1, data->i - 1,
+                    &data->seen_before[data->i], FLIF16_RAC_NZ_INT);
+        }
+        data->i = 0;
+        goto end;
     }
 
     end:
@@ -2721,15 +2710,14 @@ static int transform_framecombine_read(FLIF16TransformContext *ctx,
     TransformPrivFramecombine *data = ctx->priv_data;
     
     switch (ctx->i) {
-        case 0:
-            if (src_ctx->num_planes > 4)
-                return 0;
-            ctx->i = 1;
+    case 0:
+        if (src_ctx->num_planes > 4)
+            return 0;
+        ctx->i = 1;
 
-        case 1:
-            RAC_GET(&dec_ctx->rc, &data->chancectx, 1, data->nb_frames - 1,
-                        &data->max_lookback, FLIF16_RAC_GNZ_INT);
-            printf("max_lookback : %d\n", data->max_lookback);
+    case 1:
+        RAC_GET(&dec_ctx->rc, &data->chancectx, 1, data->nb_frames - 1,
+                    &data->max_lookback, FLIF16_RAC_GNZ_INT);
     }
 
     ctx->i = 0;

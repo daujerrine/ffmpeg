@@ -136,22 +136,22 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
         /* Multiplication overflow is dealt with in the decoder/encoder. */
         for (int i = 0; i < s->num_planes; ++i) {
             switch (plane_mode[i]) {
-                case FLIF16_PLANEMODE_NORMAL:
-                    frames[j].data[i] = av_malloc_array(s->width * s->height, sizeof(int32_t));
-                    break;
+            case FLIF16_PLANEMODE_NORMAL:
+                frames[j].data[i] = av_malloc_array(s->width * s->height, sizeof(int32_t));
+                break;
 
-                case FLIF16_PLANEMODE_CONSTANT:
-                    frames[j].data[i] = av_malloc(sizeof(int32_t));
-                    ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
-                    break;
+            case FLIF16_PLANEMODE_CONSTANT:
+                frames[j].data[i] = av_malloc(sizeof(int32_t));
+                ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
+                break;
 
-                case FLIF16_PLANEMODE_FILL:
-                    frames[j].data[i] = av_malloc_array(s->width * s->height, sizeof(int32_t));
-                    if (!frames[j].data[i])
-                        return AVERROR(ENOMEM);
-                    for (int k = 0; k < s->height * s->width; ++k)
-                            ((int32_t *) frames[j].data[i])[k] = const_plane_value[i];
-                    break;
+            case FLIF16_PLANEMODE_FILL:
+                frames[j].data[i] = av_malloc_array(s->width * s->height, sizeof(int32_t));
+                if (!frames[j].data[i])
+                    return AVERROR(ENOMEM);
+                for (int k = 0; k < s->height * s->width; ++k)
+                        ((int32_t *) frames[j].data[i])[k] = const_plane_value[i];
+                break;
             }
         }
     }
