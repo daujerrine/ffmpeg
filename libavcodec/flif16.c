@@ -91,12 +91,10 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
         for (pp = 0; pp < plane; pp++) {
             prop_ranges[top][0] = ff_flif16_ranges_min(ranges, pp);
             prop_ranges[top++][1] = ff_flif16_ranges_max(ranges, pp);
-            printf("min max: %d %d\n", ff_flif16_ranges_min(ranges, pp), ff_flif16_ranges_max(ranges, pp));
         }
         if (ranges->num_planes > 3) {
             prop_ranges[top][0] = ff_flif16_ranges_min(ranges, 3);
             prop_ranges[top++][1] = ff_flif16_ranges_max(ranges, 3);
-            printf("min max: %d %d\n", ff_flif16_ranges_min(ranges, pp), ff_flif16_ranges_max(ranges, pp));
         }
     }
 
@@ -122,9 +120,7 @@ int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
       prop_ranges[top][0] = mind;
       prop_ranges[top++][1] = maxd;
     }
-    printf("propranges size: %d\n", size);
-    for (int i = 0; i < size; ++i)
-        printf("?? propRanges[%d]: (%d, %d)\n", i, prop_ranges[i][0], prop_ranges[i][1]);
+
     return prop_ranges;
 }
 
@@ -133,38 +129,29 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
                           uint8_t *plane_mode, uint8_t *const_plane_value,
                           uint8_t lookback)
 {
-    // for(int i = 0; i < 5; i++){
-    //     printf("plane_mode[%d] : %d\n", i, plane_mode[i]);
-    // }
-    
     for (int j = 0; j < s->num_frames; ++j) {
         if (frames[j].seen_before >= 0)
             continue;
 
-        frames[j].data = av_mallocz(sizeof(*frames->data) * s->num_planes);
-
-        if (!frames[j].data) {
-            return AVERROR(ENOMEM);
-        }
-        // printf("s->num_planes : %d\n", s->num_planes);
+        /* Multiplication overflow is dealt with in the decoder/encoder. */
         for (int i = 0; i < s->num_planes; ++i) {
             switch (plane_mode[i]) {
-                case FLIF16_PLANEMODE_NORMAL:
-                    frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);
-                    break;
+            case FLIF16_PLANEMODE_NORMAL:
+                frames[j].data[i] = av_malloc_array(s->width * s->height, sizeof(int32_t));
+                break;
 
-                case FLIF16_PLANEMODE_CONSTANT:
-                    frames[j].data[i] = av_mallocz(sizeof(int32_t));
-                    ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
-                    break;
+            case FLIF16_PLANEMODE_CONSTANT:
+                frames[j].data[i] = av_malloc(sizeof(int32_t));
+                ((int32_t *) frames[j].data[i])[0] = const_plane_value[i];
+                break;
 
-                case FLIF16_PLANEMODE_FILL:
-                    frames[j].data[i] = av_mallocz(sizeof(int32_t) * s->width * s->height);;
-                    if (!frames[j].data[i])
-                        return AVERROR(ENOMEM);
-                    for (int k = 0; k < s->height * s->width; ++k)
-                            ((int32_t *) frames[j].data[i])[k] = const_plane_value[i];
-                    break;
+            case FLIF16_PLANEMODE_FILL:
+                frames[j].data[i] = av_malloc_array(s->width * s->height, sizeof(int32_t));
+                if (!frames[j].data[i])
+                    return AVERROR(ENOMEM);
+                for (int k = 0; k < s->height * s->width; ++k)
+                        ((int32_t *) frames[j].data[i])[k] = const_plane_value[i];
+                break;
             }
         }
     }
@@ -179,12 +166,11 @@ static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes,
     for(uint8_t i = 0; i < (lookback ? MAX_PLANES : num_planes); ++i) {
         av_free(frame->data[i]);
     }
-    av_free(frame->data);
 }
 
 FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s)
 {
-    FLIF16PixelData *frames = av_mallocz(sizeof(*frames) * s->num_frames);
+    FLIF16PixelData *frames = av_mallocz_array(s->num_frames, sizeof(*frames));
     if (!frames)
         return NULL;
 

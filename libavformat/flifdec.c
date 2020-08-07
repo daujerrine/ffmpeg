@@ -109,7 +109,7 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
             printf("Sync ret: %d\n", ret);
             printf("Buf size: %d, Outbuf size: %d\n", buf_size, *out_buf_size);
             (void)inflateEnd(stream);
-            return AVERROR(EINVAL);
+            return AVERROR_INVALIDDATA;
         case Z_MEM_ERROR:
             (void)inflateEnd(stream);
             return AVERROR(ENOMEM);
@@ -188,7 +188,7 @@ static int flif16_read_header(AVFormatContext *s)
     // Magic Number
     if (avio_rl32(pb) != (*((uint32_t *) flif16_header))) {
         av_log(s, AV_LOG_ERROR, "bad magic number\n");
-        return AVERROR(EINVAL);
+        return AVERROR_INVALIDDATA;
     }
 
     st = avformat_new_stream(s, NULL);
@@ -310,7 +310,8 @@ static int flif16_read_header(AVFormatContext *s)
         }
 
         need_more_data:
-            ret = avio_read_partial(pb, buf, BUF_SIZE);
+            if ((ret = avio_read_partial(pb, buf, BUF_SIZE)) < 0)
+                return ret;
             bytestream2_init(&gb, buf, ret);
     }
 
@@ -332,7 +333,7 @@ static int flif16_read_header(AVFormatContext *s)
     st->duration             = duration * loops;
     st->start_time           = 0;
     st->nb_frames            = vlist[2];
-    // st->need_parsing         = 1;
+    st->need_parsing         = 1;
 
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)

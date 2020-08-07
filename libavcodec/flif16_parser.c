@@ -34,7 +34,8 @@
 #include <stdlib.h>
 
 typedef enum FLIF16ParseStates {
-    FLIF16_HEADER = 1,
+    FLIF16_INIT_STATE = 0,
+    FLIF16_HEADER,
     FLIF16_METADATA,
     FLIF16_BITSTREAM
 } FLIF16ParseStates;
@@ -64,7 +65,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
         if (!f->state) {
             if (!memcmp(flif16_header, buf + index, 4))
                 f->state = FLIF16_HEADER;
-            ++f->index;
+            f->index++;
         } else if (f->state == FLIF16_HEADER) {
             if (f->index == 3 + 1) {
                 // See whether image is animated or not
