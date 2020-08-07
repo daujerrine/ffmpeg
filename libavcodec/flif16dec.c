@@ -1166,9 +1166,6 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
     switch (s->segment2) {
     case 0:
         if (s->frames[fr].seen_before >= 0) {
-            ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
-                                       &s->frames[s->frames[fr].seen_before],
-                                       p , rs * r, 0, cs * ZOOM_WIDTH(s->width, z), cs);
             return 0;
         }
 
@@ -1295,9 +1292,6 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
     switch (s->segment2) {
     case 0:
         if (s->frames[fr].seen_before >= 0) {
-            ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
-                                       &s->frames[s->frames[fr].seen_before],
-                                       p , rs * r, cs*1, cs * ZOOM_WIDTH(s->width, z), cs*2);
             return 0;
         }
         if (fr > 0) {
