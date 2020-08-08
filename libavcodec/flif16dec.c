@@ -114,7 +114,7 @@ typedef struct FLIF16DecoderContext {
 
     // MANIAC Trees
     //FLIF16MinMax *prop_ranges; ///< Property Ranges
-    int32_t (*prop_ranges)[2]; ///< Property Ranges
+    FLIF16MinMax prop_ranges[MAX_PROP_RANGES]; ///< Property Ranges
     uint32_t prop_ranges_size;
     
     // Pixeldata
@@ -197,6 +197,7 @@ static int flif16_read_header(AVCodecContext *avctx)
 {
     int ret;
     uint8_t temp, count = 4;
+    uint8_t header[4];
     FLIF16DecoderContext *s = avctx->priv_data;
     uint32_t *vlist[] = { &s->width, &s->height, &s->num_frames };
 
@@ -210,7 +211,9 @@ static int flif16_read_header(AVCodecContext *avctx)
         return AVERROR_INVALIDDATA;
     }
 
-    if (bytestream2_get_le32(&s->gb) != (*((uint32_t *) flif16_header))) {
+    bytestream2_get_bufferu(&s->gb, header, 4);
+
+    if (memcmp(header, flif16_header, 4)) {
         av_log(avctx, AV_LOG_ERROR, "bad magic number\n");
         return AVERROR_INVALIDDATA;
     }
@@ -550,13 +553,11 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
         for (;s->i < s->num_planes; s->i++) {
     case 0:
             if (!(s->ia % 2))
-                s->prop_ranges = ff_flif16_maniac_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                   s->i, s->num_planes);
+                ff_flif16_maniac_prop_ranges_init(s->prop_ranges, &s->prop_ranges_size, s->range,
+                                                  s->i, s->num_planes);
             else
-                s->prop_ranges = ff_flif16_maniac_ni_prop_ranges_init(&s->prop_ranges_size, s->range,
-                                                                      s->i, s->num_planes);
-            if(!s->prop_ranges)
-                return AVERROR(ENOMEM);
+                ff_flif16_maniac_ni_prop_ranges_init(s->prop_ranges, &s->prop_ranges_size, s->range,
+                                                     s->i, s->num_planes);
             s->segment++;
 
     case 1:
@@ -568,8 +569,6 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
                                              s->prop_ranges_size, s->i);
             if (ret)
                 goto error;
-
-            av_freep(&s->prop_ranges);
             s->segment--;
         }
     }
@@ -1167,9 +1166,6 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
     switch (s->segment2) {
     case 0:
         if (s->frames[fr].seen_before >= 0) {
-            ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
-                                       &s->frames[s->frames[fr].seen_before],
-                                       p , rs * r, 0, cs * ZOOM_WIDTH(s->width, z), cs);
             return 0;
         }
 
@@ -1296,9 +1292,6 @@ static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
     switch (s->segment2) {
     case 0:
         if (s->frames[fr].seen_before >= 0) {
-            ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
-                                       &s->frames[s->frames[fr].seen_before],
-                                       p , rs * r, cs*1, cs * ZOOM_WIDTH(s->width, z), cs*2);
             return 0;
         }
         if (fr > 0) {
@@ -1846,8 +1839,6 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     FLIF16DecoderContext *s = avctx->priv_data;
     if (s->framedelay)
         av_freep(&s->framedelay);
-    if (s->prop_ranges)
-        av_freep(&s->prop_ranges);
     if (s->frames)
         ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 

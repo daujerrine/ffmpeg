@@ -84,11 +84,6 @@ typedef struct FLIF16PixelData {
 
 typedef int32_t FLIF16ColorVal;
 
-typedef struct FLIF16MinMax {
-    int min;
-    int max;
-} FLIF16MinMax;
-
 typedef struct FLIF16Context {
     GetByteContext gb;
     FLIF16MANIACContext maniac_ctx;
@@ -158,15 +153,17 @@ typedef struct FLIF16Transform {
     void (*close) (FLIF16TransformContext *t_ctx);
 } FLIF16Transform;
 
-int32_t (*ff_flif16_maniac_ni_prop_ranges_init(unsigned int *prop_ranges_size,
-                                               FLIF16RangesContext *ranges,
-                                               uint8_t property,
-                                               uint8_t channels))[2];
+void ff_flif16_maniac_ni_prop_ranges_init(FLIF16MinMax *prop_ranges,
+                                          unsigned int *prop_ranges_size,
+                                          FLIF16RangesContext *ranges,
+                                          uint8_t plane,
+                                          uint8_t channels);
 
-int32_t (*ff_flif16_maniac_prop_ranges_init(unsigned int *prop_ranges_size,
-                                            FLIF16RangesContext *ranges,
-                                            uint8_t property,
-                                            uint8_t channels))[2];
+void ff_flif16_maniac_prop_ranges_init(FLIF16MinMax *prop_ranges,
+                                       unsigned int *prop_ranges_size,
+                                       FLIF16RangesContext *ranges,
+                                       uint8_t plane,
+                                       uint8_t channels);
 
 int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
                           uint8_t *is_const, uint8_t *const_plane_value,
