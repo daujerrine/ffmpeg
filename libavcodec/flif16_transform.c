@@ -2340,12 +2340,13 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
 {
     int temp;
     int exists;
+    
     switch (cb->i) {
     case 0:
         if (plane < FLIF16_PLANE_ALPHA)
         for (int p = 0; p < plane; p++) {
             if (!ff_colorbuckets_exists(cb, p, pixelL, pixelU)) {
-                goto end;
+                return 1;
             }
         }
         cb->smin = 0;
@@ -2358,13 +2359,15 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                                       &cb->smin, &cb->smax);
         RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
         if (exists == 0) {
-            goto end; // empty bucket
+            cb->i = 0;
+            return 1;    // empty bucket
         }
         if (cb->smin == cb->smax) {
             b->min = cb->smin;
             b->max = cb->smin;
             b->discrete = 0;
-            goto end;
+            cb->i = 0;
+            return 1;
         }
         cb->i = 2;
 
@@ -2376,20 +2379,24 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         RAC_GET(rc, &chancectx[2], b->min, cb->smax, &b->max, FLIF16_RAC_GNZ_INT);
         if (b->min == b->max) {
             b->discrete = 0;
-            goto end;
+            cb->i = 0;
+            return 1;
         }
         if (b->min + 1 == b->max) {
             b->discrete = 0;
-            goto end;
+            cb->i = 0;
+            return 1;
         }
         cb->i = 4;
 
     case 4:
         RAC_GET(rc, &chancectx[3], 0, 1, &b->discrete, FLIF16_RAC_GNZ_INT);
         cb->i = 5;
+    }
 
-    case 5:
-        if (b->discrete) {
+    if (b->discrete) {
+        switch (cb->i) {
+        case 5:
             RAC_GET(rc, &chancectx[4], 2, 
                     FFMIN(max_per_colorbucket[plane], b->max - b->min),
                     &cb->nb, FLIF16_RAC_GNZ_INT);
@@ -2398,33 +2405,31 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
             cb->v = b->min;
             cb->i = 6;
             cb->i2 = 1;
-
-            for (; cb->i2 < cb->nb - 1; cb->i2++) {    
-    case 6:     
+                
+        case 6:     
+            for (; cb->i2 < cb->nb - 1; cb->i2++) {
                 RAC_GET(rc, &chancectx[5], cb->v + 1,
                         b->max + 1 - cb->nb + cb->i2, &temp,
                         FLIF16_RAC_GNZ_INT);
                 b->values = ff_insert_colorvalCB(b->values, cb->i2, temp);
                 cb->v = temp;
             }
+            b->values_size = cb->nb - 1;
 
             if (b->min < b->max) {
                 b->values = ff_insert_colorvalCB(b->values, cb->nb - 1, b->max);
                 b->values_size = cb->nb;
-                goto end;
             }
-            b->values_size = cb->nb - 1;
         }
     }
 
-    end:
     cb->i = 0;
     cb->i2 = 0;
     cb->nb = 0;
     return 1;
 
     need_more_data:
-    return AVERROR(EAGAIN);
+        return AVERROR(EAGAIN);
 }
 
 static int transform_colorbuckets_read(FLIF16TransformContext *ctx,
