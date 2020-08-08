@@ -1143,10 +1143,9 @@ static void plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
     *max = zl;
 }
 
-static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
-                                                   uint8_t alpha_plane, int p,
-                                                   int z, uint32_t fr, uint32_t r)
-
+static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
+                                    uint8_t alpha_plane, int p,
+                                    int z, uint32_t fr, uint32_t r)
 {
     FLIF16ColorVal curr;
     uint32_t cs = ZOOM_COLPIXELSIZE(z);
@@ -1272,18 +1271,21 @@ static int  flif_decode_plane_zoomlevel_horizontal(FLIF16DecoderContext *s,
     return AVERROR(EAGAIN);
 }
 
-static int flif16_decode_plane_zoomlevel_vertical(FLIF16DecoderContext *s,
-                                                  FLIF16ColorVal *properties,
-                                                  FLIF16RangesContext *ranges,
-                                                  uint8_t alpha_plane,
-                                                  int p, int z, uint32_t fr, uint32_t r,
-                                                  uint8_t alphazero, uint8_t lookback,
-                                                  int predictor, int invisible_predictor)
+static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
+                                     uint8_t alpha_plane, int p,
+                                     int z, uint32_t fr, uint32_t r)
 {
     FLIF16ColorVal curr;
 
     const uint32_t cs = ZOOM_COLPIXELSIZE(z);
     const uint32_t rs = ZOOM_ROWPIXELSIZE(z);
+
+    FLIF16ColorVal *properties = s->properties;
+    FLIF16RangesContext *ranges = s->range;
+    uint8_t alphazero = s->alphazero;
+    uint8_t lookback = s->framelookback;
+    int predictor = s->predictor;
+    int invisible_predictor = s->ipp;
 
     switch (s->segment2) {
     case 0:
@@ -1516,7 +1518,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     for (s->i2 = 1; s->i2 < ZOOM_HEIGHT(s->height, s->curr_zoom); s->i2 += 2) {
                         for (s->i3 = 0; s->i3 < s->num_frames; s->i3++) {
     case 9:
-                            if(ret = flif_decode_plane_zoomlevel_horizontal(s, alpha_plane,
+                            if(ret = flif_read_plane_zl_horiz(s, alpha_plane,
                                s->curr_plane, s->curr_zoom, s->i3, s->i2))
                                 goto error;
                         }
@@ -1526,8 +1528,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     for (s->i2 = 0; s->i2 < ZOOM_HEIGHT(s->height, s->curr_zoom); s->i2++) {
                         for (s->i3 = 0; s->i3 < s->num_frames; s->i3++) {
     case 10:
-                            if(ret = flif16_decode_plane_zoomlevel_vertical(s, s->properties, s->range, alpha_plane,
-                               s->curr_plane, s->curr_zoom, s->i3, s->i2, s->alphazero, s->framelookback, s->predictor, s->ipp))
+                            if(ret = flif16_read_plane_zl_vert(s, alpha_plane,
+                               s->curr_plane, s->curr_zoom, s->i3, s->i2))
                                 goto error;
                         }
                     }
