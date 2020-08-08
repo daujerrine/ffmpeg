@@ -41,10 +41,10 @@ typedef enum FLIF16ParseStates {
 
 typedef struct FLIF16ParseContext {
     ParseContext pc;
-    int state;          ///< The section of the file the parser is in currently.
-    unsigned int index; ///< An index based on the current state.
-    uint8_t animated;   ///< Is image animated or not
-    uint8_t varint;     ///< Number of varints to process in sequence
+    FLIF16ParseStates state; ///< The section of the file the parser is in currently.
+    unsigned int index;      ///< An index based on the current state.
+    uint8_t animated;        ///< Is image animated or not
+    uint8_t varint;          ///< Number of varints to process in sequence
     uint32_t width;
     uint32_t height;
     uint32_t frames;
@@ -79,23 +79,23 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                         return AVERROR(ENOMEM);
 
                 switch (f->varint) {
-                    case 1:
-                        VARINT_APPEND(f->width, buf[index]);
-                        break;
-
-                    case 2:
-                        VARINT_APPEND(f->height, buf[index]);
-                        break;
-
-                    case 3:
-                        VARINT_APPEND(f->frames, buf[index]);
-                        break;
+                case 1:
+                    VARINT_APPEND(f->width, buf[index]);
+                    break;
+                
+                case 2:
+                    VARINT_APPEND(f->height, buf[index]);
+                    break;
+                
+                case 3:
+                    VARINT_APPEND(f->frames, buf[index]);
+                    break;
                 }
                 if (buf[index] < 128) {
                     if (f->varint < (2 + f->animated)) {
                         switch (f->varint) {
-                            case 1: f->width++;  break;
-                            case 2: f->height++; break;
+                        case 1: f->width++;  break;
+                        case 2: f->height++; break;
                         }
                         f->varint++;
                         f->count = 0;
