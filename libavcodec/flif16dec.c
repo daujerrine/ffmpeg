@@ -121,8 +121,8 @@ typedef struct FLIF16DecoderContext {
     uint32_t begin;
     uint32_t end;
     uint8_t curr_plane;        ///< State variable. Current plane under processing
-    FLIF16ColorVal *grays;
-    FLIF16ColorVal *properties;
+    FLIF16ColorVal grays[20];
+    FLIF16ColorVal properties[20];
     FLIF16ColorVal guess;      ///< State variable. Stores guess
     FLIF16ColorVal min, max;
     uint32_t c;                ///< State variable for current column
@@ -829,14 +829,12 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
-    FLIF16ColorVal min_p;
 
     // Set images to gray
     switch (s->segment) {
     case 0:
-        s->grays = compute_grays(s->range); // free later
-        if (!s->grays)
-            return AVERROR(ENOMEM);
+        for (int p = 0; p < s->range->num_planes; p++)
+            s->grays[p] = (ff_flif16_ranges_min(s->range, p) + ff_flif16_ranges_max(s->range, p)) / 2;
         s->i = s->i2 = s->i3 = 0;
         if (   (s->range->num_planes > 3 && ff_flif16_ranges_max(s->range, 3) == 0)
             || (s->range->num_planes > 3 && ff_flif16_ranges_min(s->range, 3) > 0))
@@ -846,37 +844,32 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
 
         for (; s->i < 5; s->i++) {
             s->curr_plane = plane_ordering[s->i];
+
             if (s->curr_plane >= s->num_planes) {
                 continue;
             }
+
             if (ff_flif16_ranges_min(s->range, s->curr_plane) >=
                 ff_flif16_ranges_max(s->range, s->curr_plane)) {
                 continue;
             }
-            s->properties = av_mallocz((s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]
-                                                          : properties_ni_rgb_size[s->curr_plane])
-                                                            * sizeof(*s->properties));
-            if (!s->properties)
-                return AVERROR(ENOMEM);
+
+            memset(s->properties, 0, (s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
+                                                        : properties_rgb_size[s->curr_plane])
+                                                          * sizeof(*s->properties));
             for (; s->i2 < s->height; s->i2++) {
                 for (; s->i3 < s->num_frames; s->i3++) {
     case 1:
                     ret = flif16_read_ni_plane(s, s->curr_plane, s->i3, s->i2);
-
                     if (ret) {
                         goto error;
                     }
                 } // End for
                 s->i3 = 0;
             } // End for
-            if (s->properties)
-                av_freep(&s->properties);
             s->i2 = 0;
         } // End for
     } // End switch
-
-    if (s->grays)
-            av_freep(&s->grays);
 
     for (int i = 0; i < s->num_frames; i++) {
         if (s->frames[i].seen_before >= 0)
@@ -1168,7 +1161,8 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                 for (s->c = 0; s->c < s->begin; s->c++)
                     if (PIXEL_GETZ(s, fr, FLIF16_PLANE_ALPHA, z, r, s->c) == 0)
                         PIXEL_SETZ(s, fr, p,  z, r, s->c,
-                        flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], p, z, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                        flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], p, z, r, s->c,
+                                                  ZOOM_HEIGHT(s->height, z), invisible_predictor));
                     else
                         PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
             } else if (p != 4) {
@@ -1499,12 +1493,6 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     if (s->curr_plane < 3 && s->num_planes > 3)
                         ff_flif16_prepare_zoomlevel(CTX_CAST(s), &s->frames[fr], 3, s->curr_zoom);
                 }
-
-                s->properties = av_realloc(s->properties, (s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
-                                                               : properties_rgb_size[s->curr_plane])
-                                                               * sizeof(*s->properties));
-                if (!s->properties)
-                    return AVERROR(ENOMEM);
 
                 memset(s->properties, 0, (s->num_planes > 3 ? properties_rgba_size[s->curr_plane]
                                                             : properties_rgb_size[s->curr_plane])
