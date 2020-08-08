@@ -35,8 +35,11 @@
 #include "flif16_rangecoder.h"
 
 #define MAX_PLANES 5
+#define MAX_TRANSFORMS 13
+#define MAX_PROPERTIES 12
 #define MAX_PREDICTORS 2
 #define MAX_PROP_RANGES 12
+
 
 #define VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint32_t) ((x) & 127)
 #define ZOOM_ROWPIXELSIZE(zoomlevel) (1 << (((zoomlevel) + 1) / 2))

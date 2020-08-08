@@ -81,6 +81,10 @@ typedef struct FLIF16Log4kTable {
     int scale;
 } FLIF16Log4kTable;
 
+
+/*
+ * Required by the multiscale chance context.
+ */
 static const uint32_t flif16_multiscale_alphas[] = {
     21590903, 66728412, 214748365, 7413105, 106514140, 10478104
 };
@@ -138,7 +142,7 @@ static uint16_t flif16_nz_int_chances[] = {
 
 
 typedef struct FLIF16MultiscaleChanceContext {
-    FLIF16MultiscaleChance data[FF_ARRAY_ELEMS(flif16_nz_int_chances) ];
+    FLIF16MultiscaleChance data[FF_ARRAY_ELEMS(flif16_nz_int_chances)];
 } FLIF16MultiscaleChanceContext;
 
 // Maybe rename to symbol context
@@ -171,17 +175,19 @@ typedef struct FLIF16RangeCoder {
     uint8_t segment2;
     int oldmin, oldmax;
 
-    #ifdef MULTISCALE_CHANCES_ENABLED
-    FLIF16MultiscaleChanceContext *maniac_ctx;
-    #else
-    FLIF16ChanceContext *maniac_ctx;
-    #endif
+#ifdef MULTISCALE_CHANCES_ENABLED
+    FLIF16MultiscaleChanceContext *curr_leaf;
+#else
+    FLIF16ChanceContext *curr_leaf;
+#endif
 
     FLIF16ChanceTable ct;
+
 #ifdef MULTISCALE_CHANCES_ENABLED
     FLIF16MultiscaleChanceTable *mct;
     FLIF16Log4kTable log4k;
 #endif
+
     GetByteContext *gb;
 } FLIF16RangeCoder;
 
@@ -258,8 +264,7 @@ FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void);
 
 #endif
 
-int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc,
-                              FLIF16MANIACContext *m,
+int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                               int32_t *properties, uint8_t channel,
                               int min, int max, int *target);
 
@@ -288,22 +293,18 @@ static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
     return 1;
 }
 
-uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc,
-                               uint8_t *target);
+uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc, uint8_t *target);
 
 uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
                                    uint16_t b12, uint8_t *target);
 
-int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
-                               int32_t min, int32_t len,
+int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc, int32_t min, int32_t len,
                                int type, void *target);
 
-int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
-                              FLIF16ChanceContext *ctx,
+int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
                               int min, int max, int *target);
 
-int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc,
-                               FLIF16ChanceContext *ctx,
+int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
                                int min, int max, int *target);
 
 /**
@@ -313,7 +314,7 @@ int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc,
  * @param[out] target The place where the resultant value should be written to
  * @param[in]  type The type of the integer to be decoded specified by
  *             FLIF16RACTypes
- * @return 0 on bytestream empty, 1 on successful decoding.
+ * @return     0 on bytestream empty, 1 on successful decoding.
  */
 static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
                                         void *ctx,
