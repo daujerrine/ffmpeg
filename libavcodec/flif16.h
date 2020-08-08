@@ -252,7 +252,7 @@ static inline void ff_flif16_pixel_set_fast(FLIF16Context *s,
     ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]] = value;
 }
 
-static inline void ff_flif16_copy_rows(FLIF16Context *s,
+static inline void ff_flif16_copy_cols(FLIF16Context *s,
                                        FLIF16PixelData *dest,
                                        FLIF16PixelData *src, uint8_t plane,
                                        uint32_t row, uint32_t col_start,
@@ -264,7 +264,7 @@ static inline void ff_flif16_copy_rows(FLIF16Context *s,
     }
 }
 
-static inline void ff_flif16_copy_rows_stride(FLIF16Context *s,
+static inline void ff_flif16_copy_cols_stride(FLIF16Context *s,
                                               FLIF16PixelData *dest,
                                               FLIF16PixelData *src, uint8_t plane,
                                               uint32_t row, uint32_t col_start,

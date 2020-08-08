@@ -83,7 +83,7 @@ typedef struct FLIF16Log4kTable {
 
 
 /*
- * Required by the multiscale chance context.
+ * Required by the multiscale chance probability model's algorithm.
  */
 static const uint32_t flif16_multiscale_alphas[] = {
     21590903, 66728412, 214748365, 7413105, 106514140, 10478104
@@ -242,14 +242,27 @@ void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
 
 void ff_flif16_rac_free(FLIF16RangeCoder *rc);
 
+uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc, uint8_t *target);
+
+uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
+                                   uint16_t b12, uint8_t *target);
+
+int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc, int32_t min, int32_t len,
+                               int type, void *target);
+
+int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
+                              int min, int max, int *target);
+
+int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
+                               int min, int max, int *target);
+
 void ff_flif16_chancecontext_init(FLIF16ChanceContext *ctx);
 
 void ff_flif16_chancetable_init(FLIF16ChanceTable *ct, int alpha, int cut);
 
 void ff_flif16_build_log4k_table(FLIF16Log4kTable *log4k);
 
-int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc,
-                               FLIF16MANIACContext *m,
+int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                                FLIF16MinMax *prop_ranges,
                                unsigned int prop_ranges_size,
                                unsigned int channel);
@@ -267,11 +280,6 @@ FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void);
 int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                               int32_t *properties, uint8_t channel,
                               int min, int max, int *target);
-
-#define MANIAC_GET(rc, m, prop, channel, min, max, target) \
-    if (!ff_flif16_maniac_read_int((rc), (m), (prop), (channel), (min), (max), (target))) {\
-        goto need_more_data; \
-    }
 
 static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
 {
@@ -293,20 +301,6 @@ static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
     return 1;
 }
 
-uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc, uint8_t *target);
-
-uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
-                                   uint16_t b12, uint8_t *target);
-
-int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc, int32_t min, int32_t len,
-                               int type, void *target);
-
-int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
-                              int min, int max, int *target);
-
-int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
-                               int min, int max, int *target);
-
 /**
  * Reads an integer encoded by FLIF's RAC.
  * @param[in]  val1 A generic value, chosen according to the required type
@@ -316,10 +310,10 @@ int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
  *             FLIF16RACTypes
  * @return     0 on bytestream empty, 1 on successful decoding.
  */
+
 static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
-                                        void *ctx,
-                                        int val1, int val2, void *target,
-                                        int type)
+                                        void *ctx, int val1, int val2,
+                                        void *target, int type)
 {
     int flag = 0;
     while (!flag) {
@@ -375,6 +369,11 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
 
 #define RAC_GET(rc, ctx, val1, val2, target, type) \
     if (!ff_flif16_rac_process((rc), (ctx), (val1), (val2), (target), (type))) {\
+        goto need_more_data; \
+    }
+
+#define MANIAC_GET(rc, m, prop, channel, min, max, target) \
+    if (!ff_flif16_maniac_read_int((rc), (m), (prop), (channel), (min), (max), (target))) {\
         goto need_more_data; \
     }
 

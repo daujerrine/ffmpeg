@@ -121,8 +121,8 @@ typedef struct FLIF16DecoderContext {
     uint32_t begin;
     uint32_t end;
     uint8_t curr_plane;        ///< State variable. Current plane under processing
-    FLIF16ColorVal grays[20];
-    FLIF16ColorVal properties[20];
+    FLIF16ColorVal grays[MAX_PLANES];
+    FLIF16ColorVal properties[MAX_PROPERTIES];
     FLIF16ColorVal guess;      ///< State variable. Stores guess
     FLIF16ColorVal min, max;
     uint32_t c;                ///< State variable for current column
@@ -161,12 +161,6 @@ typedef struct FLIF16DecoderContext {
 #define LOOKBACK_FRAMENUMZ(ctx, frames, f_no, z, r, c) (((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before >= 0) ? \
                                                        ((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before) : \
                                                        ((f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))))
-
-// Static property values
-static const int properties_ni_rgb_size[] = {7, 8, 9, 7, 7};
-static const int properties_ni_rgba_size[] = {8, 9, 10, 7, 7};
-static const int properties_rgb_size[] = {8, 10, 9, 8, 8};
-static const int properties_rgba_size[] = {9, 11, 10, 8, 8};
 
 // From reference decoder:
 //
@@ -705,7 +699,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                         PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, c));
                     }
             } else if (p != 4) {
-                ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr],
+                ff_flif16_copy_cols(CTX_CAST(s), &s->frames[fr],
                                     PREV_FRAME(s->frames, fr), p, r, 0, s->begin);
             }
         } else {
@@ -801,7 +795,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                         PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, s->c));
                     }
             } else if(p != 4) {
-                 ff_flif16_copy_rows(CTX_CAST(s), &s->frames[fr],
+                 ff_flif16_copy_cols(CTX_CAST(s), &s->frames[fr],
                  PREV_FRAME(s->frames, fr), p, r, s->end, s->width);
             }
         }
@@ -1155,10 +1149,10 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                         PIXEL_SETZ(s, fr, p, z, r, s->c,
                                    PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
             } else if (p != 4) {
-                ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
+                ff_flif16_copy_cols_stride(CTX_CAST(s), &s->frames[fr],
                                            &s->frames[fr - 1], p,
                                            rs * r, cs * 0, cs * s->begin, cs);
-                ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
+                ff_flif16_copy_cols_stride(CTX_CAST(s), &s->frames[fr],
                                            &s->frames[fr - 1], p,
                                            rs * r, cs * s->end,
                                            cs * ZOOM_WIDTH(s->width, z), cs);
@@ -1310,10 +1304,10 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                     else
                         PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
             } else if (p != 4) {
-                ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
+                ff_flif16_copy_cols_stride(CTX_CAST(s), &s->frames[fr],
                                            &s->frames[fr - 1], p,
                                            rs * r, cs * 1, cs * s->begin, cs * 2);
-                ff_flif16_copy_rows_stride(CTX_CAST(s), &s->frames[fr],
+                ff_flif16_copy_cols_stride(CTX_CAST(s), &s->frames[fr],
                                            &s->frames[fr - 1], p,
                                            rs * r, cs * s->end, cs * ZOOM_WIDTH(s->width, z), cs * 2);
             }

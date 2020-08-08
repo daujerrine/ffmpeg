@@ -136,14 +136,6 @@ int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
 
 // Nearzero integer definitions
 
-static inline void ff_flif16_chancetable_put(FLIF16RangeCoder *rc,
-                                             FLIF16ChanceContext *ctx,
-                                             uint16_t type, uint8_t bit)
-{
-    ctx->data[type] = (!bit) ? rc->ct.zero_state[ctx->data[type]]
-                             : rc->ct.one_state[ctx->data[type]];
-}
-
 #ifdef MULTISCALE_CHANCES_ENABLED
 static inline void ff_flif16_chance_estim(FLIF16RangeCoder *rc,
                                           uint16_t chance, uint8_t bit,
@@ -153,33 +145,17 @@ static inline void ff_flif16_chance_estim(FLIF16RangeCoder *rc,
 }
 #endif
 
-/**
- * Reads a near-zero encoded symbol into the RAC probability model/chance table
- * @param type The symbol chance specified by the NZ_INT_* macros
- */
-// TODO remove return value
-static inline uint8_t ff_flif16_rac_read_symbol(FLIF16RangeCoder *rc,
-                                                FLIF16ChanceContext *ctx,
-                                                uint16_t type,
-                                                uint8_t *target)
-{
-    ff_flif16_rac_read_chance(rc, ctx->data[type], target);
-    ff_flif16_chancetable_put(rc, ctx, type, *target);
-    return 1;
-}
-
 // NearZero Integer Coder
 
 static inline int ff_flif16_rac_nz_read_internal(FLIF16RangeCoder *rc,
                                                  FLIF16ChanceContext *ctx,
                                                  uint16_t type, uint8_t *target)
 {
-    int flag = 0;
-    while (!flag) {
-        if(!ff_flif16_rac_renorm(rc))
-            return 0; // EAGAIN condition
-        flag = ff_flif16_rac_read_symbol(rc, ctx, type, target);
-    }
+    if(!ff_flif16_rac_renorm(rc))
+        return 0; // EAGAIN condition
+    ff_flif16_rac_read_chance(rc, ctx->data[type], target);
+    ctx->data[type] = (!*target) ? rc->ct.zero_state[ctx->data[type]]
+                                 : rc->ct.one_state[ctx->data[type]];
     return 1;
 }
 
@@ -343,12 +319,9 @@ static inline int ff_flif16_rac_nz_read_multiscale_internal(FLIF16RangeCoder *rc
                                                             uint16_t type, uint8_t *target)
 {
     int flag = 0;
-    // Maybe remove the while loop
-    while (!flag) {
-        if(!ff_flif16_rac_renorm(rc))
-            return 0; // EAGAIN condition
-        flag = ff_flif16_rac_read_multiscale_symbol(rc, ctx, type, target);
-    }
+    if(!ff_flif16_rac_renorm(rc))
+        return 0; // EAGAIN condition
+    flag = ff_flif16_rac_read_multiscale_symbol(rc, ctx, type, target);
     return 1;
 }
 
