@@ -589,12 +589,9 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
 
 static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
                                                   FLIF16PixelData *pixel,
-                                                  FLIF16ColorVal *properties,
-                                                  FLIF16RangesContext *ranges_ctx,
                                                   uint8_t p, uint32_t r,
-                                                  uint32_t c, FLIF16ColorVal *min,
-                                                  FLIF16ColorVal *max,
-                                                  const FLIF16ColorVal fallback,
+                                                  uint32_t c,
+                                                  FLIF16ColorVal fallback,
                                                   uint8_t nobordercases)
 {
     FLIF16ColorVal guess, left, top, topleft, gradientTL;
@@ -602,12 +599,17 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
     int which = 0;
     int index = 0;
 
+    FLIF16ColorVal *properties = s->properties;
+    FLIF16RangesContext *ranges_ctx = s->range;
+    FLIF16ColorVal *min = &s->min;
+    FLIF16ColorVal *max = &s->max;
+
     if (p < 3) {
         for (int pp = 0; pp < p; pp++) {
-            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, pp, r, c); //image(pp,r,c);
+            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, pp, r, c);
         }
         if (ranges_ctx->num_planes > 3) {
-            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c); //image(3,r,c);
+            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), pixel, 3, r, c);
         }
     }
     left = (nobordercases || c > 0 ? ff_flif16_pixel_get(CTX_CAST(s), pixel, p, r, c-1) :
@@ -722,8 +724,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                     flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
                     continue;
                 }
-                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr],
-                           properties, ranges_ctx, p, r, s->c, &s->min, &s->max, min_p, 0);
+                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
     case 1:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -739,8 +740,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                     flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
                     continue;
                 }
-                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr],
-                           properties, ranges_ctx, p, r, s->c, &s->min, &s->max, min_p, 1);
+                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 1);
     case 2:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -755,8 +755,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                     PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
                     continue;
                 }
-               s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr],
-                          properties, ranges_ctx, p, r, s->c, &s->min, &s->max, min_p, 0);
+               s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
     case 3:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -780,9 +779,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                     PIXEL_GET(s, LOOKBACK_FRAMENUM(s, s->frames, fr, r, s->c), p, r, s->c));
                     continue;
                 }
-                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], properties,
-                                                       ranges_ctx, p, r, s->c, &s->min,
-                                                       &s->max, min_p, 0);
+                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
                 if (s->framelookback && p == FLIF16_PLANE_LOOKBACK && s->max > fr)
                     s->max = fr;
     case 4:
@@ -857,8 +854,8 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                 continue;
             }
             s->properties = av_mallocz((s->num_planes > 3 ? properties_ni_rgba_size[s->curr_plane]
-                                                        : properties_ni_rgb_size[s->curr_plane])
-                                                        * sizeof(*s->properties));
+                                                          : properties_ni_rgb_size[s->curr_plane])
+                                                            * sizeof(*s->properties));
             if (!s->properties)
                 return AVERROR(ENOMEM);
             for (; s->i2 < s->height; s->i2++) {
