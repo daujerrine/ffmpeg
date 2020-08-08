@@ -250,7 +250,7 @@ static int flif16_read_header(AVCodecContext *avctx)
         return ret;
 
     if (s->num_frames > 1) {
-        s->framedelay = av_mallocz(sizeof(*(s->framedelay)) * s->num_frames);
+        s->framedelay = av_malloc_array(s->num_frames, sizeof(*(s->framedelay)));
         if (!s->framedelay)
             return AVERROR(ENOMEM);
     }
@@ -671,13 +671,14 @@ static inline FLIF16ColorVal flif16_ni_predict(FLIF16DecoderContext *s,
     return MEDIAN3(gradientTL, left, top);
 }
 
-static int flif16_read_ni_plane(FLIF16DecoderContext *s,
-                                FLIF16RangesContext *ranges_ctx,
-                                FLIF16ColorVal *properties, uint8_t p,
-                                uint32_t fr, uint32_t r, FLIF16ColorVal gray,
-                                FLIF16ColorVal minP)
+static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
+                                uint32_t r)
 {
     FLIF16ColorVal curr;
+    FLIF16RangesContext *ranges_ctx = s->range;
+    FLIF16ColorVal *properties = s->properties;
+    FLIF16ColorVal gray = s->grays[p];
+    FLIF16ColorVal min_p = ff_flif16_ranges_min(ranges_ctx, p);
 
     switch (s->segment2) {
     case 0:
@@ -722,7 +723,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     continue;
                 }
                 s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr],
-                           properties, ranges_ctx, p, r, s->c, &s->min, &s->max, minP, 0);
+                           properties, ranges_ctx, p, r, s->c, &s->min, &s->max, min_p, 0);
     case 1:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -739,7 +740,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     continue;
                 }
                 s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr],
-                           properties, ranges_ctx, p, r, s->c, &s->min, &s->max, minP, 1);
+                           properties, ranges_ctx, p, r, s->c, &s->min, &s->max, min_p, 1);
     case 2:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -755,7 +756,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                     continue;
                 }
                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr],
-                          properties, ranges_ctx, p, r, s->c, &s->min, &s->max, minP, 0);
+                          properties, ranges_ctx, p, r, s->c, &s->min, &s->max, min_p, 0);
     case 3:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -781,7 +782,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s,
                 }
                 s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], properties,
                                                        ranges_ctx, p, r, s->c, &s->min,
-                                                       &s->max, minP, 0);
+                                                       &s->max, min_p, 0);
                 if (s->framelookback && p == FLIF16_PLANE_LOOKBACK && s->max > fr)
                     s->max = fr;
     case 4:
@@ -863,14 +864,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
             for (; s->i2 < s->height; s->i2++) {
                 for (; s->i3 < s->num_frames; s->i3++) {
     case 1:
-                    // TODO maybe put this in dec ctx
-                    min_p = ff_flif16_ranges_min(s->range, s->curr_plane);
-                    ret = flif16_read_ni_plane(s, s->range, s->properties,
-                                               s->curr_plane,
-                                               s->i3,
-                                               s->i2,
-                                               s->grays[s->curr_plane],
-                                               min_p);
+                    ret = flif16_read_ni_plane(s, s->curr_plane, s->i3, s->i2);
 
                     if (ret) {
                         goto error;
@@ -882,7 +876,6 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
                 av_freep(&s->properties);
             s->i2 = 0;
         } // End for
-
     } // End switch
 
     if (s->grays)
