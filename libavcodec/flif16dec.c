@@ -744,7 +744,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                     PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
                     continue;
                 }
-               s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
+                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
     case 3:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -789,8 +789,8 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                         PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, s->c));
                     }
             } else if(p != 4) {
-                 ff_flif16_copy_cols(CTX_CAST(s), &s->frames[fr],
-                 PREV_FRAME(s->frames, fr), p, r, s->end, s->width);
+                ff_flif16_copy_cols(CTX_CAST(s), &s->frames[fr],
+                PREV_FRAME(s->frames, fr), p, r, s->end, s->width);
             }
         }
     }

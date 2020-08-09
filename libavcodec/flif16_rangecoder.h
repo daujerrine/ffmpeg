@@ -24,8 +24,8 @@
  * Range coder for FLIF16.
  */
 
-#ifndef FLIF16_RANGECODER_H
-#define FLIF16_RANGECODER_H
+#ifndef AVCODEC_FLIF16_RANGECODER_H
+#define AVCODEC_FLIF16_RANGECODER_H
 
 #include "libavutil/mem.h"
 #include "libavutil/intmath.h"

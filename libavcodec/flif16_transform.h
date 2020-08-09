@@ -24,8 +24,8 @@
  * Transforms for FLIF16.
  */
 
-#ifndef FLIF16_TRANSFORM_H
-#define FLIF16_TRANSFORM_H
+#ifndef AVCODEC_FLIF16_TRANSFORM_H
+#define AVCODEC_FLIF16_TRANSFORM_H
 
 #include "avcodec.h"
 #include "libavutil/common.h"
