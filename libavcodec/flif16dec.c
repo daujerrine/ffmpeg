@@ -659,7 +659,6 @@ static inline FLIF16ColorVal flif16_ni_predict(FLIF16DecoderContext *s,
                                                uint32_t fr, uint32_t p,
                                                uint32_t r)
 {
-    uint32_t c = s->c;
     uint32_t gray = s->grays[p];
     FLIF16ColorVal left = (s->c > 0 ? PIXEL_GET(s, fr, p, r, s->c - 1) :
                           (r > 0 ? PIXEL_GET(s, fr, p, r - 1, s->c) : gray));
@@ -1291,8 +1290,6 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
 
     const uint32_t cs = ZOOM_COLPIXELSIZE(z), rs = ZOOM_ROWPIXELSIZE(z);
     const uint32_t zh = ZOOM_HEIGHT(s->height, z), zw = ZOOM_WIDTH(s->width, z);
-
-    FLIF16ColorVal *properties = s->properties;
 
     switch (s->segment2) {
     case 0:

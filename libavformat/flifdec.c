@@ -29,6 +29,8 @@
 #include "libavutil/intreadwrite.h"
 #include "libavutil/opt.h"
 #include "internal.h"
+#include "libavcodec/exif.h"
+
 #include "libavcodec/flif16.h"
 #include "libavcodec/flif16_rangecoder.h"
 
@@ -36,15 +38,18 @@
 
 // Remove later
 #include <stdio.h>
-
-
-// Uncomment to enable metadata reading
+#undef CONFIG_ZLIB
 #define CONFIG_ZLIB 0
-
 #if CONFIG_ZLIB
 #include <zlib.h>
 #endif
 
+/*
+ * FLIF's reference encoder currently encodes metadata as a raw DEFLATE stream
+ * (RFC 1951). In order to decode a raw deflate stream using Zlib, inflateInit2
+ * must be used with windowBits being between -8 .. -15.
+ */
+#define ZLIB_WINDOW_BITS -15
 #define BUF_SIZE 4096
 
 typedef struct FLIFDemuxContext {
@@ -53,7 +58,6 @@ typedef struct FLIFDemuxContext {
     z_stream stream;
     uint8_t active;
 #endif
-    int64_t duration;
 } FLIFDemuxContext;
 
 
@@ -71,43 +75,42 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
         stream->opaque   = Z_NULL;
         stream->avail_in = 0;
         stream->next_in  = Z_NULL;
-        ret = inflateInit(stream);
+        ret = inflateInit2(stream,ZLIB_WINDOW_BITS);
 
         if (ret != Z_OK)
             return ret;
 
         *out_buf_size = buf_size;
-        *out_buf = av_realloc(*out_buf, *out_buf_size);
+        *out_buf = av_realloc_f(*out_buf, *out_buf_size, 1);
         if (!*out_buf)
             return AVERROR(ENOMEM);
     }
-
-    stream->next_in  = buf;
-    stream->avail_in = buf_size;
-    while (stream->total_out >= *out_buf_size) {
-        *out_buf = av_realloc(*out_buf, (*out_buf_size) * 2);
+    stream->next_in  = buf + stream->total_in;
+    stream->avail_in = buf_size - stream->total_in;
+    while (stream->total_out >= (*out_buf_size - 1)) {
+        printf("Reallocating\n");
+        *out_buf = av_realloc_f(*out_buf, (*out_buf_size) * 2, 1);
         if (!out_buf)
             return AVERROR(ENOMEM);
         *out_buf_size *= 2;
     }
 
-    stream->next_out  = *out_buf + stream->total_out;
+    stream->next_out  = *out_buf + stream->total_out + 1;
     stream->avail_out = *out_buf_size - stream->total_out - 1; // Last byte should be NULL char
+    printf("%d %d %d %d %d\n", stream->next_in, stream->avail_in, stream->next_out, stream->avail_out,
+           stream->total_out);
     printf("First 10 bytes: ");
     for (int i = 0; i < FFMIN(10, buf_size); ++i)
         printf("%x ", buf[i]);
     printf("\n");
     printf("Buf size: %d, Outbuf size: %d\n", buf_size, *out_buf_size);
-    ret = inflate(stream, Z_NO_FLUSH);
+    ret = inflate(stream, Z_PARTIAL_FLUSH);
     printf("Return: %d Message: %s \nZ_NEED_DICT: %d\nZ_DATA_ERROR: %d\n"
            "Z_MEM_ERROR: %d\n", ret, stream->msg, Z_NEED_DICT, Z_DATA_ERROR,
            Z_MEM_ERROR);
     switch (ret) {
         case Z_NEED_DICT:
         case Z_DATA_ERROR:
-            ret = inflateSync(stream);
-            printf("Sync ret: %d\n", ret);
-            printf("Buf size: %d, Outbuf size: %d\n", buf_size, *out_buf_size);
             (void)inflateEnd(stream);
             return AVERROR_INVALIDDATA;
         case Z_MEM_ERROR:
@@ -116,7 +119,7 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
     }
 
     if (ret == Z_STREAM_END) {
-        ret = 0;
+        printf("end of stream\n");
         s->active = 0;
         (*out_buf)[stream->total_out] = '\0';
         (void) inflateEnd(stream);
@@ -126,6 +129,49 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
     return ret; // Return Z_BUF_ERROR/EAGAIN as long as input is incomplete.
 }
 #endif
+
+
+static int flif_read_exif(uint8_t *buf, int buf_size, AVDictionary *d)
+{
+    uint8_t le;
+    uint32_t temp;
+    GetByteContext *gb;
+    if (memcmp("Exif", buf, 4))
+        return AVERROR_INVALIDDATA;
+
+    // Skip exif header
+    buf += 6;
+
+    // Figure out endianness
+    if (buf[0] == 'M' && buf[1] == 'M')
+        le = 1;
+    else if (buf[0] == 'I' && buf[1] == 'I')
+        le = 0;
+    else
+        return AVERROR_INVALIDDATA;
+
+    buf += 2;
+
+    // Check TIFF marker
+    if (*buf != 0x2A)
+        return AVERROR_INVALIDDATA;
+
+    bytestream2_init(&gb, buf, buf_size - 7);
+
+    if (le)
+        temp = bytestream2_get_le32(&gb);
+    else
+        temp = bytestream2_get_be32(&gb);
+
+    bytestream2_seek(&gb, temp - 3, SEEK_CUR);
+
+    if (le)
+        temp = bytestream2_get_le16(&gb);
+    else
+        temp = bytestream2_get_be16(&gb);
+
+    return 0;
+}
 
 static int flif16_probe(const AVProbeData *p)
 {
@@ -175,6 +221,7 @@ static int flif16_read_header(AVFormatContext *s)
     uint32_t metadata_size = 0;
     uint8_t *out_buf = NULL;
     int out_buf_size = 0;
+    int buf_size = 0;
 
     unsigned int count = 4;
     int ret;
@@ -185,6 +232,10 @@ static int flif16_read_header(AVFormatContext *s)
     uint8_t num_planes;
     uint8_t num_frames;
 
+#if !CONFIG_ZLIB
+    av_log(s, AV_LOG_WARNING, "ffmpeg has not been compiled with Zlib. Metadata may not be decoded.\n");
+#endif
+
     // Magic Number
     if (avio_rl32(pb) != (*((uint32_t *) flif16_header))) {
         av_log(s, AV_LOG_ERROR, "bad magic number\n");
@@ -192,6 +243,8 @@ static int flif16_read_header(AVFormatContext *s)
     }
 
     st = avformat_new_stream(s, NULL);
+    if (!st)
+        return AVERROR(ENOMEM);
     flag = avio_r8(pb);
     animated = (flag >> 4) > 4;
     duration = !animated;
@@ -209,9 +262,8 @@ static int flif16_read_header(AVFormatContext *s)
         count = 4;
     }
 
-
-    ++vlist[0];
-    ++vlist[1];
+    vlist[0]++;
+    vlist[1]++;
     if (animated)
         vlist[2] += 2;
     else
@@ -221,13 +273,9 @@ static int flif16_read_header(AVFormatContext *s)
 
     while ((temp = avio_r8(pb))) {
         // Get metadata identifier
-        #if CONFIG_ZLIB
         tag[0] = temp;
         for(int i = 1; i <= 3; ++i)
             tag[i] = avio_r8(pb);
-        #else
-        avio_skip(pb, 3);
-        #endif
 
         // Read varint
         while ((temp = avio_r8(pb)) > 127) {
@@ -238,27 +286,35 @@ static int flif16_read_header(AVFormatContext *s)
         VARINT_APPEND(metadata_size, temp);
         count = 4;
 
-        #if CONFIG_ZLIB
+#if CONFIG_ZLIB
         // Decompression Routines
         while (metadata_size > 0) {
-            ret = avio_read(pb, buf, FFMIN(BUF_SIZE, metadata_size));
-            metadata_size -= ret;
-            if((ret = flif_inflate(dc, buf, ret, &out_buf, &out_buf_size)) < 0 &&
-                ret != AVERROR(EAGAIN)) {
-                av_log(s, AV_LOG_ERROR, "could not decode metadata\n");
-                return ret;
-            }
+            if ((buf_size = avio_read_partial(pb, buf, FFMIN(BUF_SIZE, metadata_size))) < 0)
+                return buf_size;
+            metadata_size -= buf_size;
+            do {
+                if((ret = flif_inflate(dc, buf, buf_size, &out_buf, &out_buf_size)) < 0 &&
+                    ret != AVERROR(EAGAIN)) {
+                    av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
+                    return ret;
+                }
+            } while (ret == AVERROR(EAGAIN));
         }
-        av_dict_set(&s->metadata, tag, out_buf, 0);
-        #else
+
+        if (!memcmp("eXif", tag, 4)) {
+            for(int i = 0; i < out_buf_size; i++)
+                printf("%x ", out_buf[i]);
+            printf("\n");
+            ret = avpriv_exif_decode_ifd(s, out_buf + 0x10, out_buf_size - 0x10, 0, 12, &s->metadata);
+            printf("Return: %d\n", ret);
+        } else
+            av_dict_set(&s->metadata, tag, out_buf, 0);
+#else
         avio_skip(pb, metadata_size);
-        #endif
+#endif
     }
 
-    #if CONFIG_ZLIB
-    if (out_buf)
-        av_freep(&out_buf);
-    #endif
+    av_freep(&out_buf);
 
     avio_read(pb, buf, FLIF16_RAC_MAX_RANGE_BYTES);
     ff_flif16_rac_init(&rc, NULL, buf, FLIF16_RAC_MAX_RANGE_BYTES);
