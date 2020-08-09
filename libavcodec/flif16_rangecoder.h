@@ -245,7 +245,7 @@ void ff_flif16_rac_free(FLIF16RangeCoder *rc);
 uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc, uint8_t *target);
 
 uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
-                                   uint16_t b12, uint8_t *target);
+                                   uint64_t b12, uint8_t *target);
 
 int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc, int32_t min, int32_t len,
                                int type, void *target);

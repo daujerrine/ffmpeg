@@ -75,16 +75,9 @@ uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc,
 }
 
 uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
-                                   uint16_t b12, uint8_t *target)
+                                   uint64_t b12, uint8_t *target)
 {
-    uint32_t ret;
-
-    if (sizeof(rc->range) > 4)
-        ret = ((rc->range) * b12 + 0x800) >> 12;
-    else
-        ret = (((((rc->range) & 0xFFF) * b12 + 0x800) >> 12) +
-              (((rc->range) >> 12) * b12));
-
+    uint32_t ret = ((rc->range) * b12 + 0x800) >> 12;
     return ff_flif16_rac_get(rc, ret, target);
 }
 
