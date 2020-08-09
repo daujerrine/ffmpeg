@@ -1161,7 +1161,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
     FLIF16ColorVal *properties = s->properties;
     uint8_t alphazero = s->alphazero;
     uint8_t lookback = s->framelookback;
-    int invisible_predictor = s->ipp;
+    int ipp = s->ipp;
 
     switch (s->segment2) {
     case 0:
@@ -1177,7 +1177,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                     if (PIXEL_GETZ(s, fr, FLIF16_PLANE_ALPHA, z, r, s->c) == 0)
                         PIXEL_SETZ(s, fr, p,  z, r, s->c,
                         flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], p, z, r, s->c,
-                                                  ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                                                  ZOOM_HEIGHT(s->height, z), ipp));
                     else
                         PIXEL_SETZ(s, fr, p, z, r, s->c,
                                    PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
@@ -1201,10 +1201,10 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
             && s->begin == 0 && s->end > 3) {
             for (s->c = s->begin; s->c < 2; s->c++) {
                 // TODO change FLIF16_PLANE_ALPHA to variable as appropriate
-                if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, FLIF16_PLANE_ALPHA, r, s->c) == 0) {
+                if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
                 s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 1, 0);
@@ -1220,7 +1220,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
                 s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 1, 1);
@@ -1236,7 +1236,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
                 s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 1, 0);
@@ -1252,7 +1252,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
                 if (lookback && p < 4 && PIXEL_GETZ(s, fr, FLIF16_PLANE_LOOKBACK, z, r, s->c) > 0) {
@@ -1281,7 +1281,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                 if (PIXEL_GETZ(s, fr, p, z, r, s->c) == 0)
                     PIXEL_SETZ(s, fr, p, z, r, s->c,
                                flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                               z, p, r, s->c, ZOOM_HEIGHT(s->height, z), invisible_predictor));
+                               z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
                 else
                     PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
         }
@@ -1305,7 +1305,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
     FLIF16ColorVal *properties = s->properties;
     uint8_t alphazero = s->alphazero;
     uint8_t lookback = s->framelookback;
-    int invisible_predictor = s->ipp;
+    int ipp = s->ipp;
 
     switch (s->segment2) {
     case 0:
@@ -1324,7 +1324,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                     if (PIXEL_GETZ(s, fr, alpha_plane, z, r, s->c) == 0)
                         PIXEL_SETZ(s, fr, p, z, r, s->c,
                                    flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                   z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
+                                   z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
                     else
                         PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
             } else if (p != 4) {
@@ -1349,7 +1349,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r,s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
                 s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 0, 0);
@@ -1365,7 +1365,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
                 s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 0, 1);
@@ -1381,7 +1381,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
                 s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c,0, 0);
@@ -1397,7 +1397,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
                                   flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
+                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
                 if (lookback && p < 4
@@ -1427,7 +1427,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
             if (PIXEL_GETZ(s, fr - 1, alpha_plane, z, r, s->c) == 0)
                 PIXEL_SETZ(s, fr, p, z, r, s->c,
                            flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                           z, p, r, s->c, ZOOM_WIDTH(s->width, z), invisible_predictor));
+                           z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
             else
                 PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
     }

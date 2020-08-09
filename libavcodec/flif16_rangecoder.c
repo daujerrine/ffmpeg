@@ -555,11 +555,11 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                 return AVERROR(ENOMEM);
 
             for (int i = 0; i < 3; i++) {
-                #ifdef MULTISCALE_CHANCES_ENABLED
+#ifdef MULTISCALE_CHANCES_ENABLED
                 ff_flif16_multiscale_chancecontext_init(&m->ctx[i]);
-                #else
+#else
                 ff_flif16_chancecontext_init(&m->ctx[i]);
-                #endif
+#endif
             }
             m->stack_top = m->tree_top = 0;
             m->forest[channel]->size    = MANIAC_TREE_BASE_SIZE;
@@ -595,15 +595,9 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
             rc->segment2++;
 
     case 2:
-            #ifdef MULTISCALE_CHANCES_ENABLED
             RAC_GET(rc, &m->ctx[0], 0, prop_ranges_size,
                     &m->forest[channel]->data[m->stack[m->stack_top - 1].id].property,
-                    FLIF16_RAC_GNZ_MULTISCALE_INT);
-            #else
-            RAC_GET(rc, &m->ctx[0], 0, prop_ranges_size,
-                    &m->forest[channel]->data[m->stack[m->stack_top - 1].id].property,
-                    FLIF16_RAC_GNZ_INT);
-            #endif
+                    FLIF16_RAC_MANIAC_GNZ_INT);
             p = --(m->forest[channel]->data[m->stack[m->stack_top - 1].id].property);
             if (p == -1) {
                 --m->stack_top;
@@ -620,27 +614,15 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
             rc->segment2++;
 
     case 3:
-            #ifdef MULTISCALE_CHANCES_ENABLED
             RAC_GET(rc, &m->ctx[1], MANIAC_TREE_MIN_COUNT, MANIAC_TREE_MAX_COUNT,
                     &m->forest[channel]->data[m->stack[m->stack_top - 1].id].count,
-                    FLIF16_RAC_GNZ_MULTISCALE_INT);
-            #else
-            RAC_GET(rc, &m->ctx[1], MANIAC_TREE_MIN_COUNT, MANIAC_TREE_MAX_COUNT,
-                    &m->forest[channel]->data[m->stack[m->stack_top - 1].id].count,
-                    FLIF16_RAC_GNZ_INT);
-            #endif
+                    FLIF16_RAC_MANIAC_GNZ_INT);
             rc->segment2++;
 
     case 4:
-            #ifdef MULTISCALE_CHANCES_ENABLED
             RAC_GET(rc, &m->ctx[2], rc->oldmin, rc->oldmax - 1,
                     &m->forest[channel]->data[m->stack[m->stack_top - 1].id].split_val,
-                    FLIF16_RAC_GNZ_MULTISCALE_INT);
-            #else
-            RAC_GET(rc, &m->ctx[2], rc->oldmin, rc->oldmax - 1,
-                    &m->forest[channel]->data[m->stack[m->stack_top - 1].id].split_val,
-                    FLIF16_RAC_GNZ_INT);
-            #endif
+                    FLIF16_RAC_MANIAC_GNZ_INT);
             split_val = m->forest[channel]->data[m->stack[m->stack_top - 1].id].split_val;
             rc->segment2++;
 
@@ -805,12 +787,7 @@ int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
         rc->segment2++;
 
     case 1:
-#ifdef MULTISCALE_CHANCES_ENABLED
-        RAC_GET(rc, rc->curr_leaf, min, max, target, FLIF16_RAC_NZ_MULTISCALE_INT);
-#else
-        RAC_GET(rc, rc->curr_leaf, min, max, target, FLIF16_RAC_NZ_INT);
-#endif
-
+        RAC_GET(rc, rc->curr_leaf, min, max, target, FLIF16_RAC_MANIAC_NZ_INT);
     }
 
     end:

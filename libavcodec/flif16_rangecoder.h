@@ -69,7 +69,12 @@ typedef enum FLIF16RACReader {
     FLIF16_RAC_GNZ_INT,
 #ifdef MULTISCALE_CHANCES_ENABLED
     FLIF16_RAC_NZ_MULTISCALE_INT,
-    FLIF16_RAC_GNZ_MULTISCALE_INT
+    FLIF16_RAC_GNZ_MULTISCALE_INT,
+    FLIF16_RAC_MANIAC_NZ_INT = FLIF16_RAC_NZ_MULTISCALE_INT,
+    FLIF16_RAC_MANIAC_GNZ_INT = FLIF16_RAC_GNZ_MULTISCALE_INT,
+#else
+    FLIF16_RAC_MANIAC_NZ_INT = FLIF16_RAC_NZ_INT,
+    FLIF16_RAC_MANIAC_GNZ_INT = FLIF16_RAC_GNZ_INT,
 #endif
 } FLIF16RACReader;
 
@@ -344,25 +349,21 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
             break;
 
         case FLIF16_RAC_NZ_INT:
-            // handle nz_ints
             flag = ff_flif16_rac_read_nz_int(rc, (FLIF16ChanceContext *) ctx,
                                              val1, val2, (int *) target);
             break;
 
         case FLIF16_RAC_GNZ_INT:
-            // handle gnz_ints
             flag = ff_flif16_rac_read_gnz_int(rc, (FLIF16ChanceContext *) ctx,
                                               val1, val2, (int *) target);
             break;
 #ifdef MULTISCALE_CHANCES_ENABLED
         case FLIF16_RAC_NZ_MULTISCALE_INT:
-            // handle nz_ints
             flag = ff_flif16_rac_read_nz_multiscale_int(rc, (FLIF16MultiscaleChanceContext *) ctx,
                                                         val1, val2, (int *) target);
             break;
 
         case FLIF16_RAC_GNZ_MULTISCALE_INT:
-            // handle multiscale nz_ints
             flag = ff_flif16_rac_read_gnz_multiscale_int(rc, (FLIF16MultiscaleChanceContext *) ctx,
                                                          val1, val2, (int *) target);
             break;
@@ -374,6 +375,10 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
     return 1;
 }
 
+/**
+ * Macro meant to handle intermittent bytestreams with slightly more
+ * convenience. 
+ */
 #define RAC_GET(rc, ctx, val1, val2, target, type) \
     if (!ff_flif16_rac_process((rc), (ctx), (val1), (val2), (target), (type))) {\
         goto need_more_data; \
