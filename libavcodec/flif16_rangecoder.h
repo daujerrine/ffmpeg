@@ -43,6 +43,13 @@
 #define CHANCETABLE_DEFAULT_ALPHA (0xFFFFFFFF / 19)
 #define CHANCETABLE_DEFAULT_CUT 2
 
+/*
+ * Enabling this option will make the decoder assume that the MANIAC tree
+ * (and subsequent pixeldata) has been encoded using the multiscale chance
+ * probability model. The other (simpler) model and this model ane non
+ * interchangable.
+ */
+
 // #define MULTISCALE_CHANCES_ENABLED
 
 #define MULTISCALE_CHANCETABLE_DEFAULT_SIZE 6
@@ -155,6 +162,12 @@ typedef struct FLIF16MinMax {
     int32_t max;
 } FLIF16MinMax;
 
+#ifdef MULTISCALE_CHANCES_ENABLED
+typedef FLIF16MultiscaleChanceContext FLIF16MANIACChanceContext;
+#else
+typedef FLIF16ChanceContext FLIF16MANIACChanceContext;
+#endif
+
 typedef struct FLIF16RangeCoder {
     uint_fast32_t range;
     uint_fast32_t low;
@@ -174,13 +187,7 @@ typedef struct FLIF16RangeCoder {
     // maniac_int state management
     uint8_t segment2;
     int oldmin, oldmax;
-
-#ifdef MULTISCALE_CHANCES_ENABLED
-    FLIF16MultiscaleChanceContext *curr_leaf;
-#else
-    FLIF16ChanceContext *curr_leaf;
-#endif
-
+    FLIF16MANIACChanceContext *curr_leaf;
     FLIF16ChanceTable ct;
 
 #ifdef MULTISCALE_CHANCES_ENABLED
@@ -214,11 +221,7 @@ typedef struct FLIF16MANIACNode {
 
 typedef struct FLIF16MANIACTree {
     FLIF16MANIACNode *data;
-#ifdef MULTISCALE_CHANCES_ENABLED
-    FLIF16MultiscaleChanceContext *leaves;
-#else
-    FLIF16ChanceContext *leaves;
-#endif
+    FLIF16MANIACChanceContext *leaves;
     unsigned int size;
     unsigned int leaves_size;
     unsigned int leaves_top;
@@ -227,11 +230,7 @@ typedef struct FLIF16MANIACTree {
 typedef struct FLIF16MANIACContext {
     FLIF16MANIACTree **forest;
     FLIF16MANIACStack *stack;
-#ifdef MULTISCALE_CHANCES_ENABLED
-    FLIF16MultiscaleChanceContext ctx[3];
-#else
-    FLIF16ChanceContext ctx[3];
-#endif
+    FLIF16MANIACChanceContext ctx[3];
     unsigned int tree_top;
     unsigned int stack_top;
     unsigned int stack_size;
@@ -274,6 +273,14 @@ void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes);
 void ff_flif16_multiscale_chancecontext_init(FLIF16MultiscaleChanceContext *ctx);
 
 FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void);
+
+int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
+                                         FLIF16MultiscaleChanceContext *ctx,
+                                         int min, int max, int *target);
+
+int ff_flif16_rac_read_gnz_multiscale_int(FLIF16RangeCoder *rc,
+                                          FLIF16MultiscaleChanceContext *ctx,
+                                          int min, int max, int *target);
 
 #endif
 

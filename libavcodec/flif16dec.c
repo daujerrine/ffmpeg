@@ -354,10 +354,10 @@ static int flif16_read_second_header(AVCodecContext *avctx)
     s->state   = FLIF16_TRANSFORM;
     s->segment = 0;
 
-    #ifdef MULTISCALE_CHANCES_ENABLED
-    s->rc->mct = ff_flif16_multiscale_chancetable_init();
-    ff_flif16_build_log4k_table(&s->rc->log4k);
-    #endif
+#ifdef MULTISCALE_CHANCES_ENABLED
+    s->rc.mct = ff_flif16_multiscale_chancetable_init();
+    ff_flif16_build_log4k_table(&s->rc.log4k);
+#endif
 
     ff_flif16_chancetable_init(&s->rc.ct, s->alpha, s->cut);
 
@@ -1159,7 +1159,6 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
     const uint32_t cs = ZOOM_COLPIXELSIZE(z), rs = ZOOM_ROWPIXELSIZE(z);
 
     FLIF16ColorVal *properties = s->properties;
-    FLIF16RangesContext *ranges = s->range;
     uint8_t alphazero = s->alphazero;
     uint8_t lookback = s->framelookback;
     int invisible_predictor = s->ipp;
@@ -1304,7 +1303,6 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
     const uint32_t cs = ZOOM_COLPIXELSIZE(z), rs = ZOOM_ROWPIXELSIZE(z);
 
     FLIF16ColorVal *properties = s->properties;
-    FLIF16RangesContext *ranges = s->range;
     uint8_t alphazero = s->alphazero;
     uint8_t lookback = s->framelookback;
     int invisible_predictor = s->ipp;
