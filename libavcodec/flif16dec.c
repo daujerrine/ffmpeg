@@ -146,7 +146,13 @@ typedef struct FLIF16DecoderContext {
 #define PIXEL_GETFAST(ctx, fr, p, r, c) ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
 #define PIXEL_SETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_set_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
 
-// If frame_dup exists, figure out what the previous frame actually is
+#define PIXEL_SETP(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), fr, p, r, c, val)
+#define PIXEL_GETP(ctx, fr, p, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), fr, p, r, c)
+#define PIXEL_SETZP(ctx, fr, p, z, r, c, val) ff_flif16_pixel_setz(CTX_CAST(ctx), fr, p, z, r, c, val)
+#define PIXEL_GETZP(ctx, fr, p, z, r, c) ff_flif16_pixel_getz(CTX_CAST(ctx), fr, p, z, r, c)
+#define PIXEL_GETFASTP(ctx, fr, p, r, c) ff_flif16_pixel_get_fast(CTX_CAST(ctx), fr, p, r, c)
+#define PIXEL_SETFASTP(ctx, fr, p, r, c, val) ff_flif16_pixel_set_fast(CTX_CAST(ctx), fr, p, r, c, val)
+
 #define PREV_FRAME(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
 #define PREV_FRAMENUM(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
 #define LOOKBACK_FRAMENUM(ctx, frames, f_no, r, c) (((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before >= 0) ? \
@@ -575,12 +581,11 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
  */
 
 
-static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
-                                                  FLIF16PixelData *frame,
-                                                  uint8_t p, uint32_t r,
-                                                  uint32_t c,
-                                                  FLIF16ColorVal fallback,
-                                                  uint8_t nobordercases)
+static inline FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
+                                                         uint32_t fr, uint8_t p,
+                                                         uint32_t r,
+                                                         FLIF16ColorVal fallback,
+                                                         uint8_t nobordercases)
 {
     FLIF16ColorVal guess, left, top, topleft, gradientTL;
     int width = s->width;
@@ -592,20 +597,21 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
     FLIF16ColorVal *min = &s->min;
     FLIF16ColorVal *max = &s->max;
 
+    uint32_t c = s->c;
+    
     if (p < 3) {
         for (int pp = 0; pp < p; pp++) {
-            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), frame, pp, r, c);
+            properties[index++] = PIXEL_GET(s, fr, pp, r, c);
         }
         if (ranges_ctx->num_planes > 3) {
-            properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), frame, 3, r, c);
+            properties[index++] = PIXEL_GET(s, fr, 3, r, c);
         }
     }
 
-    left = (nobordercases || c > 0 ? ff_flif16_pixel_get(CTX_CAST(s), frame, p, r, c - 1) :
-           (r > 0 ? ff_flif16_pixel_get(CTX_CAST(s), frame, p, r - 1, c) : fallback));
-    top = (nobordercases || r > 0 ? ff_flif16_pixel_get(CTX_CAST(s), frame, p, r - 1, c) : left);
-    topleft = (nobordercases || (r > 0 && c > 0) ?
-              ff_flif16_pixel_get(CTX_CAST(s), frame, p, r - 1, c - 1) : (r > 0 ? top : left));
+    left = (nobordercases || c > 0 ? PIXEL_GET(s, fr, p, r, c - 1) :
+           (r > 0 ? PIXEL_GET(s, fr, p, r - 1, c) : fallback));
+    top = (nobordercases || r > 0 ? PIXEL_GET(s, fr, p, r - 1, c) : left);
+    topleft = (nobordercases || (r > 0 && c > 0) ? PIXEL_GET(s, fr, p, r - 1, c - 1) : (r > 0 ? top : left));
     gradientTL = left + top - topleft;
     guess = MEDIAN3(gradientTL, left, top);
     ff_flif16_ranges_snap(ranges_ctx, p, properties, min, max, &guess);
@@ -629,19 +635,19 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
     }
 
     if (nobordercases || (c + 1 < width && r > 0)) {
-        properties[index++] = top - ff_flif16_pixel_get(CTX_CAST(s), frame, p, r - 1, c + 1);
+        properties[index++] = top - PIXEL_GET(s, fr, p, r - 1, c + 1);
     } else {
         properties[index++] = 0;
     }
 
     if (nobordercases || r > 1) {
-        properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), frame, p, r - 2, c) - top;
+        properties[index++] = PIXEL_GET(s, fr, p, r - 2, c) - top;
     } else {
         properties[index++] = 0;
     }
 
     if (nobordercases || c > 1) {
-        properties[index++] = ff_flif16_pixel_get(CTX_CAST(s), frame, p, r, c-2) - left;
+        properties[index++] = PIXEL_GET(s, fr, p, r, c-2) - left;
     } else {
         properties[index++] = 0;
     }
@@ -650,14 +656,15 @@ static FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s,
 }
 
 static inline FLIF16ColorVal flif16_ni_predict(FLIF16DecoderContext *s,
-                                               FLIF16PixelData *frame,
-                                               uint32_t p, uint32_t r, uint32_t c,
-                                               FLIF16ColorVal gray)
+                                               uint32_t fr, uint32_t p,
+                                               uint32_t r)
 {
-    FLIF16ColorVal left = (c > 0 ? ff_flif16_pixel_get(CTX_CAST(s), frame, p, r, c-1) :
-                          (r > 0 ? ff_flif16_pixel_get(CTX_CAST(s), frame, p, r-1, c) : gray));
-    FLIF16ColorVal top = (r > 0 ? ff_flif16_pixel_get(CTX_CAST(s), frame, p, r - 1, c) : left);
-    FLIF16ColorVal topleft = (r > 0 && c > 0 ? ff_flif16_pixel_get(CTX_CAST(s), frame, p, r - 1, c - 1) : top);
+    uint32_t c = s->c;
+    uint32_t gray = s->grays[p];
+    FLIF16ColorVal left = (c > 0 ? PIXEL_GET(s, fr, p, r, c-1) :
+                          (r > 0 ? PIXEL_GET(s, fr, p, r-1, c) : gray));
+    FLIF16ColorVal top = (r > 0 ? PIXEL_GET(s, fr, p, r - 1, c) : left);
+    FLIF16ColorVal topleft = (r > 0 && c > 0 ? PIXEL_GET(s, fr, p, r - 1, c - 1) : top);
     FLIF16ColorVal gradientTL = left + top - topleft;
     return MEDIAN3(gradientTL, left, top);
 }
@@ -668,7 +675,6 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
     FLIF16ColorVal curr;
     FLIF16RangesContext *ranges_ctx = s->range;
     FLIF16ColorVal *properties = s->properties;
-    FLIF16ColorVal gray = s->grays[p];
     FLIF16ColorVal min_p = ff_flif16_ranges_min(ranges_ctx, p);
 
     switch (s->segment2) {
@@ -688,7 +694,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
             if (s->alphazero && p < 3) {
                 for (uint32_t c = 0; c < s->begin; c++)
                     if (PIXEL_GET(s, fr, 3, r, c) == 0) {
-                        PIXEL_SET(s, fr, p, r, c, flif16_ni_predict(s, &s->frames[fr], p, r, c, gray));
+                        PIXEL_SET(s, fr, p, r, c, flif16_ni_predict(s, fr, p, r));
                     } else {
                         PIXEL_SET(s, fr, p, r, c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, c));
                     }
@@ -709,11 +715,10 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
             for (; s->c < 2; s->c++) {
                 if (s->alphazero && p<3 &&
                     PIXEL_GET(s, fr, 3, r, s->c) == 0) {
-                    PIXEL_SET(s, fr, p, r, s->c,
-                    flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
+                    PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, fr, p, r));
                     continue;
                 }
-                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
+                s->guess = flif16_ni_predict_calcprops(s, fr, p, r, min_p, 0);
     case 1:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -724,12 +729,11 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
 
             for (; s->c < s->end-1; s->c++) {
                 if (s->alphazero && p < 3 &&
-                    ff_flif16_pixel_get(CTX_CAST(s), &s->frames[fr], 3, r, s->c) == 0) {
-                    ff_flif16_pixel_set(CTX_CAST(s),&s->frames[fr], p, r, s->c,
-                    flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
+                    PIXEL_GET(s, fr, 3, r, s->c) == 0) {
+                    PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, fr, p, r));
                     continue;
                 }
-                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 1);
+                s->guess = flif16_ni_predict_calcprops(s, fr, p, r, min_p, 1);
     case 2:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -741,10 +745,10 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
             for (; s->c < s->end; s->c++) {
                 if (s->alphazero && p < 3 &&
                     PIXEL_GET(s, fr, 3, r, s->c) == 0) {
-                    PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
+                    PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, fr, p, r));
                     continue;
                 }
-                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
+                s->guess = flif16_ni_predict_calcprops(s, fr, p, r, min_p, 0);
     case 3:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -757,9 +761,8 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
             s->segment2 = 4;
             for (s->c = s->begin; s->c < s->end; s->c++) {
                 if (s->alphazero && p < 3 &&
-                    ff_flif16_pixel_get(CTX_CAST(s), &s->frames[fr], 3, r, s->c) == 0) {
-                    PIXEL_SET(s, fr, p, r, s->c,
-                    flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
+                    PIXEL_GET(s, fr, 3, r, s->c) == 0) {
+                    PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, fr, p, r));
                     continue;
                 }
                 if (s->framelookback && p < 4 &&
@@ -768,7 +771,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
                     PIXEL_GET(s, LOOKBACK_FRAMENUM(s, s->frames, fr, r, s->c), p, r, s->c));
                     continue;
                 }
-                s->guess = flif16_ni_predict_calcprops(s, &s->frames[fr], p, r, s->c, min_p, 0);
+                s->guess = flif16_ni_predict_calcprops(s, fr, p, r, min_p, 0);
                 if (s->framelookback && p == FLIF16_PLANE_LOOKBACK && s->max > fr)
                     s->max = fr;
     case 4:
@@ -784,7 +787,7 @@ static int flif16_read_ni_plane(FLIF16DecoderContext *s, uint8_t p, uint32_t fr,
             if (s->alphazero && p < 3) {
                 for (uint32_t c = s->end; c < s->width; c++)
                     if (PIXEL_GET(s, fr, 3, r, s->c) == 0) {
-                        PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, &s->frames[fr], p, r, s->c, gray));
+                        PIXEL_SET(s, fr, p, r, s->c, flif16_ni_predict(s, fr, p, r));
                     } else {
                         PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, s->c));
                     }
@@ -876,77 +879,82 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  
 #if 1
 
-static inline FLIF16ColorVal flif16_predict_horizontal(FLIF16Context *s,
-                                                       FLIF16PixelData *frame,
+static inline FLIF16ColorVal flif16_predict_horizontal(FLIF16DecoderContext *s,
+                                                       uint32_t fr,
                                                        int z, int p, uint32_t r,
-                                                       uint32_t c, uint32_t rows,
-                                                       int predictor)
+                                                       uint32_t rows, int predictor)
 {
     FLIF16ColorVal top, bottom, avg, left, topleft, bottomleft;
+    uint32_t c =  s->c;
     if (p == FLIF16_PLANE_LOOKBACK)
         return 0;
 
-    top    = ff_flif16_pixel_getz(s, frame, p, z, r - 1, c);
-    bottom = (r + 1 < rows ? ff_flif16_pixel_getz(s, frame, p, z, r + 1, c) : top);
+    top    = PIXEL_GETZ(s, fr, p, z, r - 1, c);
+    bottom = (r + 1 < rows ? PIXEL_GETZ(s, fr, p, z, r + 1, c) : top);
 
     switch (predictor) {
     case 0:
         avg = (top + bottom)>>1;
         return avg;
+
     case 1:
         avg        = (top + bottom) >> 1;
-        left       = (c > 0 ? ff_flif16_pixel_getz(s, frame, p, z, r, c - 1) : top);
-        topleft    = (c > 0 ? ff_flif16_pixel_getz(s, frame, p, z, r - 1, c - 1) : top);
-        bottomleft = (c > 0 && r + 1 < rows ? ff_flif16_pixel_getz(s, frame, p, z, r + 1, c - 1) : left);
+        left       = (c > 0 ? PIXEL_GETZ(s, fr, p, z, r, c - 1) : top);
+        topleft    = (c > 0 ? PIXEL_GETZ(s, fr, p, z, r - 1, c - 1) : top);
+        bottomleft = (c > 0 && r + 1 < rows ? PIXEL_GETZ(s, fr, p, z, r + 1, c - 1) : left);
         return MEDIAN3(avg, (FLIF16ColorVal) (left + top - topleft), (FLIF16ColorVal) (left + bottom - bottomleft));
+
     default:
-        left = (c > 0 ? ff_flif16_pixel_getz(s, frame, p, z, r, c - 1) : top);
+        left = (c > 0 ? PIXEL_GETZ(s, fr, p, z, r, c - 1) : top);
         return MEDIAN3(top, bottom, left);
     }
 }
 
-static inline FLIF16ColorVal flif16_predict_vertical(FLIF16Context *s,
-                                                     FLIF16PixelData *frame,
+static inline FLIF16ColorVal flif16_predict_vertical(FLIF16DecoderContext *s,
+                                                     uint32_t fr,
                                                      int z, int p, uint32_t r,
-                                                     uint32_t c, uint32_t cols,
-                                                     const int predictor)
+                                                     uint32_t cols,
+                                                     int predictor)
 {
     FLIF16ColorVal top, left, right, avg, topleft, topright;
+    uint32_t c = s->c;
     if (p == FLIF16_PLANE_LOOKBACK)
         return 0;
 
-    left  = ff_flif16_pixel_getz(s, frame, p, z,r,c-1);
-    right = (c+1 < cols ? ff_flif16_pixel_getz(s, frame, p, z, r, c + 1) : left);
+    left  = PIXEL_GETZ(s, fr, p, z,r,c-1);
+    right = (c+1 < cols ? PIXEL_GETZ(s, fr, p, z, r, c + 1) : left);
 
     switch (predictor) {
     case 0:
         avg = (left + right) >> 1;
         return avg;
+
     case 1:
         avg      = (left + right) >> 1;
-        top      = (r > 0 ? ff_flif16_pixel_getz(s, frame, p, z, r - 1, c) : left);
-        topleft  = (r > 0 ? ff_flif16_pixel_getz(s, frame, p, z , r - 1, c - 1) : left);
-        topright = (r > 0 && c + 1 < cols ? ff_flif16_pixel_getz(s, frame, p, z, r - 1, c + 1) : top);
+        top      = (r > 0 ? PIXEL_GETZ(s, fr, p, z, r - 1, c) : left);
+        topleft  = (r > 0 ? PIXEL_GETZ(s, fr, p, z , r - 1, c - 1) : left);
+        topright = (r > 0 && c + 1 < cols ? PIXEL_GETZ(s, fr, p, z, r - 1, c + 1) : top);
         return MEDIAN3(avg, (FLIF16ColorVal) (left + top - topleft), (FLIF16ColorVal) (right + top - topright));
+
     default:
-        top = (r > 0 ? ff_flif16_pixel_getz(s, frame, p, z, r - 1, c) : left);
+        top = (r > 0 ? PIXEL_GETZ(s, fr, p, z, r - 1, c) : left);
         return MEDIAN3(top, left, right);
     }
 }
 
 static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
-                                               FLIF16PixelData *frame,
+                                               uint32_t fr,
                                                int z, uint8_t p, uint32_t r,
-                                               uint32_t c, uint8_t horizontal,
+                                               uint8_t horizontal,
                                                uint8_t nobordercases)
 {
     FLIF16ColorVal guess, left, top, topleft, topright, bottomleft, bottom,
                    avg, topleftgradient, median, bottomright, right;
-    FLIF16Context *s2           = CTX_CAST(s);
     FLIF16ColorVal *properties  = s->properties;
     FLIF16RangesContext *ranges = s->range;
     FLIF16ColorVal *min         = &s->min;
     FLIF16ColorVal *max         = &s->max;
+    FLIF16ColorVal c            = s->c;
     int predictor               = s->predictor;
     const uint8_t bottompresent = r + 1 < ZOOM_HEIGHT(s->height, z);
     const uint8_t rightpresent  = c + 1 < ZOOM_WIDTH(s->width, z);
@@ -956,32 +964,32 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
     if (p < 3) {
         if (p > 0) {
             // properties[index++] = PIXELY(z,r,c);
-            properties[index++] = ff_flif16_pixel_get_fast(s2, frame, FLIF16_PLANE_Y, r, c);
+            properties[index++] = PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y, r, c);
         }
         if (p > 1)
-            properties[index++] = ff_flif16_pixel_getz(s2, frame, FLIF16_PLANE_CO, z, r, c);
+            properties[index++] = PIXEL_GETZ(s, fr, FLIF16_PLANE_CO, z, r, c);
         if (s->num_planes > 3)
-            properties[index++] = ff_flif16_pixel_getz(s2, frame, FLIF16_PLANE_ALPHA, z, r, c);
+            properties[index++] = PIXEL_GETZ(s, fr, FLIF16_PLANE_ALPHA, z, r, c);
     }
 
     if (horizontal) { // filling horizontal lines
-        top        = ff_flif16_pixel_get_fast(s2, frame, p, r - 1, c);
+        top        = PIXEL_GETFAST(s, fr, p, r - 1, c);
         //left       = (nobordercases || c > 0 ? PIXEL(z, r, c - 1) : top);
         //topleft    = (nobordercases || c > 0 ? PIXEL(z, r - 1, c - 1) : top);
         left       =   (nobordercases || c > 0
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r, c - 1)
+                     ? PIXEL_GETFAST(s, fr, p, r, c - 1)
                      : top);
         topleft    =   (nobordercases || c > 0
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r - 1, c - 1)
+                     ? PIXEL_GETFAST(s, fr, p, r - 1, c - 1)
                      : top);
         topright   =   (nobordercases || (rightpresent)
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r - 1, c + 1)
+                     ? PIXEL_GETFAST(s, fr, p, r - 1, c + 1)
                      : top);
         bottomleft =   (nobordercases || (bottompresent && c > 0)
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r + 1, c - 1)
+                     ? PIXEL_GETFAST(s, fr, p, r + 1, c - 1)
                      : left);
         bottom     =   (nobordercases || bottompresent
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r + 1, c)
+                     ? PIXEL_GETFAST(s, fr, p, r + 1, c)
                      : left);
         avg             = (top + bottom) >> 1;
         topleftgradient = left + top - topleft;
@@ -995,9 +1003,9 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
         properties[index++] = which;
 
         if (p == FLIF16_PLANE_CO || p == FLIF16_PLANE_CG) {
-            properties[index++] =   ff_flif16_pixel_get_fast(s2, frame, FLIF16_PLANE_Y, r, c)
-                                  - ((ff_flif16_pixel_get_fast(s2, frame, FLIF16_PLANE_Y, r - 1, c)
-                                  + ff_flif16_pixel_get_fast(s2, frame, FLIF16_PLANE_Y,
+            properties[index++] =   PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y, r, c)
+                                  - ((PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y, r - 1, c)
+                                  + PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y,
                                     (nobordercases || bottompresent ? r + 1 : r - 1), c)) >> 1);
         }
 
@@ -1013,25 +1021,25 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
         properties[index++] = top - ((topleft + topright) >> 1);
         properties[index++] = left - ((bottomleft + topleft) >> 1);
         bottomright =    (nobordercases || (rightpresent && bottompresent)
-                       ? ff_flif16_pixel_get_fast(CTX_CAST(s), frame, p, r + 1, c + 1)
+                       ? PIXEL_GETFAST(s, fr, p, r + 1, c + 1)
                        : bottom);
         properties[index++] = bottom - ((bottomleft + bottomright) >> 1);
     } else { // filling vertical lines
-        left       = ff_flif16_pixel_get_fast(s2, frame, p, r, c - 1);
+        left       = PIXEL_GETFAST(s, fr, p, r, c - 1);
         top        =   (nobordercases || r > 0
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r - 1, c)
+                     ? PIXEL_GETFAST(s, fr, p, r - 1, c)
                      : left);
         topleft    =   (nobordercases || r > 0
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r - 1, c - 1)
+                     ? PIXEL_GETFAST(s, fr, p, r - 1, c - 1)
                      : left);
         topright   =   (nobordercases || (r > 0 && rightpresent)
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r - 1, c + 1)
+                     ? PIXEL_GETFAST(s, fr, p, r - 1, c + 1)
                      : top);
         bottomleft =   (nobordercases || (bottompresent)
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r + 1, c - 1)
+                     ? PIXEL_GETFAST(s, fr, p, r + 1, c - 1)
                      : left);
         right      =   (nobordercases || rightpresent
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r, c + 1)
+                     ? PIXEL_GETFAST(s, fr, p, r, c + 1)
                      : top);
         avg        = (left + right) >> 1;
         topleftgradient = left + top - topleft;
@@ -1046,9 +1054,9 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
         properties[index++] = which;
 
         if (p == FLIF16_PLANE_CO || p == FLIF16_PLANE_CG) {
-            properties[index++] =   ff_flif16_pixel_get_fast(s2, frame, FLIF16_PLANE_Y, r, c)
-                                  - ((ff_flif16_pixel_get_fast(s2, frame, FLIF16_PLANE_Y, r, c - 1)
-                                  + ff_flif16_pixel_get_fast(s2, frame, FLIF16_PLANE_Y, r,
+            properties[index++] =   PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y, r, c)
+                                  - ((PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y, r, c - 1)
+                                      + PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y, r,
                                     (nobordercases || rightpresent ? c + 1 : c - 1))) >> 1);
         }
 
@@ -1064,7 +1072,7 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
         properties[index++] = left - ((bottomleft + topleft) >> 1);
         properties[index++] = top - ((topleft + topright) >> 1);
         bottomright =  (nobordercases || (rightpresent && bottompresent)
-                     ? ff_flif16_pixel_get_fast(s2, frame, p, r + 1, c + 1)
+                     ? PIXEL_GETFAST(s, fr, p, r + 1, c + 1)
                      : right);
         properties[index++] = right - ((bottomright + topright) >> 1);
     }
@@ -1073,11 +1081,11 @@ static FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
 
     if (p != 2) {
         if (nobordercases || r > 1)
-            properties[index++] = ff_flif16_pixel_get_fast(s2, frame, p, r - 2, c) - top; // toptop - top
+            properties[index++] = PIXEL_GETFAST(s, fr, p, r - 2, c) - top; // toptop - top
         else
             properties[index++] = 0;
         if (nobordercases || c > 1)
-            properties[index++] = ff_flif16_pixel_get_fast(s2, frame, p, r, c - 2) - left; // leftleft - left
+            properties[index++] = PIXEL_GETFAST(s, fr, p, r, c - 2) - left; // leftleft - left
         else
             properties[index++] = 0;
     }
@@ -1176,8 +1184,8 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                 for (s->c = 0; s->c < s->begin; s->c++)
                     if (PIXEL_GETZ(s, fr, FLIF16_PLANE_ALPHA, z, r, s->c) == 0)
                         PIXEL_SETZ(s, fr, p,  z, r, s->c,
-                        flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr], p, z, r, s->c,
-                                                  ZOOM_HEIGHT(s->height, z), ipp));
+                                   flif16_predict_horizontal(s, fr, z, p, r,
+                                   ZOOM_HEIGHT(s->height, z), ipp));
                     else
                         PIXEL_SETZ(s, fr, p, z, r, s->c,
                                    PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
@@ -1203,11 +1211,11 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                 // TODO change FLIF16_PLANE_ALPHA to variable as appropriate
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
+                                  flif16_predict_horizontal(s, fr, z, p, r,
+                                  ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 1, 0);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 1, 0);
     case 1:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -1219,11 +1227,11 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
             for (s->c = 2; s->c < s->end - 2; s->c++) {
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
+                                  flif16_predict_horizontal(s, fr, z, p, r,
+                                  ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 1, 1);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 1, 1);
     case 2:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -1235,11 +1243,11 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
             for (s->c = s->end - 2; s->c < s->end; s->c++) {
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
+                                  flif16_predict_horizontal(s, fr, z, p, r,
+                                  ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 1, 0);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 1, 0);
     case 3:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -1251,8 +1259,8 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
             for (s->c = s->begin; s->c < s->end; s->c++) {
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
+                                  flif16_predict_horizontal(s, fr, z, p, r,
+                                  ZOOM_HEIGHT(s->height, z), ipp));
                     continue;
                 }
                 if (lookback && p < 4 && PIXEL_GETZ(s, fr, FLIF16_PLANE_LOOKBACK, z, r, s->c) > 0) {
@@ -1262,7 +1270,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                     continue;
                 }
 
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 1, 0);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 1, 0);
 
                 if (s->framelookback && p == FLIF16_PLANE_LOOKBACK && s->max > fr)
                     s->max = fr;
@@ -1280,8 +1288,8 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
             for (uint32_t c = s->end; c < ZOOM_WIDTH(s->width, z); c++)
                 if (PIXEL_GETZ(s, fr, p, z, r, s->c) == 0)
                     PIXEL_SETZ(s, fr, p, z, r, s->c,
-                               flif16_predict_horizontal(CTX_CAST(s), &s->frames[fr],
-                               z, p, r, s->c, ZOOM_HEIGHT(s->height, z), ipp));
+                               flif16_predict_horizontal(s, fr, z, p, r,
+                               ZOOM_HEIGHT(s->height, z), ipp));
                 else
                     PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
         }
@@ -1323,8 +1331,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                 for (s->c = 1; s->c < s->begin; s->c += 2)
                     if (PIXEL_GETZ(s, fr, alpha_plane, z, r, s->c) == 0)
                         PIXEL_SETZ(s, fr, p, z, r, s->c,
-                                   flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                   z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
+                                   flif16_predict_vertical(s, fr, z, p, r, ZOOM_WIDTH(s->width, z), ipp));
                     else
                         PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
             } else if (p != 4) {
@@ -1348,11 +1355,11 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
             for (; s->c < 3; s->c += 2) {
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r,s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
+                                  flif16_predict_vertical(s, fr,
+                                  z, p, r, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 0, 0);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 0, 0);
     case 1:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -1364,11 +1371,11 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
             for (; s->c < s->end - 2; s->c += 2) {
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
+                                  flif16_predict_vertical(s, fr,
+                                  z, p, r, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 0, 1);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 0, 1);
     case 2:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -1380,11 +1387,11 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
             for (; s->c < s->end; s->c += 2) {
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
+                                  flif16_predict_vertical(s, fr,
+                                  z, p, r, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c,0, 0);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 0, 0);
     case 3:
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
@@ -1396,8 +1403,8 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
             for (s->c = s->begin; s->c < s->end; s->c += 2) {
                 if (alphazero && p < 3 && PIXEL_GETFAST(s, fr, alpha_plane, r, s->c) == 0) {
                     PIXEL_SETFAST(s, fr, p, r, s->c,
-                                  flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                                  z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
+                                  flif16_predict_vertical(s, fr,
+                                  z, p, r, ZOOM_WIDTH(s->width, z), ipp));
                     continue;
                 }
                 if (lookback && p < 4
@@ -1407,7 +1414,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                                  fr, z, r, s->c), p, z, r, s->c));
                     continue;
                 }
-                s->guess = flif16_predict_calcprops(s, &s->frames[fr], z, p, r, s->c, 0, 0);
+                s->guess = flif16_predict_calcprops(s, fr, z, p, r, 0, 0);
                 if (s->framelookback && p == FLIF16_PLANE_LOOKBACK && s->max > fr)
                     s->max = fr;
                 if (s->framelookback && (s->guess > s->max || s->guess < s->min))
@@ -1416,7 +1423,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
                 MANIAC_GET(&s->rc, &s->maniac_ctx, properties, p,
                            s->min - s->guess, s->max - s->guess, &curr);
                 curr += s->guess;
-                ff_flif16_pixel_set_fast(CTX_CAST(s), &s->frames[fr], p, r, s->c, curr);
+                PIXEL_SETFAST(s, fr, p, r, s->c, curr);
             }
         }
     }
@@ -1426,8 +1433,8 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
             // replace enum with variable
             if (PIXEL_GETZ(s, fr - 1, alpha_plane, z, r, s->c) == 0)
                 PIXEL_SETZ(s, fr, p, z, r, s->c,
-                           flif16_predict_vertical(CTX_CAST(s), &s->frames[fr],
-                           z, p, r, s->c, ZOOM_WIDTH(s->width, z), ipp));
+                           flif16_predict_vertical(s, fr,
+                           z, p, r, ZOOM_WIDTH(s->width, z), ipp));
             else
                 PIXEL_SETZ(s, fr, p, z, r, s->c, PIXEL_GETZ(s, fr - 1, p, z, r, s->c));
     }
