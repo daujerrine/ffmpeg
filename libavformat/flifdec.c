@@ -297,7 +297,7 @@ static int flif16_read_header(AVFormatContext *s)
                 ret != AVERROR(EAGAIN)) {
                 av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
                 avio_skip(pb, metadata_size);
-                metadata_size = -1;
+                goto metadata_fail;
             
             }
         }
@@ -319,6 +319,8 @@ static int flif16_read_header(AVFormatContext *s)
 #else
         avio_skip(pb, metadata_size);
 #endif
+        metadata_fail:
+            continue;
     }
 
     av_freep(&out_buf);
