@@ -210,21 +210,20 @@ static int flif16_read_header(AVFormatContext *s)
     AVIOContext     *pb  = s->pb;
     AVStream        *st;
 
+    int64_t duration = 0;
     uint32_t vlist[3] = {0};
     uint32_t flag, animated, temp;
     uint32_t bpc = 0;
-    uint8_t tag[5] = {0};
-    uint8_t buf[BUF_SIZE];
     uint32_t metadata_size = 0;
-    uint8_t *out_buf = NULL;
     int out_buf_size = 0;
     int buf_size = 0;
-
     unsigned int count = 4;
     int ret;
     int format;
     int segment = 0, i = 0;
-    int64_t duration = 0;
+    uint8_t tag[5] = {0};
+    uint8_t buf[BUF_SIZE];
+    uint8_t *out_buf = NULL;
     uint8_t loops = 0;
     uint8_t num_planes;
     uint8_t num_frames;
@@ -403,7 +402,6 @@ static int flif16_read_header(AVFormatContext *s)
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)
         return AVERROR(EIO);
-    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     return 0;
 }
 
@@ -412,7 +410,6 @@ static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     AVIOContext *pb  = s->pb;
     int ret;
-    //  FFMIN(BUF_SIZE, avio_size(pb))
     ret = av_get_packet(pb, pkt, avio_size(pb));
     return ret;
 }

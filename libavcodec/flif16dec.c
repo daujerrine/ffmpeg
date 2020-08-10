@@ -24,8 +24,6 @@
  * FLIF16 Decoder
 */
 
-// #include <stdio.h> // Remove
-
 #include "flif16.h"
 #include "flif16_rangecoder.h"
 #include "flif16_transform.h"
@@ -1071,59 +1069,6 @@ static inline FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
     return guess;
 }
 
-static inline int plane_zoomlevels(uint8_t num_planes, int begin_zl, int end_zl)
-{
-    return num_planes * (begin_zl - end_zl + 1);
-}
-
-static inline int get_plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
-                                      int i, FLIF16RangesContext *ranges)
-{
-    int zl_list[MAX_PLANES] = {0};
-    int nextp, highest_priority_plane = 0;
-
-
-    // more advanced order: give priority to more important plane(s)
-    // assumption: plane 0 is luma, plane 1 is chroma, plane 2 is less important
-    // chroma, plane 3 is perhaps alpha, plane 4 are frame lookbacks (lookback
-    // transform, animation only)
-    int max_behind[] = {0, 2, 4, 0, 0};
-
-    if (IS_CONSTANT(ranges, 0)) {
-        max_behind[1] = 0;
-        max_behind[2] = 1;
-    }
-
-    for (int i = 0; i < num_planes; i++)
-        zl_list[i] = begin_zl + 1;
-
-    if (num_planes >= 5)
-        highest_priority_plane = 4; // lookbacks first
-    else if (num_planes >= 4)
-        highest_priority_plane = 3; // alpha first
-
-    nextp = highest_priority_plane;
-
-    while (i >= 0) {
-        zl_list[nextp]--;
-        i--;
-        if (i < 0)
-            break;
-        nextp = highest_priority_plane;
-        for (int p = 0; p < num_planes; p++) {
-            if (zl_list[p] > zl_list[highest_priority_plane] + max_behind[p]) {
-                nextp = p; //break;
-            }
-        }
-
-        // ensure that nextp is not at the most detailed zoomlevel yet
-        while (zl_list[nextp] <= end_zl)
-            nextp = (nextp + 1) % num_planes;
-    }
-
-    return nextp;
-}
-
 static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
                                     uint8_t alpha_plane, int p,
                                     int z, uint32_t fr, uint32_t r)
@@ -1388,6 +1333,59 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
     need_more_data:
     return AVERROR(EAGAIN);
 
+}
+
+static inline int plane_zoomlevels(uint8_t num_planes, int begin_zl, int end_zl)
+{
+    return num_planes * (begin_zl - end_zl + 1);
+}
+
+static inline int get_plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
+                                      int i, FLIF16RangesContext *ranges)
+{
+    int zl_list[MAX_PLANES] = {0};
+    int nextp, highest_priority_plane = 0;
+
+
+    // more advanced order: give priority to more important plane(s)
+    // assumption: plane 0 is luma, plane 1 is chroma, plane 2 is less important
+    // chroma, plane 3 is perhaps alpha, plane 4 are frame lookbacks (lookback
+    // transform, animation only)
+    int max_behind[] = {0, 2, 4, 0, 0};
+
+    if (IS_CONSTANT(ranges, 0)) {
+        max_behind[1] = 0;
+        max_behind[2] = 1;
+    }
+
+    for (int i = 0; i < num_planes; i++)
+        zl_list[i] = begin_zl + 1;
+
+    if (num_planes >= 5)
+        highest_priority_plane = 4; // lookbacks first
+    else if (num_planes >= 4)
+        highest_priority_plane = 3; // alpha first
+
+    nextp = highest_priority_plane;
+
+    while (i >= 0) {
+        zl_list[nextp]--;
+        i--;
+        if (i < 0)
+            break;
+        nextp = highest_priority_plane;
+        for (int p = 0; p < num_planes; p++) {
+            if (zl_list[p] > zl_list[highest_priority_plane] + max_behind[p]) {
+                nextp = p; //break;
+            }
+        }
+
+        // ensure that nextp is not at the most detailed zoomlevel yet
+        while (zl_list[nextp] <= end_zl)
+            nextp = (nextp + 1) % num_planes;
+    }
+
+    return nextp;
 }
 
 static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
