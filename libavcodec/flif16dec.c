@@ -387,7 +387,6 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             if (!s->transforms[s->transform_top])
                 return AVERROR(ENOMEM);
 
-            // TODO Replace with switch statement
             switch (temp) {
             case FLIF16_TRANSFORM_PALETTEALPHA:
                 s->plane_mode[FLIF16_PLANE_ALPHA] = FLIF16_PLANEMODE_CONSTANT;
@@ -1537,7 +1536,6 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
     if((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
     else {
-        // TODO remove this later or relocate ni_image part.
         ret = flif16_read_image(avctx, (s->state == FLIF16_ROUGH_PIXELDATA));
     }
 

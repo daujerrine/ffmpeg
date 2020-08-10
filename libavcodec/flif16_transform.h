@@ -104,8 +104,6 @@ FLIF16TransformContext *ff_flif16_transform_init(int, FLIF16RangesContext *);
 
 void ff_flif16_transform_configure(FLIF16TransformContext *, const int);
 
-
-// Maybe put FLIF16Context at first in list
 int ff_flif16_transform_read(FLIF16TransformContext *, FLIF16Context *,
                              FLIF16RangesContext *);
 
