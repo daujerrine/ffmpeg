@@ -89,8 +89,8 @@ typedef struct FLIF16MultiscaleChanceTable {
 
 
 typedef struct FLIF16Log4kTable {
-    uint16_t table[4097];
     int scale;
+    uint16_t table[4097];
 } FLIF16Log4kTable;
 
 
@@ -174,33 +174,32 @@ typedef FLIF16ChanceContext FLIF16MANIACChanceContext;
 #endif
 
 typedef struct FLIF16RangeCoder {
+    FLIF16ChanceTable ct;
+#ifdef MULTISCALE_CHANCES_ENABLED
+    FLIF16Log4kTable log4k;
+    FLIF16MultiscaleChanceTable *mct;
+#endif
+    GetByteContext *gb;
+    FLIF16MANIACChanceContext *curr_leaf;
+
     uint_fast32_t range;
     uint_fast32_t low;
     uint16_t chance;
     uint8_t active;   ///< Is an integer reader currently active (to save/
                       ///  transfer state)
+    uint8_t segment;  ///< The "segment" the function currently is in
+    uint8_t segment2;
+    uint8_t sign;
 
     // uni_int state management
     int32_t min;
     int32_t len;
 
     // nz_int state management
-    uint8_t segment; ///< The "segment" the function currently is in
-    uint8_t sign;
     int amin, amax, emax, e, have, left, minabs1, maxabs0, pos;
-
+    
     // maniac_int state management
-    uint8_t segment2;
     int oldmin, oldmax;
-    FLIF16MANIACChanceContext *curr_leaf;
-    FLIF16ChanceTable ct;
-
-#ifdef MULTISCALE_CHANCES_ENABLED
-    FLIF16MultiscaleChanceTable *mct;
-    FLIF16Log4kTable log4k;
-#endif
-
-    GetByteContext *gb;
 } FLIF16RangeCoder;
 
 /**
@@ -233,9 +232,9 @@ typedef struct FLIF16MANIACTree {
 } FLIF16MANIACTree;
 
 typedef struct FLIF16MANIACContext {
+    FLIF16MANIACChanceContext ctx[3];
     FLIF16MANIACTree **forest;
     FLIF16MANIACStack *stack;
-    FLIF16MANIACChanceContext ctx[3];
     unsigned int tree_top;
     unsigned int stack_top;
     unsigned int stack_size;
