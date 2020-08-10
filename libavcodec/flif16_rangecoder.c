@@ -550,7 +550,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                                                          sizeof(*(m->forest[channel]->data)));
             if (!m->forest[channel]->data)
                 return AVERROR(ENOMEM);
-            m->stack = av_mallocz_array(MANIAC_TREE_BASE_SIZE, sizeof(*(m->stack)));
+            m->stack = av_malloc_array(MANIAC_TREE_BASE_SIZE, sizeof(*(m->stack)));
             if (!(m->stack))
                 return AVERROR(ENOMEM);
 
@@ -562,10 +562,15 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
 #endif
             }
             m->stack_top = m->tree_top = 0;
-            m->forest[channel]->size    = MANIAC_TREE_BASE_SIZE;
-            m->stack_size = MANIAC_TREE_BASE_SIZE;
-            m->stack[m->stack_top].id   = m->tree_top;
-            m->stack[m->stack_top].mode = 0;
+
+            m->forest[channel]->size       = MANIAC_TREE_BASE_SIZE;
+            m->stack_size                  = MANIAC_TREE_BASE_SIZE;
+
+            m->stack[m->stack_top].id      = m->tree_top;
+            m->stack[m->stack_top].mode    = 0;
+            m->stack[m->stack_top].visited = 0;
+            m->stack[m->stack_top].p       = 0;
+            
             m->stack_top++;
             m->tree_top++;
         }
@@ -600,7 +605,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                     FLIF16_RAC_MANIAC_GNZ_INT);
             p = --(m->forest[channel]->data[m->stack[m->stack_top - 1].id].property);
             if (p == -1) {
-                --m->stack_top;
+                m->stack_top--;
                 rc->segment2 = 1;
                 continue;
             }
@@ -608,9 +613,8 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
             m->forest[channel]->data[m->stack[m->stack_top - 1].id].child_id = m->tree_top;
             rc->oldmin = prop_ranges[p].min;
             rc->oldmax = prop_ranges[p].max;
-            if (rc->oldmin >= rc->oldmax) {
+            if (rc->oldmin >= rc->oldmax)
                 return AVERROR_INVALIDDATA;
-            }
             rc->segment2++;
 
     case 3:
@@ -737,10 +741,10 @@ static FLIF16MANIACChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext 
             else
                 pos = nodes[pos].child_id + 1;
         } else if (nodes[pos].count > 0) {
-            --nodes[pos].count;
+            nodes[pos].count--;
             break;
         } else {
-            --nodes[pos].count;
+            nodes[pos].count--;
             if ((tree->leaves_top) >= tree->leaves_size) {
                 m->forest[channel]->leaves = av_realloc_f(m->forest[channel]->leaves,
                                                           m->forest[channel]->leaves_size * 2,
