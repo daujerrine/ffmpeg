@@ -125,8 +125,8 @@ typedef struct FLIF16DecoderContext {
     int rough_zl;
     int end_zl;
     int curr_zoom;
-    int *zoomlevels;
-    int *predictors;
+    int zoomlevels[MAX_PLANES];
+    int predictors[MAX_PLANES];
     int predictor;
 } FLIF16DecoderContext;
 
@@ -1450,7 +1450,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     RAC_GET(&s->rc, NULL, ff_flif16_ranges_min(s->range, s->i),
                             ff_flif16_ranges_max(s->range, s->i) - ff_flif16_ranges_min(s->range, s->i),
                             &temp, FLIF16_RAC_UNI_INT32);
-                    PIXEL_SETZ(s, s->i2, s->i, 0, 0, 0, temp);// TODO change?
+                    PIXEL_SETZ(s, s->i2, s->i, 0, 0, 0, temp);
                 }
                 s->i2 = 0;
             }
@@ -1458,14 +1458,8 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
         s->segment++;
 
     case 4:
-        s->zoomlevels = av_malloc(nump * sizeof(*s->zoomlevels)); // Free later
-        if (!s->zoomlevels)
-            return AVERROR(ENOMEM);
         for (int i = 0; i < nump; i++)
             s->zoomlevels[i] = s->begin_zl;
-        s->predictors = av_malloc(nump * sizeof(*s->predictors)); // Free later
-        if (!s->predictors)
-            return AVERROR(ENOMEM);
         s->segment++;
 
     /* Inner Segment */

@@ -123,7 +123,6 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
 static int flif_read_exif(void *logctx, uint8_t *buf, int buf_size, AVDictionary **d)
 {
     uint8_t le;
-    uint32_t depth;
     uint32_t temp;
     int ret;
     GetByteContext gb;
@@ -160,7 +159,7 @@ static int flif_read_exif(void *logctx, uint8_t *buf, int buf_size, AVDictionary
     // Subtract read bytes, then skip
     bytestream2_skip(&gb, temp - 8);
 
-    ret = ff_exif_decode_ifd(logctx, &gb, le, depth, d);
+    ret = ff_exif_decode_ifd(logctx, &gb, le, 0, d);
     
     return ret;
 }
@@ -300,7 +299,7 @@ static int flif16_read_header(AVFormatContext *s)
         if (!memcmp("eXif", tag, 4)) {
             ret = flif_read_exif(s, out_buf, out_buf_size, &s->metadata);
             if (ret < 0)
-                av_log(s, AV_LOG_WARNING, "metadata may be corrupted\n", tag);
+                av_log(s, AV_LOG_WARNING, "metadata may be corrupted\n");
         } else
             av_dict_set(&s->metadata, tag, out_buf, 0);
 #else
