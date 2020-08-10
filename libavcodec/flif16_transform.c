@@ -125,7 +125,7 @@ typedef struct ColorBuckets {
     ColorBucket empty_bucket;
     ColorBucket *bucket1;
     ColorBucket **bucket2; // list of a list
-     FLIF16RangesContext *ranges;
+    FLIF16RangesContext *ranges;
     unsigned int bucket1_size;
     unsigned int bucket2_size, bucket2_list_size;
     int min0, min1;
@@ -783,6 +783,48 @@ static void ff_colorbuckets_minmax(FLIF16RangesContext *r_ctx,
     }
 }
 
+static void ff_list_close(ColorValCB_list *list)
+{
+    ColorValCB_list *temp;
+    while (list) {
+        temp = list;
+        av_free(temp);
+        list = list->next;
+    }
+}
+
+static void ff_priv_colorbuckets_close(ColorBuckets *cb)
+{
+    if (cb->bucket1->snapvalues)
+        av_free(cb->bucket1->snapvalues);
+    if (cb->bucket1->values)
+        ff_list_close(cb->bucket1->values);
+    av_free(cb->bucket1);
+
+    if (cb->bucket0.snapvalues)
+        av_free(cb->bucket0.snapvalues);
+    if (cb->bucket0.values)
+        ff_list_close(cb->bucket0.values);
+
+    if (cb->bucket3.snapvalues)
+        av_free(cb->bucket3.snapvalues);
+    if (cb->bucket3.values)
+        ff_list_close(cb->bucket3.values);
+
+    for (unsigned int i = 0; i < cb->bucket2_size; i++) {
+        for (unsigned int j = 0; j < cb->bucket2_list_size; j++) {
+            if (cb->bucket2[i][j].snapvalues)
+                av_free(cb->bucket2[i][j].snapvalues);
+            if (cb->bucket2[i][j].values)
+                ff_list_close(cb->bucket2[i][j].values);
+        }
+        av_free(cb->bucket2[i]);
+    }
+    av_free(cb->bucket2);
+
+    av_free(cb->ranges);
+}
+
 static void ff_colorbuckets_close(FLIF16RangesContext *r_ctx)
 {
     RangesPrivColorbuckets *data = r_ctx->priv_data;
@@ -790,7 +832,6 @@ static void ff_colorbuckets_close(FLIF16RangesContext *r_ctx)
     if (range->close)
         range->close(data->r_ctx);
     av_free(data->r_ctx->priv_data);
-    av_free(data->buckets);
     av_free(data->r_ctx);
 }
 
@@ -2057,8 +2098,8 @@ static void ff_prepare_snapvalues(ColorBucket *cb)
 {
     int i = 0;
     if (cb->discrete) {
-        if (cb->snapvalues_size)
-            av_freep(&cb->snapvalues);
+        // if (cb->snapvalues_size)
+        //     av_freep(&cb->snapvalues);
         if (cb->max > cb->min) {
             cb->snapvalues = av_malloc_array((cb->max - cb->min), sizeof(*cb->snapvalues));
             cb->snapvalues_size = cb->max - cb->min;
@@ -2500,6 +2541,13 @@ static int transform_colorbuckets_read(FLIF16TransformContext *ctx,
     return 1;
 }
 
+static void transform_colorbuckets_close(FLIF16TransformContext *ctx)
+{
+    TransformPrivColorbuckets *data = ctx->priv_data;
+    ff_priv_colorbuckets_close(data->cb);
+    av_free(data->cb);
+}
+
 static int transform_framedup_init(FLIF16TransformContext *ctx,
                                    FLIF16RangesContext *src_ctx)
 {
@@ -2842,7 +2890,7 @@ const FLIF16Transform flif16_transform_colorbuckets = {
     .meta           = &transform_colorbuckets_meta,
     .forward        = NULL,
     .reverse        = NULL,
-    .close          = NULL
+    .close          = &transform_colorbuckets_close
 };
 
 const FLIF16Transform flif16_transform_framedup = {
