@@ -25,6 +25,7 @@
  */
 
 #include "avformat.h"
+#include "libavutil/common.h"
 #include "libavutil/bprint.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/opt.h"
@@ -50,7 +51,7 @@
  * must be used with windowBits being between -8 .. -15.
  */
 #define ZLIB_WINDOW_BITS -15
-#define BUF_SIZE 4096
+#define BUF_SIZE 40
 
 typedef struct FLIFDemuxContext {
     const AVClass *class;
@@ -85,27 +86,32 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
         if (!*out_buf)
             return AVERROR(ENOMEM);
     }
-    stream->next_in  = buf + stream->total_in;
-    stream->avail_in = buf_size - stream->total_in;
-    while (stream->total_out >= (*out_buf_size - 1)) {
-        *out_buf = av_realloc_f(*out_buf, (*out_buf_size) * 2, 1);
-        if (!out_buf)
-            return AVERROR(ENOMEM);
-        *out_buf_size *= 2;
-    }
 
-    stream->next_out  = *out_buf + stream->total_out;
-    stream->avail_out = *out_buf_size - stream->total_out - 1; // Last byte should be NULL char
- 
-    ret = inflate(stream, Z_PARTIAL_FLUSH);
+    stream->next_in  = buf;
+    stream->avail_in = buf_size;
+
+    do {
+        while (stream->total_out >= (*out_buf_size - 1)) {
+            *out_buf = av_realloc_f(*out_buf, (*out_buf_size) * 2, 1);
+            if (!out_buf)
+                return AVERROR(ENOMEM);
+            *out_buf_size *= 2;
+        }
+
+        stream->next_out  = *out_buf + stream->total_out;
+        stream->avail_out = *out_buf_size - stream->total_out - 1; // Last byte should be NULL char
+     
+        ret = inflate(stream, Z_PARTIAL_FLUSH);
+    } while (stream->avail_in > 0);
+
     switch (ret) {
-        case Z_NEED_DICT:
-        case Z_DATA_ERROR:
-            (void)inflateEnd(stream);
-            return AVERROR_INVALIDDATA;
-        case Z_MEM_ERROR:
-            (void)inflateEnd(stream);
-            return AVERROR(ENOMEM);
+    case Z_NEED_DICT:
+    case Z_DATA_ERROR:
+        (void)inflateEnd(stream);
+        return AVERROR_INVALIDDATA;
+    case Z_MEM_ERROR:
+        (void)inflateEnd(stream);
+        return AVERROR(ENOMEM);
     }
 
     if (ret == Z_STREAM_END) {
@@ -204,21 +210,20 @@ static int flif16_read_header(AVFormatContext *s)
     AVIOContext     *pb  = s->pb;
     AVStream        *st;
 
+    int64_t duration = 0;
     uint32_t vlist[3] = {0};
     uint32_t flag, animated, temp;
     uint32_t bpc = 0;
-    uint8_t tag[5] = {0};
-    uint8_t buf[BUF_SIZE];
     uint32_t metadata_size = 0;
-    uint8_t *out_buf = NULL;
     int out_buf_size = 0;
     int buf_size = 0;
-
     unsigned int count = 4;
     int ret;
     int format;
     int segment = 0, i = 0;
-    int64_t duration = 0;
+    uint8_t tag[5] = {0};
+    uint8_t buf[BUF_SIZE];
+    uint8_t *out_buf = NULL;
     uint8_t loops = 0;
     uint8_t num_planes;
     uint8_t num_frames;
@@ -281,30 +286,40 @@ static int flif16_read_header(AVFormatContext *s)
         /*
          * Decompression Routines
          * There are 3 supported metadata chunks currently in FLIF: eXmp, eXif,
-         * and iCCp
+         * and iCCp.
          */
         while (metadata_size > 0) {
             if ((buf_size = avio_read_partial(pb, buf, FFMIN(BUF_SIZE, metadata_size))) < 0)
                 return buf_size;
             metadata_size -= buf_size;
-            do {
-                if((ret = flif_inflate(dc, buf, buf_size, &out_buf, &out_buf_size)) < 0 &&
-                    ret != AVERROR(EAGAIN)) {
-                    av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
-                    return ret;
-                }
-            } while (ret == AVERROR(EAGAIN));
+            if((ret = flif_inflate(dc, buf, buf_size, &out_buf, &out_buf_size)) < 0 &&
+                ret != AVERROR(EAGAIN)) {
+                av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
+                avio_skip(pb, metadata_size);
+                goto metadata_fail;
+            
+            }
         }
 
-        if (!memcmp("eXif", tag, 4)) {
+        switch (*((uint32_t *) tag)) {
+        case MKTAG('e', 'X', 'i','f'):
             ret = flif_read_exif(s, out_buf, out_buf_size, &s->metadata);
             if (ret < 0)
                 av_log(s, AV_LOG_WARNING, "metadata may be corrupted\n");
-        } else
+            break;
+
+        case MKTAG('i','C','C','P'):
+            break;
+
+        default:
             av_dict_set(&s->metadata, tag, out_buf, 0);
+            break;
+        }
 #else
         avio_skip(pb, metadata_size);
 #endif
+        metadata_fail:
+            continue;
     }
 
     av_freep(&out_buf);
@@ -317,45 +332,45 @@ static int flif16_read_header(AVFormatContext *s)
 
     while (1) {
         switch (segment) {
-            case 0:
-                if (bpc == '0') {
-                    bpc = 0;
-                    for (; i < num_planes; ++i) {
-                        RAC_GET(&rc, NULL, 1, 15, &temp, FLIF16_RAC_UNI_INT8);
-                        bpc = FFMAX(bpc, (1 << temp) - 1);
-                    }
-                    i = 0;
-                } else
-                    bpc = (bpc == '1') ? 255 : 65535;
-                // MSG("planes : %d & bpc : %d\n", num_planes, bpc);
-                if (num_frames < 2)
-                    goto end;
-                ++segment;
-
-            case 1:
-                if (num_planes > 3) {
-                    RAC_GET(&rc, NULL, 0, 1, &temp, FLIF16_RAC_UNI_INT8);
+        case 0:
+            if (bpc == '0') {
+                bpc = 0;
+                for (; i < num_planes; ++i) {
+                    RAC_GET(&rc, NULL, 1, 15, &temp, FLIF16_RAC_UNI_INT8);
+                    bpc = FFMAX(bpc, (1 << temp) - 1);
                 }
-                ++segment;
-
-            case 2:
-                if (num_frames > 1) {
-                    RAC_GET(&rc, NULL, 0, 100, &loops, FLIF16_RAC_UNI_INT8);
-                } else
-                    loops = 1;
-                ++segment;
-
-            case 3:
-                if (num_frames > 1) {
-                    for (; i < num_frames; ++i) {
-                        temp = 0;
-                        RAC_GET(&rc, NULL, 0, 60000, &(temp), FLIF16_RAC_UNI_INT16);
-                        duration += temp;
-                    }
-                    i = 0;
-                } else
-                    duration = 1;
+                i = 0;
+            } else
+                bpc = (bpc == '1') ? 255 : 65535;
+            // MSG("planes : %d & bpc : %d\n", num_planes, bpc);
+            if (num_frames < 2)
                 goto end;
+            ++segment;
+
+        case 1:
+            if (num_planes > 3) {
+                RAC_GET(&rc, NULL, 0, 1, &temp, FLIF16_RAC_UNI_INT8);
+            }
+            ++segment;
+
+        case 2:
+            if (num_frames > 1) {
+                RAC_GET(&rc, NULL, 0, 100, &loops, FLIF16_RAC_UNI_INT8);
+            } else
+                loops = 1;
+            ++segment;
+
+        case 3:
+            if (num_frames > 1) {
+                for (; i < num_frames; ++i) {
+                    temp = 0;
+                    RAC_GET(&rc, NULL, 0, 60000, &(temp), FLIF16_RAC_UNI_INT16);
+                    duration += temp;
+                }
+                i = 0;
+            } else
+                duration = 1;
+            goto end;
         }
 
         need_more_data:
@@ -387,7 +402,6 @@ static int flif16_read_header(AVFormatContext *s)
     // Jump to start because flif16 decoder needs header data too
     if (avio_seek(pb, 0, SEEK_SET) != 0)
         return AVERROR(EIO);
-    //printf("At: [%s] %s, %d\n", __func__, __FILE__, __LINE__);
     return 0;
 }
 
@@ -396,7 +410,6 @@ static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     AVIOContext *pb  = s->pb;
     int ret;
-    //  FFMIN(BUF_SIZE, avio_size(pb))
     ret = av_get_packet(pb, pkt, avio_size(pb));
     return ret;
 }
