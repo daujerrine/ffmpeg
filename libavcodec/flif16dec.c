@@ -120,14 +120,15 @@ typedef struct FLIF16DecoderContext {
     // Pixeldata
     FLIF16ColorVal grays[MAX_PLANES];
     FLIF16ColorVal properties[MAX_PROPERTIES];
+    FLIF16ColorVal guess;      ///< State variable. Stores guess
+    FLIF16ColorVal min, max;
     uint32_t begin;            ///< State variable for Column range end
     uint32_t end;              ///< State variable for Column range start
     uint32_t c;                ///< State variable for current column
     uint8_t curr_plane;        ///< State variable. Current plane under processing
-    FLIF16ColorVal guess;      ///< State variable. Stores guess
-    FLIF16ColorVal min, max;
 
     // Interlaced Pixeldata
+    uint8_t default_order;
     int begin_zl;
     int rough_zl;
     int end_zl;
@@ -135,7 +136,6 @@ typedef struct FLIF16DecoderContext {
     int zoomlevels[MAX_PLANES];
     int predictors[MAX_PLANES];
     int predictor;
-    uint8_t default_order;
 } FLIF16DecoderContext;
 
 // Cast values to FLIF16Context for some functions.
@@ -1395,7 +1395,6 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     int ret;
     int temp;
     uint8_t nump = s->num_planes;
-    int zl_first, zl_second;
     uint8_t alpha_plane = (s->num_planes > 3) ? 3 : 0;
 
     if (!rough && !s->segment) { // Are we decoding the main pixeldata segment?
