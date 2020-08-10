@@ -400,6 +400,7 @@ static void ff_ycocg_close(FLIF16RangesContext *r_ctx)
     const FLIF16Ranges *range = flif16_ranges[data->r_ctx->r_no];
     if (range->close)
         range->close(data->r_ctx);
+    av_free(data->r_ctx->priv_data);
     av_free(data->r_ctx);
 }
 
@@ -467,6 +468,7 @@ static void ff_permuteplanes_close(FLIF16RangesContext *r_ctx)
     const FLIF16Ranges *range = flif16_ranges[data->r_ctx->r_no];
     if (range->close)
         range->close(data->r_ctx);
+    av_free(data->r_ctx->priv_data);
     av_free(data->r_ctx);
 }
 
@@ -546,6 +548,7 @@ static void ff_bounds_close(FLIF16RangesContext *r_ctx)
     const FLIF16Ranges *range = flif16_ranges[data->r_ctx->r_no];
     if (range->close)
         range->close(data->r_ctx);
+    av_free(data->r_ctx->priv_data);
     av_free(data->bounds);
     av_free(data->r_ctx);
 }
@@ -597,6 +600,7 @@ static void ff_palette_close(FLIF16RangesContext *r_ctx)
     const FLIF16Ranges *range = flif16_ranges[data->r_ctx->r_no];
     if (range->close)
         range->close(data->r_ctx);
+    av_free(data->r_ctx->priv_data);
     av_free(data->r_ctx);
 }
 
@@ -787,6 +791,7 @@ static void ff_colorbuckets_close(FLIF16RangesContext *r_ctx)
     const FLIF16Ranges *range = flif16_ranges[data->r_ctx->r_no];
     if (range->close)
         range->close(data->r_ctx);
+    av_free(data->r_ctx->priv_data);
     av_free(data->buckets);
     av_free(data->r_ctx);
 }
@@ -845,9 +850,12 @@ static void ff_framecombine_close(FLIF16RangesContext *r_ctx)
 {
     RangesPrivFramecombine *data = r_ctx->priv_data;
     const FLIF16Ranges *range = flif16_ranges[data->ranges->r_no];
-    if (range->close)
+    if (range->close) {
         range->close(data->ranges);
+        av_free(data->ranges->priv_data);
+    }
     av_free(data->ranges);
+    // av_free(r_ctx->priv_data);
 }
 
 static const FLIF16Ranges flif16_ranges_static = {
@@ -1200,11 +1208,11 @@ static FLIF16RangesContext *transform_permuteplanes_meta(FLIF16Context *ctx,
     TransformPrivPermuteplanes *data;
     RangesPrivPermuteplanes *priv_data;
 
-    r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
+    r_ctx = av_mallocz(sizeof(*r_ctx));
     if (!r_ctx)
         return NULL;
     data = t_ctx->priv_data;
-    priv_data = av_mallocz(sizeof(RangesPrivPermuteplanes));
+    priv_data = av_mallocz(sizeof(*priv_data));
     if (!priv_data)
         return NULL;
     if (data->subtract)
@@ -1390,7 +1398,10 @@ static FLIF16RangesContext *transform_channelcompact_meta(FLIF16Context *ctx,
     }
     r_ctx->priv_data = data;
     r_ctx->r_no = FLIF16_RANGES_CHANNELCOMPACT;
-    ff_flif16_ranges_close(src_ctx);
+    ff_static_close(src_ctx);
+    av_free(src_ctx->priv_data);
+    av_free(src_ctx);
+    // ff_flif16_ranges_close(src_ctx);
     return r_ctx;
 }
 
@@ -1500,7 +1511,7 @@ static FLIF16RangesContext *transform_bounds_meta(FLIF16Context *ctx,
     RangesPrivStatic *data;
     RangesPrivBounds *dataB;
 
-    r_ctx = av_mallocz(sizeof(FLIF16RangesContext));
+    r_ctx = av_mallocz(sizeof(*r_ctx));
     if (!r_ctx)
         return NULL;
     r_ctx->num_planes = src_ctx->num_planes;
@@ -1898,7 +1909,7 @@ static FLIF16RangesContext *transform_palettealpha_meta(FLIF16Context *ctx,
         return NULL;
     data = t_ctx->priv_data;
 
-    priv_data = av_mallocz(sizeof(RangesPrivPermuteplanes));
+    priv_data = av_mallocz(sizeof(*priv_data));
     if (!priv_data) {
         av_free(r_ctx);
         return NULL;
@@ -1997,12 +2008,12 @@ static int ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c)
         for (FLIF16ColorVal x = cb->min; x <= cb->max; x++) {
             if (x != c) {
                 if (cb->values_size == 0) {
-                    cb->values = av_mallocz(sizeof(ColorValCB_list));
+                    cb->values = av_mallocz(sizeof(*cb->values));
                     if (!cb->values)
                         return AVERROR(ENOMEM);
                     cb->values_last = cb->values;
                 } else {
-                    cb->values_last->next = av_mallocz(sizeof(ColorValCB_list));
+                    cb->values_last->next = av_mallocz(sizeof(*cb->values_last->next));
                     if (!cb->values_last->next)
                         return AVERROR(ENOMEM);
                     cb->values_last = cb->values_last->next;
@@ -2206,7 +2217,7 @@ static FLIF16RangesContext *transform_colorbuckets_meta(FLIF16Context *ctx,
     r_ctx = av_mallocz(sizeof(*r_ctx));
     if (!r_ctx)
         return NULL;
-    data = av_mallocz(sizeof(RangesPrivPalette));
+    data = av_mallocz(sizeof(*data));
     if (!data) {
         av_free(r_ctx);
         return NULL;
@@ -2366,7 +2377,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                     FFMIN(max_per_colorbucket[plane], b->max - b->min),
                     &cb->nb, FLIF16_RAC_GNZ_INT);
             b->values = 0;
-            b->values = av_mallocz(sizeof(ColorValCB_list));
+            b->values = av_mallocz(sizeof(*b->values));
             if (!b->values)
                 return AVERROR(ENOMEM); 
             b->values_last = b->values;
@@ -2382,7 +2393,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                 RAC_GET(rc, &chancectx[5], cb->v + 1,
                         b->max + 1 - cb->nb + cb->i2, &temp,
                         FLIF16_RAC_GNZ_INT);
-                b->values_last->next = av_mallocz(sizeof(ColorValCB_list));
+                b->values_last->next = av_mallocz(sizeof(*b->values_last->next));
                 if (!b->values_last->next)
                     return AVERROR(ENOMEM);
                 b->values_last = b->values_last->next;
@@ -2394,7 +2405,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
             b->values_size = cb->nb - 1;
 
             if (b->min < b->max) {
-                b->values_last->next = av_mallocz(sizeof(ColorValCB_list));
+                b->values_last->next = av_mallocz(sizeof(*b->values_last->next));
                 if (!b->values_last->next)
                     return AVERROR(ENOMEM);
                 b->values_last = b->values_last->next;
