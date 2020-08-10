@@ -795,11 +795,14 @@ static void ff_list_close(ColorValCB_list *list)
 
 static void ff_priv_colorbuckets_close(ColorBuckets *cb)
 {
-    if (cb->bucket1->snapvalues)
-        av_free(cb->bucket1->snapvalues);
-    if (cb->bucket1->values)
-        ff_list_close(cb->bucket1->values);
-    av_free(cb->bucket1);
+    for (unsigned int i = 0; i < cb->bucket1_size; i++) {
+        if (cb->bucket1[i].snapvalues)
+            av_free(cb->bucket1[i].snapvalues);
+        if (cb->bucket1[i].values)
+            ff_list_close(cb->bucket1[i].values);
+
+        av_free(&cb->bucket1[i]);
+    }
 
     if (cb->bucket0.snapvalues)
         av_free(cb->bucket0.snapvalues);
@@ -890,7 +893,6 @@ static void ff_framecombine_close(FLIF16RangesContext *r_ctx)
         av_free(data->ranges->priv_data);
     }
     av_free(data->ranges);
-    // av_free(r_ctx->priv_data);
 }
 
 static const FLIF16Ranges flif16_ranges_static = {
