@@ -38,8 +38,8 @@
 
 // Remove later
 #include <stdio.h>
-#undef CONFIG_ZLIB
-#define CONFIG_ZLIB 0
+//#undef CONFIG_ZLIB
+//#define CONFIG_ZLIB 0
 #if CONFIG_ZLIB
 #include <zlib.h>
 #endif
@@ -88,26 +88,16 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
     stream->next_in  = buf + stream->total_in;
     stream->avail_in = buf_size - stream->total_in;
     while (stream->total_out >= (*out_buf_size - 1)) {
-        printf("Reallocating\n");
         *out_buf = av_realloc_f(*out_buf, (*out_buf_size) * 2, 1);
         if (!out_buf)
             return AVERROR(ENOMEM);
         *out_buf_size *= 2;
     }
 
-    stream->next_out  = *out_buf + stream->total_out + 1;
+    stream->next_out  = *out_buf + stream->total_out;
     stream->avail_out = *out_buf_size - stream->total_out - 1; // Last byte should be NULL char
-    printf("%d %d %d %d %d\n", stream->next_in, stream->avail_in, stream->next_out, stream->avail_out,
-           stream->total_out);
-    printf("First 10 bytes: ");
-    for (int i = 0; i < FFMIN(10, buf_size); ++i)
-        printf("%x ", buf[i]);
-    printf("\n");
-    printf("Buf size: %d, Outbuf size: %d\n", buf_size, *out_buf_size);
+ 
     ret = inflate(stream, Z_PARTIAL_FLUSH);
-    printf("Return: %d Message: %s \nZ_NEED_DICT: %d\nZ_DATA_ERROR: %d\n"
-           "Z_MEM_ERROR: %d\n", ret, stream->msg, Z_NEED_DICT, Z_DATA_ERROR,
-           Z_MEM_ERROR);
     switch (ret) {
         case Z_NEED_DICT:
         case Z_DATA_ERROR:
@@ -119,7 +109,6 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
     }
 
     if (ret == Z_STREAM_END) {
-        printf("end of stream\n");
         s->active = 0;
         (*out_buf)[stream->total_out] = '\0';
         (void) inflateEnd(stream);
@@ -131,46 +120,49 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
 #endif
 
 
-static int flif_read_exif(uint8_t *buf, int buf_size, AVDictionary *d)
+static int flif_read_exif(void *logctx, uint8_t *buf, int buf_size, AVDictionary **d)
 {
     uint8_t le;
+    uint32_t depth;
     uint32_t temp;
-    GetByteContext *gb;
+    int ret;
+    GetByteContext gb;
+    // Read exif header
     if (memcmp("Exif", buf, 4))
         return AVERROR_INVALIDDATA;
 
-    // Skip exif header
     buf += 6;
 
     // Figure out endianness
     if (buf[0] == 'M' && buf[1] == 'M')
-        le = 1;
-    else if (buf[0] == 'I' && buf[1] == 'I')
         le = 0;
+    else if (buf[0] == 'I' && buf[1] == 'I')
+        le = 1;
     else
         return AVERROR_INVALIDDATA;
 
     buf += 2;
 
+    bytestream2_init(&gb, buf, buf_size - 8);
+    temp = ff_tget_short(&gb, le);
+
     // Check TIFF marker
-    if (*buf != 0x2A)
+    if (temp != 0x002A)
         return AVERROR_INVALIDDATA;
 
-    bytestream2_init(&gb, buf, buf_size - 7);
+    buf += 2;
 
     if (le)
         temp = bytestream2_get_le32(&gb);
     else
         temp = bytestream2_get_be32(&gb);
 
-    bytestream2_seek(&gb, temp - 3, SEEK_CUR);
+    // Subtract read bytes, then skip
+    bytestream2_skip(&gb, temp - 8);
 
-    if (le)
-        temp = bytestream2_get_le16(&gb);
-    else
-        temp = bytestream2_get_be16(&gb);
-
-    return 0;
+    ret = ff_exif_decode_ifd(logctx, &gb, le, depth, d);
+    
+    return ret;
 }
 
 static int flif16_probe(const AVProbeData *p)
@@ -287,7 +279,11 @@ static int flif16_read_header(AVFormatContext *s)
         count = 4;
 
 #if CONFIG_ZLIB
-        // Decompression Routines
+        /*
+         * Decompression Routines
+         * There are 3 supported metadata chunks currently in FLIF: eXmp, eXif,
+         * and iCCp
+         */
         while (metadata_size > 0) {
             if ((buf_size = avio_read_partial(pb, buf, FFMIN(BUF_SIZE, metadata_size))) < 0)
                 return buf_size;
@@ -302,11 +298,9 @@ static int flif16_read_header(AVFormatContext *s)
         }
 
         if (!memcmp("eXif", tag, 4)) {
-            for(int i = 0; i < out_buf_size; i++)
-                printf("%x ", out_buf[i]);
-            printf("\n");
-            ret = avpriv_exif_decode_ifd(s, out_buf + 0x10, out_buf_size - 0x10, 0, 12, &s->metadata);
-            printf("Return: %d\n", ret);
+            ret = flif_read_exif(s, out_buf, out_buf_size, &s->metadata);
+            if (ret < 0)
+                av_log(s, AV_LOG_WARNING, "metadata may be corrupted\n", tag);
         } else
             av_dict_set(&s->metadata, tag, out_buf, 0);
 #else
@@ -366,9 +360,9 @@ static int flif16_read_header(AVFormatContext *s)
         }
 
         need_more_data:
-            if ((ret = avio_read_partial(pb, buf, BUF_SIZE)) < 0)
-                return ret;
-            bytestream2_init(&gb, buf, ret);
+        if ((ret = avio_read_partial(pb, buf, BUF_SIZE)) < 0)
+            return ret;
+        bytestream2_init(&gb, buf, ret);
     }
 
     end:

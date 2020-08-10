@@ -74,10 +74,6 @@ typedef struct FLIF16DecoderContext {
 
     /* End Inheritance from FLIF16Context */
 
-    // Checksum
-    AVCRC *crc_table;
-    AVCRC crc;
-    AVCRC crc_org;
     FLIF16PixelData  *frames;
     uint32_t out_frames_count;
     AVFrame *out_frame;
@@ -102,8 +98,7 @@ typedef struct FLIF16DecoderContext {
     uint8_t ipp;          ///< Invisible pixel predictor
 
     // Transforms
-    // Size dynamically maybe
-    FLIF16TransformContext *transforms[13];
+    FLIF16TransformContext *transforms[MAX_TRANSFORMS];
     uint8_t transform_top;
     FLIF16RangesContext *range; ///< The minimum and maximum values a
                                 ///  channel's pixels can take. Changes
@@ -111,7 +106,6 @@ typedef struct FLIF16DecoderContext {
     FLIF16RangesContext *prev_range;
 
     // MANIAC Trees
-    //FLIF16MinMax *prop_ranges; ///< Property Ranges
     FLIF16MinMax prop_ranges[MAX_PROP_RANGES]; ///< Property Ranges
     uint32_t prop_ranges_size;
     
@@ -146,13 +140,6 @@ typedef struct FLIF16DecoderContext {
 #define PIXEL_GETFAST(ctx, fr, p, r, c) ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
 #define PIXEL_SETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_set_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
 
-#define PIXEL_SETP(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), fr, p, r, c, val)
-#define PIXEL_GETP(ctx, fr, p, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), fr, p, r, c)
-#define PIXEL_SETZP(ctx, fr, p, z, r, c, val) ff_flif16_pixel_setz(CTX_CAST(ctx), fr, p, z, r, c, val)
-#define PIXEL_GETZP(ctx, fr, p, z, r, c) ff_flif16_pixel_getz(CTX_CAST(ctx), fr, p, z, r, c)
-#define PIXEL_GETFASTP(ctx, fr, p, r, c) ff_flif16_pixel_get_fast(CTX_CAST(ctx), fr, p, r, c)
-#define PIXEL_SETFASTP(ctx, fr, p, r, c, val) ff_flif16_pixel_set_fast(CTX_CAST(ctx), fr, p, r, c, val)
-
 #define PREV_FRAME(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
 #define PREV_FRAMENUM(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
 #define LOOKBACK_FRAMENUM(ctx, frames, f_no, r, c) (((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before >= 0) ? \
@@ -161,6 +148,9 @@ typedef struct FLIF16DecoderContext {
 #define LOOKBACK_FRAMENUMZ(ctx, frames, f_no, z, r, c) (((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before >= 0) ? \
                                                        ((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before) : \
                                                        ((f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))))
+
+#define IS_CONSTANT(ranges, plane) (ff_flif16_ranges_min((ranges), (plane)) >= \
+                                    ff_flif16_ranges_max((ranges), (plane)))
 
 // From reference decoder:
 //
@@ -555,7 +545,7 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
             s->segment++;
 
     case 1:
-            if (ff_flif16_ranges_min(s->range, s->i) >= ff_flif16_ranges_max(s->range, s->i)) {
+            if (IS_CONSTANT(s->range, s->i)) {
                 s->segment--;
                 continue;
             }
@@ -934,8 +924,9 @@ static inline FLIF16ColorVal flif16_predict_vertical(FLIF16DecoderContext *s,
 }
 
 static inline FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
-                                                      uint32_t fr, int8_t z, uint8_t p,
-                                                      uint32_t r, uint8_t horizontal,
+                                                      uint32_t fr, int8_t z,
+                                                      uint8_t p, uint32_t r,
+                                                      uint8_t horizontal,
                                                       uint8_t nobordercases)
 {
     FLIF16ColorVal guess, left, top, topleft, topright, bottomleft, bottom,
@@ -1091,7 +1082,8 @@ static inline int plane_zoomlevels(uint8_t num_planes, int begin_zl, int end_zl)
 }
 
 static inline void plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
-                                   int i, FLIF16RangesContext *ranges, int *min, int *max)
+                                   int i, FLIF16RangesContext *ranges, int *min,
+                                   int *max)
 {
     int zl_list[MAX_PLANES] = {0};
     int nextp, p, zl, highest_priority_plane;
@@ -1103,7 +1095,7 @@ static inline void plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_zl,
     // transform, animation only)
     int max_behind[] = {0, 2, 4, 0, 0};
 
-    if (ff_flif16_ranges_min(ranges, 0) >= ff_flif16_ranges_max(ranges, 0)) {
+    if (IS_CONSTANT(ranges, 0)) {
         max_behind[1] = 0;
         max_behind[2] = 1;
     }
@@ -1422,7 +1414,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     int ret;
     int temp;
     uint8_t nump = s->num_planes;
-    int zl_first, zl_second;// TODO put in ctx
+    int zl_first, zl_second;
     uint8_t alpha_plane = (s->num_planes > 3) ? 3 : 0;
 
     if (!rough && !s->segment) {
@@ -1452,7 +1444,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
         s->i = 0;
         s->i2 = 0;
         for (; s->i < s->num_planes; s->i++) {
-            if (ff_flif16_ranges_min(s->range, s->i) < ff_flif16_ranges_max(s->range, s->i)) {
+            if (!IS_CONSTANT(s->range, s->i)) {
                 for (; s->i2 < s->num_frames; s->i2++) {
     case 3:
                     RAC_GET(&s->rc, NULL, ff_flif16_ranges_min(s->range, s->i),
@@ -1504,8 +1496,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                 return AVERROR_INVALIDDATA;
             }
             
-            if (ff_flif16_ranges_min(s->range, s->curr_plane) <
-                ff_flif16_ranges_max(s->range, s->curr_plane)) {
+            if (!IS_CONSTANT(s->range, s->curr_plane)) {
                 if (s->predictors[s->curr_plane] < 0) {
     case 8:
                     RAC_GET(&s->rc, NULL, 0, MAX_PREDICTORS, &s->predictor, FLIF16_RAC_UNI_INT32);
@@ -1707,60 +1698,6 @@ static int flif16_write_frame(AVCodecContext *avctx, AVFrame *data)
     return 0;
 }
 
-static void ff_flif16_compute_checksum(FLIF16DecoderContext *s)
-{
-    for (unsigned int p = 0; p < s->num_planes; p++) {
-        s->crc = av_crc(s->crc_table, s->crc, s->frames[0].data[p],
-                        s->width * s->height * s->bpc);
-    }
-}
-
-static int flif16_read_checksum(AVCodecContext *avctx)
-{
-    // FLIF16DecoderContext *s = avctx->priv_data;
-    // uint8_t contains_checksum;
-    // uint16_t temp;
-    // printf("Reading checksum\n");
-    
-    // switch (s->segment) {
-    //     case 0:
-    //         RAC_GET(&s->rc, NULL, 0, 1, &contains_checksum, FLIF16_RAC_UNI_INT8);
-    //         if (contains_checksum){
-    //             printf("contains_checksum : yes\n");
-    //             s->segment = 1;
-    //         } else {
-    //             s->segment = 0;
-    //             break;
-    //         }
-
-    //     case 1:
-    //         s->crc_table = av_crc_get_table(AV_CRC_32_IEEE);
-    //         RAC_GET(&s->rc, NULL, 0, (1 << 16) - 1, &s->crc_org, FLIF16_RAC_UNI_INT32);
-    //         s->crc_org *= 0x10000;
-    //         s->segment = 2;
-        
-    //     case 2:
-    //         RAC_GET(&s->rc, NULL, 0, (1 << 16) - 1, &temp, FLIF16_RAC_UNI_INT16);
-    //         s->crc_org += temp;
-    //         printf("original checksum : %d\n", s->crc_org);
-    //         s->crc = (s->width << 16) + s->height;
-    //         s->segment = 3;
-        
-    //     case 3:
-    //         ff_flif16_compute_checksum(s);
-    //         printf("computed checksum : %X\n", s->crc);
-    //         if (s->crc == s->crc_org) {
-    //             printf("Checksum matched\n");
-    //         } else {
-    //             printf("Corrupted image data\n");
-    //         }
-    // }
-    return AVERROR_EOF;
-
-    // need_more_data:
-    //     return AVERROR(EAGAIN);
-}
-
 static int flif16_decode_init(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
@@ -1781,9 +1718,10 @@ static int flif16_decode_frame(AVCodecContext *avctx,
     AVFrame *p              = data;
 
     bytestream2_init(&s->gb, buf, buf_size);
-
-    // Looping is done to change states in between functions.
-    // Function will either exit on AVERROR(EAGAIN) or AVERROR_EOF
+    /*
+     * Looping is done to change states in between functions.
+     * Function will either exit on AVERROR(EAGAIN) or AVERROR_EOF
+     */
     do {
         switch(s->state) {
         case FLIF16_HEADER:
@@ -1821,10 +1759,6 @@ static int flif16_decode_frame(AVCodecContext *avctx,
                     }
                 }
             }
-            break;
-
-        case FLIF16_CHECKSUM:
-            ret = flif16_read_checksum(avctx);
             break;
 
         case FLIF16_OUTPUT:
