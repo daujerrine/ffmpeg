@@ -875,10 +875,6 @@ static void ff_framecombine_snap(FLIF16RangesContext *src_ctx, const int p,
                                  FLIF16ColorVal *v)
 {
     RangesPrivFramecombine *data = src_ctx->priv_data;
-    // FLIF16RangesContext r_ctx;
-    // r_ctx.r_no = FLIF16_RANGES_FRAMELOOKBACK;
-    // r_ctx.num_planes = 5;
-    // r_ctx.priv_data = NULL;
     if (p >= 3)
         ff_static_snap(src_ctx, p, prev_planes, minv, maxv, v);
     else
