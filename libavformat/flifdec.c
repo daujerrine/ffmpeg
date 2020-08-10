@@ -37,10 +37,6 @@
 
 #include "config.h"
 
-// Remove later
-#include <stdio.h>
-//#undef CONFIG_ZLIB
-//#define CONFIG_ZLIB 0
 #if CONFIG_ZLIB
 #include <zlib.h>
 #endif
@@ -51,7 +47,7 @@
  * must be used with windowBits being between -8 .. -15.
  */
 #define ZLIB_WINDOW_BITS -15
-#define BUF_SIZE 40
+#define BUF_SIZE 4096
 
 typedef struct FLIFDemuxContext {
     const AVClass *class;
@@ -76,7 +72,7 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
         stream->opaque   = Z_NULL;
         stream->avail_in = 0;
         stream->next_in  = Z_NULL;
-        ret = inflateInit2(stream,ZLIB_WINDOW_BITS);
+        ret = inflateInit2(stream, ZLIB_WINDOW_BITS);
 
         if (ret != Z_OK)
             return ret;
@@ -99,20 +95,20 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
         }
 
         stream->next_out  = *out_buf + stream->total_out;
-        stream->avail_out = *out_buf_size - stream->total_out - 1; // Last byte should be NULL char
+        stream->avail_out = *out_buf_size - stream->total_out - 1;
      
         ret = inflate(stream, Z_PARTIAL_FLUSH);
-    } while (stream->avail_in > 0);
 
-    switch (ret) {
-    case Z_NEED_DICT:
-    case Z_DATA_ERROR:
-        (void)inflateEnd(stream);
-        return AVERROR_INVALIDDATA;
-    case Z_MEM_ERROR:
-        (void)inflateEnd(stream);
-        return AVERROR(ENOMEM);
-    }
+        switch (ret) {
+        case Z_NEED_DICT:
+        case Z_DATA_ERROR:
+            (void)inflateEnd(stream);
+            return AVERROR_INVALIDDATA;
+        case Z_MEM_ERROR:
+            (void)inflateEnd(stream);
+            return AVERROR(ENOMEM);
+        }
+    } while (stream->avail_in > 0);
 
     if (ret == Z_STREAM_END) {
         s->active = 0;
@@ -180,7 +176,7 @@ static int flif16_probe(const AVProbeData *p)
         return 0;
     }
 
-    for(int i = 0; i < 2 + (((p->buf[4] >> 4) > 4) ? 1 : 0); ++i) {
+    for(int i = 0; i < 2 + (((p->buf[4] >> 4) > 4) ? 1 : 0); i++) {
         while (p->buf[5 + pos] > 127) {
             if (!(count--)) {
                 return 0;
@@ -248,7 +244,7 @@ static int flif16_read_header(AVFormatContext *s)
 
     num_planes = flag & 0x0F;
 
-    for (int i = 0; i < (2 + animated); ++i) {
+    for (int i = 0; i < (2 + animated); i++) {
         while ((temp = avio_r8(pb)) > 127) {
             if (!(count--))
                 return AVERROR_INVALIDDATA;
@@ -270,7 +266,7 @@ static int flif16_read_header(AVFormatContext *s)
     while ((temp = avio_r8(pb))) {
         // Get metadata identifier
         tag[0] = temp;
-        for(int i = 1; i <= 3; ++i)
+        for(int i = 1; i <= 3; i++)
             tag[i] = avio_r8(pb);
 
         // Read varint
@@ -294,10 +290,11 @@ static int flif16_read_header(AVFormatContext *s)
             metadata_size -= buf_size;
             if((ret = flif_inflate(dc, buf, buf_size, &out_buf, &out_buf_size)) < 0 &&
                 ret != AVERROR(EAGAIN)) {
+                if (ret == AVERROR(ENOMEM) || ret == AVERROR_INVALIDDATA)
+                    return ret;
                 av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
                 avio_skip(pb, metadata_size);
                 goto metadata_fail;
-            
             }
         }
 
@@ -335,30 +332,29 @@ static int flif16_read_header(AVFormatContext *s)
         case 0:
             if (bpc == '0') {
                 bpc = 0;
-                for (; i < num_planes; ++i) {
+                for (; i < num_planes; i++) {
                     RAC_GET(&rc, NULL, 1, 15, &temp, FLIF16_RAC_UNI_INT8);
                     bpc = FFMAX(bpc, (1 << temp) - 1);
                 }
                 i = 0;
             } else
                 bpc = (bpc == '1') ? 255 : 65535;
-            // MSG("planes : %d & bpc : %d\n", num_planes, bpc);
             if (num_frames < 2)
                 goto end;
-            ++segment;
+            segment++;
 
         case 1:
             if (num_planes > 3) {
                 RAC_GET(&rc, NULL, 0, 1, &temp, FLIF16_RAC_UNI_INT8);
             }
-            ++segment;
+            segment++;
 
         case 2:
             if (num_frames > 1) {
                 RAC_GET(&rc, NULL, 0, 100, &loops, FLIF16_RAC_UNI_INT8);
             } else
                 loops = 1;
-            ++segment;
+            segment++;
 
         case 3:
             if (num_frames > 1) {
@@ -435,6 +431,5 @@ AVInputFormat ff_flif_demuxer = {
     .read_probe     = flif16_probe,
     .read_header    = flif16_read_header,
     .read_packet    = flif16_read_packet,
-    //.flags          = AVFMT_NOTIMESTAMPS,
     .priv_class     = &demuxer_class,
 };
