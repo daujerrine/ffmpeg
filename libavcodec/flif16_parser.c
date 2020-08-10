@@ -48,7 +48,7 @@ typedef struct FLIF16ParseContext {
     uint32_t width;
     uint32_t height;
     uint32_t frames;
-    uint32_t meta;      ///< Size of a meta chunk
+    uint32_t meta;           ///< Size of a meta chunk
     uint32_t count;
 } FLIF16ParseContext;
 
@@ -82,11 +82,11 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                 case 1:
                     VARINT_APPEND(f->width, buf[index]);
                     break;
-                
+
                 case 2:
                     VARINT_APPEND(f->height, buf[index]);
                     break;
-                
+
                 case 3:
                     VARINT_APPEND(f->frames, buf[index]);
                     break;
@@ -191,4 +191,3 @@ AVCodecParser ff_flif16_parser = {
     .parser_parse   = flif16_parse,
     .parser_close   = ff_parse_close,
 };
-

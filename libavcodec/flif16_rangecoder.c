@@ -34,7 +34,8 @@
  * provides it. gb is used by the coder functions for actual coding. This is
  * done to be able to use leftover bytes from a previous packet. This prevents
  * the creation of an additional buffer to append the new packet to the
- * bytestream.
+ * bytestream. This may seem cumbersome, but is done due to the fact that
+ * end of stream or end of frame is not easily determined.
  */
 void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
                         uint8_t buf_size)
@@ -43,8 +44,8 @@ void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
     if(buf_size < FLIF16_RAC_MAX_RANGE_BYTES)
         return;
 
-    rc->range  = FLIF16_RAC_MAX_RANGE;
-    rc->gb     = gb;
+    rc->range = FLIF16_RAC_MAX_RANGE;
+    rc->gb    = gb;
 
     for (uint32_t r = FLIF16_RAC_MAX_RANGE; r > 1; r >>= 8) {
         rc->low <<= 8;
@@ -451,7 +452,7 @@ static void build_table(uint16_t *zero_state, uint16_t *one_state, size_t size,
             continue;
         p = (i * one + size / 2) / size;
         p += ((one - p) * factor + one / 2) >> 32;
-        p8 = (size * p + one / 2) >> 32; //FIXME try without the one
+        p8 = (size * p + one / 2) >> 32; // FIXME try without the one
         if (p8 <= i)
             p8 = i + 1;
         if (p8 > max_p)
@@ -463,36 +464,27 @@ static void build_table(uint16_t *zero_state, uint16_t *one_state, size_t size,
         zero_state[i] = size - one_state[size - i];
 }
 
-/*
- * Ported from FLIF's reference decoder.
- * https://github.com/FLIF-hub/FLIF
- */
-static inline uint32_t log4kf(int32_t x, uint32_t base)
+static inline uint32_t log4k_compute(int32_t x, uint32_t base)
 {
     int bits     = 8 * sizeof(int32_t) - ff_clz(x);
     uint64_t y   = ((uint64_t) x) << (32 - bits);
     uint32_t res = base * (13 - bits);
     uint32_t add = base;
-    while ((add > 1) && ((y & 0x7FFFFFFF) != 0)) {
-        y = (((uint64_t) y) * y + 0x40000000) >> 31;
-        add >>= 1;
-        if ((y >> 32) != 0) {
+    for (; (add > 1) && ((y & 0x7FFFFFFF) != 0);
+           y = (((uint64_t) y) * y + 0x40000000) >> 31,
+           add >>= 1)
+        if ((y >> 32)) {
             res -= add;
             y >>= 1;
         }
-    }
     return res;
 }
 
-/*
- * Ported from FLIF's reference decoder.
- * https://github.com/FLIF-hub/FLIF
- */
 void ff_flif16_build_log4k_table(FLIF16Log4kTable *log4k)
 {
     log4k->table[0] = 0;
     for (int i = 1; i < 4096; i++)
-        log4k->table[i] = (log4kf(i, (65535UL << 16) / 12) +
+        log4k->table[i] = (log4k_compute(i, (65535UL << 16) / 12) +
                           (1 << 15)) >> 16;
     log4k->scale = 65535 / 12;
 }
@@ -570,7 +562,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
             m->stack[m->stack_top].mode    = 0;
             m->stack[m->stack_top].visited = 0;
             m->stack[m->stack_top].p       = 0;
-            
+
             m->stack_top++;
             m->tree_top++;
         }
