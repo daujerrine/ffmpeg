@@ -441,8 +441,8 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             s->segment++;
 
     case 2:
-            if(ff_flif16_transform_read(s->transforms[s->transform_top],
-                                        CTX_CAST(s), s->range) <= 0)
+            if(ff_flif16_transform_read(CTX_CAST(s), s->transforms[s->transform_top],
+                                        s->range) <= 0)
                 goto need_more_data;
             prev_range = s->range;
             s->range = ff_flif16_transform_meta(CTX_CAST(s), s->frames, s->num_frames,
