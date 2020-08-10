@@ -37,6 +37,17 @@
 #include "libavutil/crc.h"
 #include "libavutil/imgutils.h"
 
+typedef enum FLIF16States {
+    FLIF16_HEADER = 0,
+    FLIF16_SECONDHEADER,
+    FLIF16_TRANSFORM,
+    FLIF16_ROUGH_PIXELDATA,
+    FLIF16_MANIAC,
+    FLIF16_PIXELDATA,
+    FLIF16_OUTPUT,
+    FLIF16_EOS
+} FLIF16States;
+
 /*
  * Due to the nature of the format, the decoder has to take the entirety of the
  * data before it can generate any frames. The decoder has to return
@@ -47,9 +58,9 @@ typedef struct FLIF16DecoderContext {
 
     /* Inheritance from FLIF16Context */
 
-    GetByteContext gb;
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
+    GetByteContext gb;
 
     // Dimensions
     uint32_t width;
@@ -57,15 +68,13 @@ typedef struct FLIF16DecoderContext {
     uint32_t num_frames;
     uint32_t meta;       ///< Size of a meta chunk
 
-    // Primary Header     
-    uint8_t  ia;         ///< Is image interlaced or/and animated or not
-    uint32_t bpc;        ///< 2 ^ Bytes per channel
-    uint8_t  num_planes; ///< Number of planes
-
-    uint8_t loops;       ///< Number of times animation loops
+    // Primary Header
+    uint32_t bpc;         ///< 2 ^ Bytes per channel
     uint16_t *framedelay; ///< Frame delay for each frame
-
-    uint8_t plane_mode[MAX_PLANES];
+    uint8_t  ia;          ///< Is image interlaced or/and animated or not
+    uint8_t  num_planes;  ///< Number of planes
+    uint8_t  loops;       ///< Number of times animation loops
+    uint8_t  plane_mode[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;
@@ -74,32 +83,31 @@ typedef struct FLIF16DecoderContext {
 
     /* End Inheritance from FLIF16Context */
 
-    FLIF16PixelData  *frames;
-    uint32_t out_frames_count;
     AVFrame *out_frame;
+    FLIF16PixelData  *frames;
     int64_t pts;
-    
-    uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
-    uint8_t buf_count;    ///< Count for initial RAC buffer
-    int state;            ///< The section of the file the parser is in currently.
-    unsigned int segment; ///< The "segment" the code is supposed to jump to
+    uint32_t out_frames_count;
+
+    FLIF16States state;    ///< The section of the file the parser is in currently.
+    unsigned int segment;  ///< The "segment" the code is supposed to jump to
     unsigned int segment2;
-    int i;                ///< A generic iterator used to save states between for loops.
+    int i;                 ///< A generic iterator used to save states between for loops.
     int i2;
     int i3;
+    uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
+    uint8_t buf_count;    ///< Count for initial RAC buffer
 
     // Secondary Header
     uint8_t alphazero;    ///< Alphazero Flag
     uint8_t custombc;     ///< Custom Bitchance Flag
-    uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
-
-    uint8_t cut;          ///< Chancetable custom cutoff
     uint32_t alpha;       ///< Chancetable custom alphadivisor
+    uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
+    uint8_t cut;          ///< Chancetable custom cutoff
     uint8_t ipp;          ///< Invisible pixel predictor
 
     // Transforms
-    FLIF16TransformContext *transforms[MAX_TRANSFORMS];
     uint8_t transform_top;
+    FLIF16TransformContext *transforms[MAX_TRANSFORMS];
     FLIF16RangesContext *range; ///< The minimum and maximum values a
                                 ///  channel's pixels can take. Changes
                                 ///  depending on transformations applied
@@ -110,17 +118,16 @@ typedef struct FLIF16DecoderContext {
     uint32_t prop_ranges_size;
     
     // Pixeldata
-    uint32_t begin;
-    uint32_t end;
-    uint8_t curr_plane;        ///< State variable. Current plane under processing
     FLIF16ColorVal grays[MAX_PLANES];
     FLIF16ColorVal properties[MAX_PROPERTIES];
+    uint32_t begin;            ///< State variable for Column range end
+    uint32_t end;              ///< State variable for Column range start
+    uint32_t c;                ///< State variable for current column
+    uint8_t curr_plane;        ///< State variable. Current plane under processing
     FLIF16ColorVal guess;      ///< State variable. Stores guess
     FLIF16ColorVal min, max;
-    uint32_t c;                ///< State variable for current column
 
     // Interlaced Pixeldata
-    uint8_t default_order;
     int begin_zl;
     int rough_zl;
     int end_zl;
@@ -128,6 +135,7 @@ typedef struct FLIF16DecoderContext {
     int zoomlevels[MAX_PLANES];
     int predictors[MAX_PLANES];
     int predictor;
+    uint8_t default_order;
 } FLIF16DecoderContext;
 
 // Cast values to FLIF16Context for some functions.
@@ -164,18 +172,6 @@ typedef struct FLIF16DecoderContext {
 // Co and Cg are in that order because Co is perceptually slightly more
 // important than Cg [citation needed]
 static const int plane_ordering[] = {4,3,0,1,2}; // lookback (lookback), A, Y, Co, Cg
-
-enum FLIF16States {
-    FLIF16_HEADER = 0,
-    FLIF16_SECONDHEADER,
-    FLIF16_TRANSFORM,
-    FLIF16_ROUGH_PIXELDATA,
-    FLIF16_MANIAC,
-    FLIF16_PIXELDATA,
-    FLIF16_OUTPUT,
-    FLIF16_CHECKSUM,
-    FLIF16_EOS
-};
 
 static int flif16_read_header(AVCodecContext *avctx)
 {
@@ -388,10 +384,8 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             }
 
             s->transforms[s->transform_top] = ff_flif16_transform_init(temp, s->range);
-            if (!s->transforms[s->transform_top]) {
-                av_log(avctx, AV_LOG_ERROR, "failed to initialise transform %u\n", temp);
+            if (!s->transforms[s->transform_top])
                 return AVERROR(ENOMEM);
-            }
 
             // TODO Replace with switch statement
             switch (temp) {
@@ -464,9 +458,9 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     case 3:
         s->segment = 3;
         // Read invisible pixel predictor
-        if (   s->alphazero && s->num_planes > 3
-            && ff_flif16_ranges_min(s->range, 3) <= 0
-            && !(s->ia % 2))
+        if ( s->alphazero && s->num_planes > 3 &&
+             ff_flif16_ranges_min(s->range, 3) <= 0 &&
+             !(s->ia % 2))
             RAC_GET(&s->rc, NULL, 0, 2, &s->ipp, FLIF16_RAC_UNI_INT8)
     }
 

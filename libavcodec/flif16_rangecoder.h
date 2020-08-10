@@ -377,7 +377,8 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
 
 /**
  * Macro meant to handle intermittent bytestreams with slightly more
- * convenience. 
+ * convenience. Requires a "need_more_data" label to be present in the given
+ * scope.
  */
 #define RAC_GET(rc, ctx, val1, val2, target, type) \
     if (!ff_flif16_rac_process((rc), (ctx), (val1), (val2), (target), (type))) {\

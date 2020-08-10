@@ -672,7 +672,8 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
     }
 
     m->forest[channel]->data = av_realloc_f(m->forest[channel]->data,
-                                            m->tree_top, sizeof(*m->forest[channel]->data));
+                                            m->tree_top,
+                                            sizeof(*m->forest[channel]->data));
     if (!m->forest[channel]->data)
         return AVERROR(ENOMEM);
     m->forest[channel]->size = m->tree_top;

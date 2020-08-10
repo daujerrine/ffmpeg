@@ -2881,20 +2881,21 @@ const FLIF16Transform flif16_transform_framecombine = {
 };
 
 const FLIF16Transform *flif16_transforms[13] = {
-    &flif16_transform_channelcompact,
-    &flif16_transform_ycocg,
-    NULL, // RESERVED,
-    &flif16_transform_permuteplanes,
-    &flif16_transform_bounds,
-    &flif16_transform_palettealpha,
-    &flif16_transform_palette,
-    &flif16_transform_colorbuckets,
-    NULL, // RESERVED,
-    NULL, // RESERVED,
-    &flif16_transform_framedup,
-    &flif16_transform_frameshape,
-    &flif16_transform_framecombine
+    [FLIF16_TRANSFORM_CHANNELCOMPACT] = &flif16_transform_channelcompact,
+    [FLIF16_TRANSFORM_YCOCG]          = &flif16_transform_ycocg,
+    [FLIF16_TRANSFORM_RESERVED1]      = NULL,
+    [FLIF16_TRANSFORM_PERMUTEPLANES]  = &flif16_transform_permuteplanes,
+    [FLIF16_TRANSFORM_BOUNDS]         = &flif16_transform_bounds,
+    [FLIF16_TRANSFORM_PALETTEALPHA]   = &flif16_transform_palettealpha,
+    [FLIF16_TRANSFORM_PALETTE]        = &flif16_transform_palette,
+    [FLIF16_TRANSFORM_COLORBUCKETS]   = &flif16_transform_colorbuckets,
+    [FLIF16_TRANSFORM_RESERVED2]      = NULL,
+    [FLIF16_TRANSFORM_RESERVED3]      = NULL,
+    [FLIF16_TRANSFORM_DUPLICATEFRAME] = &flif16_transform_framedup,
+    [FLIF16_TRANSFORM_FRAMESHAPE]     = &flif16_transform_frameshape,
+    [FLIF16_TRANSFORM_FRAMELOOKBACK]  = &flif16_transform_framecombine
 };
+
 
 FLIF16TransformContext *ff_flif16_transform_init(int t_no, FLIF16RangesContext *r_ctx)
 {

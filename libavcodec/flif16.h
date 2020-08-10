@@ -64,8 +64,7 @@ typedef enum FLIF16Plane {
     FLIF16_PLANE_CO,
     FLIF16_PLANE_CG,
     FLIF16_PLANE_ALPHA,
-    FLIF16_PLANE_LOOKBACK, // Frame lookback
-    FLIF16_PLANE_GRAY = 0, // Is this needed?
+    FLIF16_PLANE_LOOKBACK // Frame lookback
 } FLIF16Plane;
 
 typedef enum FLIF16PlaneMode {
@@ -88,22 +87,22 @@ typedef struct FLIF16PixelData {
 typedef int32_t FLIF16ColorVal;
 
 typedef struct FLIF16Context {
-    GetByteContext gb;
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
+    GetByteContext gb;
 
-    // Dimensions and other things.
+    // Dimensions
     uint32_t width;
     uint32_t height;
     uint32_t num_frames;
-    uint32_t meta;        ///< Size of a meta chunk
+    uint32_t meta;       ///< Size of a meta chunk
 
     // Primary Header
-    uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint32_t bpc;         ///< 2 ^ Bytes per channel
-    uint8_t  num_planes;  ///< Number of planes
-    uint8_t  loops;        ///< Number of times animation loops
     uint16_t *framedelay; ///< Frame delay for each frame
+    uint8_t  ia;          ///< Is image interlaced or/and animated or not
+    uint8_t  num_planes;  ///< Number of planes
+    uint8_t  loops;       ///< Number of times animation loops
     uint8_t  plane_mode[MAX_PLANES];
 
     // Transform flags
@@ -218,7 +217,7 @@ static inline FLIF16ColorVal ff_flif16_pixel_getz(FLIF16Context *s,
 {
     if (s->plane_mode[plane]) {
         return ((FLIF16ColorVal *) frame->data[plane])[(row * ZOOM_ROWPIXELSIZE(z)) *
-                                                       s->width + (col * ZOOM_COLPIXELSIZE(z))];
+                                                        s->width + (col * ZOOM_COLPIXELSIZE(z))];
     } else {
         return ((FLIF16ColorVal *) frame->data[plane])[0];
     }
