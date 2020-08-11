@@ -682,9 +682,10 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
     return AVERROR(EAGAIN);
 }
 
-void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes)
+void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes,
+                            uint8_t lookback)
 {
-    for (int i = 0; i < num_planes; i++) {
+    for (int i = 0; i < (lookback ? MAX_PLANES : num_planes); i++) {
         if (!m->forest[i])
             continue;
         if (m->forest[i]->data)

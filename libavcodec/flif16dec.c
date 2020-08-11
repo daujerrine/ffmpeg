@@ -366,7 +366,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     FLIF16RangesContext *prev_range;
     int ret;
     int unique_frames;
-    uint8_t const_plane_value[MAX_PLANES];
+    uint8_t const_plane_value[MAX_PLANES] = {0};
     uint8_t temp;
 
     switch (s->segment) {
@@ -474,7 +474,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     }
 
     s->plane_mode[FLIF16_PLANE_LOOKBACK] = FLIF16_PLANEMODE_FILL;
-    const_plane_value[FLIF16_PLANE_LOOKBACK] = 0;
+    // const_plane_value[FLIF16_PLANE_LOOKBACK] = 0;
 
     if (ret = ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
@@ -1706,7 +1706,8 @@ static int flif16_decode_frame(AVCodecContext *avctx,
         case FLIF16_ROUGH_PIXELDATA:
             ret = flif16_read_pixeldata(avctx);
             if (!ret) {
-                ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes);
+                ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes,
+                                       s->framelookback);
                 s->state = FLIF16_MANIAC;
             }
             break;
@@ -1756,7 +1757,7 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     for (int i = s->transform_top - 1; i >= 0; --i)
         ff_flif16_transforms_close(s->transforms[i]);
 
-    ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes);
+    ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes, s->framelookback);
     av_frame_free(&s->out_frame);
 
     if (s->range)

@@ -270,7 +270,8 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                                unsigned int prop_ranges_size,
                                unsigned int channel);
 
-void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes);
+void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes,
+                            uint8_t lookback);
 
 #ifdef MULTISCALE_CHANCES_ENABLED
 
