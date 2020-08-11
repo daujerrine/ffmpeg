@@ -671,6 +671,8 @@ static void ff_init_bucket_default(ColorBucket *b)
     b->discrete = 1;
     b->values_size = 0;
     b->snapvalues_size = 0;
+    b->snapvalues = NULL;
+    b->values = NULL;
 }
 
 static ColorBucket *ff_bucket_buckets2(ColorBuckets *buckets, const int p,
@@ -800,9 +802,8 @@ static void ff_priv_colorbuckets_close(ColorBuckets *cb)
             av_free(cb->bucket1[i].snapvalues);
         if (cb->bucket1[i].values)
             ff_list_close(cb->bucket1[i].values);
-
-        av_free(&cb->bucket1[i]);
     }
+    av_free(cb->bucket1);
 
     if (cb->bucket0.snapvalues)
         av_free(cb->bucket0.snapvalues);
@@ -824,8 +825,6 @@ static void ff_priv_colorbuckets_close(ColorBuckets *cb)
         av_free(cb->bucket2[i]);
     }
     av_free(cb->bucket2);
-
-    av_free(cb->ranges);
 }
 
 static void ff_colorbuckets_close(FLIF16RangesContext *r_ctx)
