@@ -790,8 +790,8 @@ static void ff_list_close(ColorValCB_list *list)
     ColorValCB_list *temp;
     while (list) {
         temp = list;
-        av_free(temp);
         list = list->next;
+        av_free(temp);
     }
 }
 
@@ -2058,7 +2058,7 @@ static int ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c)
                 cb->values_size++;
             }
         }
-        // cb->values_last->next = NULL;
+        cb->values_last->next = NULL;
     }
     return 1;
 }
@@ -2438,7 +2438,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                 b->values_size++;
                 cb->v = temp;
             }
-            // b->values_last->next = NULL;
+            b->values_last->next = NULL;
             b->values_size = cb->nb - 1;
 
             if (b->min < b->max) {
@@ -2447,7 +2447,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                     return AVERROR(ENOMEM);
                 b->values_last = b->values_last->next;
                 b->values_last->data = b->max;
-                // b->values_last->data = NULL;
+                b->values_last->next = NULL;
                 b->values_size++;
             }
         }
