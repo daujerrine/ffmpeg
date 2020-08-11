@@ -2373,7 +2373,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
         if (exists == 0) {
             cb->i = 0;
-            return 1;    // empty bucket
+            return 1; // empty bucket
         }
         if (cb->smin == cb->smax) {
             b->min = cb->smin;

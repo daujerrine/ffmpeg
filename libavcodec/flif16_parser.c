@@ -76,7 +76,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
             } else if (f->varint) {
                 // Count varint
                 if (f->count == 5)
-                        return AVERROR(ENOMEM);
+                        return AVERROR_INVALIDDATA;
 
                 switch (f->varint) {
                 case 1:

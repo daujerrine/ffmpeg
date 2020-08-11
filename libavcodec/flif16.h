@@ -194,9 +194,14 @@ static inline FLIF16ColorVal ff_flif16_pixel_get(FLIF16Context *s,
                                                  uint8_t plane, uint32_t row,
                                                  uint32_t col)
 {
-    if (s->plane_mode[plane])
+    if (s->plane_mode[plane]) {
+       //printf("%d %d %d %d %d", plane, row, col, s->width * s->height,
+       //       s->width * row + col);
+       //printf(" %lu %lu", (long unsigned int) frame->data[plane], (long unsigned int) frame);
+       //printf(" %d", ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col]);
+       //printf(" %d\n", ((FLIF16ColorVal *) frame->data[plane])[0]);
         return ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col];
-    else
+    } else
         return ((FLIF16ColorVal *) frame->data[plane])[0];
 }
 

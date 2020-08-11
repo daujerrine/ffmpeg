@@ -364,9 +364,10 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     FLIF16RangesContext *prev_range;
+    int ret;
+    int unique_frames;
     uint8_t const_plane_value[MAX_PLANES];
     uint8_t temp;
-    int unique_frames;
 
     switch (s->segment) {
         while (1) {
@@ -472,11 +473,12 @@ static int flif16_read_transforms(AVCodecContext *avctx)
         }
     }
 
-    s->plane_mode[4] = FLIF16_PLANEMODE_FILL;
+    s->plane_mode[FLIF16_PLANE_LOOKBACK] = FLIF16_PLANEMODE_FILL;
+    const_plane_value[FLIF16_PLANE_LOOKBACK] = 0;
 
-    if (ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
+    if (ret = ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
-        return AVERROR(ENOMEM);
+        return ret;
     }
 
     if (!(s->ia % 2))
@@ -760,7 +762,7 @@ static int flif16_read_ni_plane_row(FLIF16DecoderContext *s, uint8_t p, uint32_t
                 curr += s->guess;
                 PIXEL_SET(s, fr, p, r, s->c, curr);
             }
-        } // end if
+        } // End if
 
         // If this is not the first or only frame, fill the end of the row after the actual pixel data
         if (fr > 0) {
@@ -856,7 +858,6 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  * 5. Rest of the pixeldata rough_zoomlevel to 0
  */
 
-#if 1
 static inline FLIF16ColorVal flif16_predict_horiz(FLIF16DecoderContext *s,
                                                        uint32_t fr, uint8_t z,
                                                        uint8_t p, uint32_t r,
@@ -1526,8 +1527,6 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     error:
     return ret;
 }
-
-#endif
 
 static int flif16_read_pixeldata(AVCodecContext *avctx)
 {
