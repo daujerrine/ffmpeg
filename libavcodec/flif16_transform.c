@@ -37,7 +37,6 @@ typedef struct TransformPrivYCoCg {
 } TransformPrivYCoCg;
 
 typedef struct TransformPrivPermuteplanes {
-    /* The following two elements are pointed to by the ranges context. */
     uint8_t subtract;
     uint8_t permutation[5];
 
@@ -124,7 +123,7 @@ typedef struct ColorBuckets {
     ColorBucket bucket3;
     ColorBucket empty_bucket;
     ColorBucket *bucket1;
-    ColorBucket **bucket2; // list of a list
+    ColorBucket **bucket2; // List of a list
     FLIF16RangesContext *ranges;
     unsigned int bucket1_size;
     unsigned int bucket2_size, bucket2_list_size;
@@ -156,7 +155,7 @@ typedef struct TransformPrivFramedup {
 
 typedef struct TransformPrivFrameshape {
     FLIF16ChanceContext chancectx;
-    int *b, *e; // begin and end
+    int *b, *e; // Begin and end
     uint32_t cols;
     uint32_t nb;
     unsigned int i;
@@ -658,11 +657,6 @@ static void ff_palettealpha_minmax(FLIF16RangesContext *r_ctx, int p,
 /*
  * ColorBuckets
  */
-
-//  quantization constants
-// #define CB0a 1
-// #define CB0b 1
-// #define CB1 4
 
 static void ff_init_bucket_default(ColorBucket *b)
 {
@@ -1437,7 +1431,7 @@ static FLIF16RangesContext *transform_channelcompact_meta(FLIF16Context *ctx,
     ff_static_close(src_ctx);
     av_free(src_ctx->priv_data);
     av_free(src_ctx);
-    // ff_flif16_ranges_close(src_ctx);
+
     return r_ctx;
 }
 
@@ -1476,7 +1470,6 @@ static void transform_channelcompact_close(FLIF16TransformContext *ctx)
     for (unsigned int i = 0; i < 4; i++) {
         av_free(data->cpalette[i]);
     }
-    // av_free(data->cpalette_inv);    //  Only used in transform forward
 }
 
 /*
@@ -1728,9 +1721,7 @@ static FLIF16RangesContext *transform_palette_meta(FLIF16Context *ctx,
         av_free(r_ctx);
         return NULL;
     }
-    // int i;
-    // for (i = 0; i < frame_count; i++)
-    //     frame[i].palette = 1;
+
     data->r_ctx = src_ctx;
     data->nb_colors = trans_data->size;
     r_ctx->r_no = FLIF16_RANGES_PALETTE;
@@ -1761,7 +1752,6 @@ static int transform_palette_reverse(FLIF16Context *ctx,
             for (unsigned int i = 0; i < 3; i++)
                 ff_flif16_pixel_set(ctx, frame, i, r, c, (*v)[i]);
         }
-        //frame->palette = 0;
     }
     return 1;
 }
@@ -1956,9 +1946,6 @@ static FLIF16RangesContext *transform_palettealpha_meta(FLIF16Context *ctx,
     priv_data->r_ctx = src_ctx;
     r_ctx->priv_data = priv_data;
 
-    // for (int i = 0; i < frame_count; i++)
-    //     frame[i].palette = 1;
-
     return r_ctx;
 }
 
@@ -1980,7 +1967,6 @@ static int transform_palettealpha_reverse(FLIF16Context *ctx,
             ff_flif16_pixel_set(ctx, frame, 2, r, c, data->Palette[P][3]);
             ff_flif16_pixel_set(ctx, frame, 3, r, c, data->Palette[P][0]);
         }
-        //frame->palette = 0;
     }
     return 1;
 }
@@ -2096,8 +2082,6 @@ static void ff_prepare_snapvalues(ColorBucket *cb)
 {
     int i = 0;
     if (cb->discrete) {
-        // if (cb->snapvalues_size)
-        //     av_freep(&cb->snapvalues);
         if (cb->max > cb->min) {
             cb->snapvalues = av_malloc_array((cb->max - cb->min), sizeof(*cb->snapvalues));
             cb->snapvalues_size = cb->max - cb->min;
@@ -2373,7 +2357,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
         if (exists == 0) {
             cb->i = 0;
-            return 1; // empty bucket
+            return 1; // Empty bucket
         }
         if (cb->smin == cb->smax) {
             b->min = cb->smin;
@@ -2664,9 +2648,6 @@ static int transform_frameshape_read(FLIF16TransformContext  *ctx,
 
     case 2:
         for (; data->i < data->nb; data->i++) {
-            //RAC_GET(&dec_ctx->rc, &data->chancectx, 0,
-            //        data->cols - data->b[data->i],
-            //        &data->e[data->i], FLIF16_RAC_NZ_INT);
             temp = ff_flif16_rac_process(&dec_ctx->rc, &data->chancectx, 0,
                                          data->cols - data->b[data->i],
                                          &data->e[data->i], FLIF16_RAC_NZ_INT);
@@ -2777,6 +2758,7 @@ static FLIF16RangesContext *transform_framecombine_meta(FLIF16Context *ctx,
     RangesPrivFramecombine *rdata;
     FLIF16RangesContext *ranges;
     int lookback;
+
     ranges = av_mallocz(sizeof(*ranges));
     if (!ranges)
         return NULL;

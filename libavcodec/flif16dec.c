@@ -96,12 +96,12 @@ typedef struct FLIF16DecoderContext {
     uint8_t buf_count;    ///< Count for initial RAC buffer
 
     // Secondary Header
-    uint8_t alphazero;    ///< Alphazero Flag
-    uint8_t custombc;     ///< Custom Bitchance Flag
-    uint32_t alpha;       ///< Chancetable custom alphadivisor
-    uint8_t customalpha;  ///< Custom alphadiv & cutoff flag
-    uint8_t cut;          ///< Chancetable custom cutoff
-    uint8_t ipp;          ///< Invisible pixel predictor
+    uint8_t alphazero;   ///< Alphazero Flag
+    uint8_t custombc;    ///< Custom Bitchance Flag
+    uint32_t alpha;      ///< Chancetable custom alphadivisor
+    uint8_t customalpha; ///< Custom alphadiv & cutoff flag
+    uint8_t cut;         ///< Chancetable custom cutoff
+    uint8_t ipp;         ///< Invisible pixel predictor
 
     // Transforms
     uint8_t transform_top;
@@ -118,12 +118,12 @@ typedef struct FLIF16DecoderContext {
     // Pixeldata
     FLIF16ColorVal grays[MAX_PLANES];
     FLIF16ColorVal properties[MAX_PROPERTIES];
-    FLIF16ColorVal guess;      ///< State variable. Stores guess
+    FLIF16ColorVal guess;    ///< State variable. Stores guess
     FLIF16ColorVal min, max;
-    uint32_t begin;            ///< State variable for Column range end
-    uint32_t end;              ///< State variable for Column range start
-    uint32_t c;                ///< State variable for current column
-    uint8_t curr_plane;        ///< State variable. Current plane under processing
+    uint32_t begin;          ///< State variable for Column range end
+    uint32_t end;            ///< State variable for Column range start
+    uint32_t c;              ///< State variable for current column
+    uint8_t curr_plane;      ///< State variable. Current plane under processing
 
     // Interlaced Pixeldata
     uint8_t default_order;
@@ -157,19 +157,26 @@ typedef struct FLIF16DecoderContext {
 
 #define IS_CONSTANT(ranges, plane) (ff_flif16_ranges_min((ranges), (plane)) >= \
                                     ff_flif16_ranges_max((ranges), (plane)))
-
-// From reference decoder:
-//
-// The order in which the planes are encoded.
-// lookback (Lookback) (animations-only, value refers to a previous frame) has
-// to be first, because all other planes are not encoded if lookback != 0
-// Alpha has to be next, because for fully transparent A=0 pixels, the other
-// planes are not encoded
-// Y (luma) is next (the first channel for still opaque images), because it is
-// perceptually most important
-// Co and Cg are in that order because Co is perceptually slightly more
-// important than Cg [citation needed]
-static const int plane_ordering[] = {4,3,0,1,2}; // lookback (lookback), A, Y, Co, Cg
+/*
+ * From reference decoder:
+ *
+ * The order in which the planes are encoded.
+ * 0: lookback (Lookback) (animations-only, value refers to a previous frame) has
+ *    to be first, because all other planes are not encoded if lookback != 0
+ * 1: Alpha has to be next, because for fully transparent A=0 pixels, the other
+ *    planes are not encoded
+ * 2: Y (luma) is next (the first channel for still opaque images), because it is
+ *    perceptually most important
+ * 3, 4: Co and Cg are in that order because Co is perceptually slightly more
+ *       important than Cg [citation needed]
+ */
+static const int plane_ordering[] = {
+    FLIF16_PLANE_LOOKBACK,
+    FLIF16_PLANE_ALPHA,
+    FLIF16_PLANE_Y,
+    FLIF16_PLANE_CO,
+    FLIF16_PLANE_CG
+};
 
 static int flif16_read_header(AVCodecContext *avctx)
 {
@@ -366,7 +373,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     FLIF16RangesContext *prev_range;
     int ret;
     int unique_frames;
-    uint8_t const_plane_value[MAX_PLANES] = {0};
+    uint8_t const_plane_value[MAX_PLANES];
     uint8_t temp;
 
     switch (s->segment) {
@@ -474,7 +481,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     }
 
     s->plane_mode[FLIF16_PLANE_LOOKBACK] = FLIF16_PLANEMODE_FILL;
-    // const_plane_value[FLIF16_PLANE_LOOKBACK] = 0;
+    const_plane_value[FLIF16_PLANE_LOOKBACK] = 0;
 
     if (ret = ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
@@ -525,7 +532,7 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
         if (!s->maniac_ctx.forest) {
             return AVERROR(ENOMEM);
         }
-        s->segment = s->i = 0; // Remove later
+        s->segment = s->i = 0;
     }
 
     switch (s->segment) {
@@ -665,10 +672,10 @@ static int flif16_read_ni_plane_row(FLIF16DecoderContext *s, uint8_t p, uint32_t
             return 0;
         }
 
-        // if this is not the first or only frame, fill the beginning of the row
+        // If this is not the first or only frame, fill the beginning of the row
         // before the actual pixel data
         if (fr > 0) {
-            //if alphazero is on, fill with a predicted value, otherwise
+            // If alphazero is on, fill with a predicted value, otherwise
             // copy pixels from the previous frame
 
             s->begin = (!s->frameshape) ? 0 : s->frames[fr].col_begin[r];
@@ -691,7 +698,7 @@ static int flif16_read_ni_plane_row(FLIF16DecoderContext *s, uint8_t p, uint32_t
         s->segment2++;
 
         if (r > 1 && !s->framelookback && s->begin == 0 && s->end > 3) {
-            //decode actual pixel data
+            // Decode actual pixel data
             s->c = s->begin;
 
             for (; s->c < 2; s->c++) {
@@ -764,7 +771,8 @@ static int flif16_read_ni_plane_row(FLIF16DecoderContext *s, uint8_t p, uint32_t
             }
         } // End if
 
-        // If this is not the first or only frame, fill the end of the row after the actual pixel data
+        // If this is not the first or only frame, fill the end of the row after
+        // the actual pixel data
         if (fr > 0) {
             if (s->alphazero && p < 3) {
                 for (uint32_t c = s->end; c < s->width; c++)
@@ -792,7 +800,6 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
 
-    // Set images to gray
     switch (s->segment) {
     case 0:
         for (int p = 0; p < s->range->num_planes; p++)
@@ -931,7 +938,6 @@ static inline FLIF16ColorVal flif16_predict_calcprops(FLIF16DecoderContext *s,
 
     if (p < 3) {
         if (p > 0) {
-            // s->properties[index++] = PIXELY(z,r,c);
             s->properties[index++] = PIXEL_GETFAST(s, fr, FLIF16_PLANE_Y, r, s->c);
         }
         if (p > 1)
