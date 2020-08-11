@@ -93,7 +93,7 @@ typedef struct FLIF16DecoderContext {
     int i2;
     int i3;
     uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
-    uint8_t buf_count;    ///< Count for initial RAC buffer
+    uint8_t buf_count;                       ///< Count for initial RAC buffer
 
     // Secondary Header
     uint8_t alphazero;   ///< Alphazero Flag
@@ -157,6 +157,7 @@ typedef struct FLIF16DecoderContext {
 
 #define IS_CONSTANT(ranges, plane) (ff_flif16_ranges_min((ranges), (plane)) >= \
                                     ff_flif16_ranges_max((ranges), (plane)))
+
 /*
  * From reference decoder:
  *

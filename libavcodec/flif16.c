@@ -48,11 +48,11 @@ void ff_flif16_maniac_ni_prop_ranges_init(FLIF16MinMax *prop_ranges,
     if (plane < 3) {
         for (int i = 0; i < plane; i++) {
             prop_ranges[top].min   = ff_flif16_ranges_min(ranges, i);
-            prop_ranges[top++].max = ff_flif16_ranges_max(ranges, i);  // pixels on previous planes
+            prop_ranges[top++].max = ff_flif16_ranges_max(ranges, i); // pixels on previous planes
         }
         if (ranges->num_planes > 3)  {
             prop_ranges[top].min   = ff_flif16_ranges_min(ranges, 3);
-            prop_ranges[top++].max = ff_flif16_ranges_max(ranges, 3);  // pixel on alpha plane
+            prop_ranges[top++].max = ff_flif16_ranges_max(ranges, 3); // pixel on alpha plane
         }
     }
     prop_ranges[top].min = min;

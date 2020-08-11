@@ -128,7 +128,6 @@ typedef struct FLIF16Ranges {
                  FLIF16ColorVal*, FLIF16ColorVal*, FLIF16ColorVal*);
     uint8_t is_static;
     void (*close)(FLIF16RangesContext*);
-    void (*previous)(FLIF16RangesContext*);  //TODO : Maybe remove it later
 } FLIF16Ranges;
 
 typedef struct FLIF16TransformContext {
@@ -144,7 +143,7 @@ typedef struct FLIF16Transform {
     //Functions
     int (*init) (FLIF16TransformContext *t_ctx, FLIF16RangesContext *r_ctx);
     int (*read) (FLIF16TransformContext *t_ctx, FLIF16Context *ctx,
-                    FLIF16RangesContext *r_ctx);
+                 FLIF16RangesContext *r_ctx);
     FLIF16RangesContext *(*meta) (FLIF16Context *ctx, FLIF16PixelData *frame,
                                   uint32_t frame_count, FLIF16TransformContext *t_ctx,
                                   FLIF16RangesContext *r_ctx);
@@ -195,11 +194,6 @@ static inline FLIF16ColorVal ff_flif16_pixel_get(FLIF16Context *s,
                                                  uint32_t col)
 {
     if (s->plane_mode[plane]) {
-       //printf("%d %d %d %d %d", plane, row, col, s->width * s->height,
-       //       s->width * row + col);
-       //printf(" %lu %lu", (long unsigned int) frame->data[plane], (long unsigned int) frame);
-       //printf(" %d", ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col]);
-       //printf(" %d\n", ((FLIF16ColorVal *) frame->data[plane])[0]);
         return ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col];
     } else
         return ((FLIF16ColorVal *) frame->data[plane])[0];

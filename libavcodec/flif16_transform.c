@@ -2406,8 +2406,8 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
             b->values_size++;
 
             cb->v = b->min;
-            cb->i = 6;
             cb->i2 = 1;
+            cb->i = 6;
 
         case 6:
             for (; cb->i2 < cb->nb - 1; cb->i2++) {
@@ -2807,7 +2807,7 @@ const FLIF16Transform flif16_transform_channelcompact = {
     .init           = &transform_channelcompact_init,
     .read           = &transform_channelcompact_read,
     .meta           = &transform_channelcompact_meta,
-    .forward        = NULL,    // &transform_channelcompact_forward,
+    .forward        = NULL,
     .reverse        = &transform_channelcompact_reverse,
     .close          = &transform_channelcompact_close
 };
@@ -2847,7 +2847,7 @@ const FLIF16Transform flif16_transform_palette = {
     .init           = &transform_palette_init,
     .read           = &transform_palette_read,
     .meta           = &transform_palette_meta,
-    //.forward
+    .forward        = NULL,
     .reverse        = &transform_palette_reverse,
     .close          = &transform_palette_close
 };
@@ -2858,7 +2858,7 @@ const FLIF16Transform flif16_transform_palettealpha = {
     .read           = &transform_palettealpha_read,
     .meta           = &transform_palettealpha_meta,
     .configure      = &transform_palettealpha_configure,
-    //.forward
+    .forward        = NULL,
     .reverse        = &transform_palettealpha_reverse,
     .close          = &transform_palettealpha_close
 };
