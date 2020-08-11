@@ -2008,7 +2008,7 @@ static int ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c)
                     av_free(temp);
                 } else if (temp == cb->values_last) {
                     cb->values_last = prev;
-                    cb->values_last->next = 0;
+                    cb->values_last->next = NULL;
                     av_free(temp);
                 } else if (!prev) {
                     cb->values = temp->next;
@@ -2055,10 +2055,10 @@ static int ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c)
                     cb->values_last = cb->values_last->next;
                 }
                 cb->values_last->data = x;
-                cb->values_last->next = NULL;
                 cb->values_size++;
             }
         }
+        // cb->values_last->next = NULL;
     }
     return 1;
 }
@@ -2435,10 +2435,10 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                     return AVERROR(ENOMEM);
                 b->values_last = b->values_last->next;
                 b->values_last->data = temp;
-                b->values_last->next = NULL;
                 b->values_size++;
                 cb->v = temp;
             }
+            // b->values_last->next = NULL;
             b->values_size = cb->nb - 1;
 
             if (b->min < b->max) {
@@ -2447,7 +2447,7 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
                     return AVERROR(ENOMEM);
                 b->values_last = b->values_last->next;
                 b->values_last->data = b->max;
-                b->values_last->data = NULL;
+                // b->values_last->data = NULL;
                 b->values_size++;
             }
         }
