@@ -386,9 +386,10 @@ static int flif16_read_header(AVFormatContext *s)
         return AVERROR_PATCHWELCOME;
     }
 
+    format = flif16_out_frame_type[FFMIN(num_planes, 4)][bpc > 255];
+
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
-    format = flif16_out_frame_type[FFMIN(num_planes, 4)][bpc > 255];
     avpriv_set_pts_info(st, 64, 1, 1000);
     st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codecpar->codec_id   = AV_CODEC_ID_FLIF16;

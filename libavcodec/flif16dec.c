@@ -32,7 +32,6 @@
 #include "bytestream.h"
 #include "internal.h"
 #include "libavutil/common.h"
-#include "libavutil/crc.h"
 #include "libavutil/imgutils.h"
 
 typedef enum FLIF16States {

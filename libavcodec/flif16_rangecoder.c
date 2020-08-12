@@ -99,7 +99,7 @@ int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
         rc->active = 1;
     }
 
-    if ((rc->len) > 0) {
+    if (rc->len > 0) {
         ff_flif16_rac_read_bit(rc, &bit);
         med = (rc->len) / 2;
         if (bit) {
