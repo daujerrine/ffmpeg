@@ -356,7 +356,8 @@ static int flif16_read_header(AVFormatContext *s)
         case 2:
             if (num_frames > 1) {
                 RAC_GET(&rc, NULL, 0, 100, &loops, FLIF16_RAC_UNI_INT8);
-            } else
+            }
+            if (!loops)
                 loops = 1;
             segment++;
 
