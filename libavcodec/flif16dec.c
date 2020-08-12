@@ -867,9 +867,9 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
  */
 
 static inline FLIF16ColorVal flif16_predict_horiz(FLIF16DecoderContext *s,
-                                                       uint32_t fr, uint8_t z,
-                                                       uint8_t p, uint32_t r,
-                                                       uint32_t rows)
+                                                  uint32_t fr, uint8_t z,
+                                                  uint8_t p, uint32_t r,
+                                                  uint32_t rows)
 {
     FLIF16ColorVal top, bottom, avg, left, topleft, bottomleft;
     if (p == FLIF16_PLANE_LOOKBACK)
@@ -896,9 +896,9 @@ static inline FLIF16ColorVal flif16_predict_horiz(FLIF16DecoderContext *s,
 }
 
 static inline FLIF16ColorVal flif16_predict_vert(FLIF16DecoderContext *s,
-                                                     uint32_t fr, uint8_t z,
-                                                     uint8_t p, uint32_t r,
-                                                     uint32_t cols)
+                                                 uint32_t fr, uint8_t z,
+                                                 uint8_t p, uint32_t r,
+                                                 uint32_t cols)
 {
     FLIF16ColorVal top, left, right, avg, topleft, topright;
     if (p == FLIF16_PLANE_LOOKBACK)
@@ -1761,7 +1761,7 @@ static av_cold int flif16_decode_end(AVCodecContext *avctx)
     if (s->frames)
         ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 
-    for (int i = s->transform_top - 1; i >= 0; --i)
+    for (int i = s->transform_top - 1; i >= 0; i--)
         ff_flif16_transforms_close(s->transforms[i]);
 
     ff_flif16_maniac_close(&s->maniac_ctx, s->num_planes, s->framelookback);

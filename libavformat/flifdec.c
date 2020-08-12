@@ -89,7 +89,7 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
     do {
         while (stream->total_out >= (*out_buf_size - 1)) {
             *out_buf = av_realloc_f(*out_buf, (*out_buf_size) * 2, 1);
-            if (!out_buf)
+            if (!*out_buf)
                 return AVERROR(ENOMEM);
             *out_buf_size *= 2;
         }
@@ -121,7 +121,7 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
 }
 #endif
 
-
+#if CONFIG_EXIF
 static int flif_read_exif(void *logctx, uint8_t *buf, int buf_size, AVDictionary **d)
 {
     uint8_t le;
@@ -165,6 +165,7 @@ static int flif_read_exif(void *logctx, uint8_t *buf, int buf_size, AVDictionary
     
     return ret;
 }
+#endif
 
 static int flif16_probe(const AVProbeData *p)
 {
@@ -300,9 +301,11 @@ static int flif16_read_header(AVFormatContext *s)
 
         switch (*((uint32_t *) tag)) {
         case MKTAG('e', 'X', 'i','f'):
+#if CONFIG_EXIF
             ret = flif_read_exif(s, out_buf, out_buf_size, &s->metadata);
             if (ret < 0)
                 av_log(s, AV_LOG_WARNING, "metadata may be corrupted\n");
+#endif
             break;
 
         case MKTAG('i','C','C','P'):
@@ -315,8 +318,9 @@ static int flif16_read_header(AVFormatContext *s)
 #else
         avio_skip(pb, metadata_size);
 #endif
+
         metadata_fail:
-            continue;
+        continue;
     }
 
     av_freep(&out_buf);
@@ -358,7 +362,7 @@ static int flif16_read_header(AVFormatContext *s)
 
         case 3:
             if (num_frames > 1) {
-                for (; i < num_frames; ++i) {
+                for (; i < num_frames; i++) {
                     temp = 0;
                     RAC_GET(&rc, NULL, 0, 60000, &(temp), FLIF16_RAC_UNI_INT16);
                     duration += temp;

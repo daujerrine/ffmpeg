@@ -197,7 +197,7 @@ typedef struct FLIF16RangeCoder {
 
     // nz_int state management
     int amin, amax, emax, e, have, left, minabs1, maxabs0, pos;
-    
+
     // maniac_int state management
     int oldmin, oldmax;
 } FLIF16RangeCoder;
