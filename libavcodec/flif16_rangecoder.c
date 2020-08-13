@@ -323,6 +323,7 @@ int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
                                          int min, int max, int *target)
 {
     uint8_t temp = 0;
+    
     if (min == max) {
         *target = min;
         rc->active = 0;

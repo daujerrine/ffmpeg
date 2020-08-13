@@ -94,76 +94,31 @@ static int ff_flif16_rac_enc_write_uni_int(int min, int max, int val)
     return 0;
 }
 
-#define RAC_PUT(rc, ctx, val1, val2, in)
+// NearZero Integer Coder
 
-int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max, int value)
+static inline int ff_flif16_rac_nz_read_internal(FLIF16RangeCoder *rc,
+                                                 FLIF16ChanceContext *ctx,
+                                                 uint16_t type, uint8_t value)
 {
-    // avoid doing anything if the value is already known
-    if (min == max) return;
-
-    if (value == 0) { // value is zero
-        coder.write(true, BIT_ZERO);
-        return;
-    }
-
-    assert(min <= 0 && max >= 0); // should always be the case, because guess should always be in valid range
-
-    // only output zero bit if value could also have been zero
-    //if (max >= 0 && min <= 0)
-    coder.write(false,BIT_ZERO);
-    int sign = (value > 0 ? 1 : 0);
-    if (max > 0 && min < 0) {
-        // only output sign bit if value can be both pos and neg
-        coder.write(sign,BIT_SIGN);
-    }
-    if (sign) min = 1;
-    if (!sign) max = -1;
-    const int a = abs(value);
-    const int e = maniac::util::ilog2(a);
-    int amin = sign ? abs(min) : abs(max);
-    int amax = sign ? abs(max) : abs(min);
-
-    int emax = maniac::util::ilog2(amax);
-    int i = maniac::util::ilog2(amin);
-
-    while (i < emax) {
-        // if exponent >i is impossible, we are done
-        if ((1 << (i+1)) > amax) break;
-        // if exponent i is possible, output the exponent bit
-        coder.write(i==e, BIT_EXP, (i<<1) + sign);
-        if (i==e) break;
-        i++;
-    }
-//  e_printf("exp=%i\n",e);
-    int have = (1 << e);
-    int left = have-1;
-    for (int pos = e; pos>0;) {
-        int bit = 1;
-        left ^= (1 << (--pos));
-        int minabs1 = have | (1<<pos);
-        // int maxabs1 = have | left | (1<<pos);
-        // int minabs0 = have;
-        int maxabs0 = have | left;
-        if (minabs1 > amax) { // 1-bit is impossible
-            bit = 0;
-        } else if (maxabs0 >= amin) { // 0-bit and 1-bit are both possible
-            bit = (a >> pos) & 1;
-            coder.write(bit, BIT_MANT, pos);
-        }
-        have |= (bit << pos);
-    }
+    if(!ff_flif16_rac_enc_renorm(rc))
+        return 0; // EAGAIN condition
+    ff_flif16_rac_enc_write_chance(rc, ctx->data[type], value);
+    ctx->data[type] = (!*target) ? rc->ct.zero_state[ctx->data[type]]
+                                 : rc->ct.one_state[ctx->data[type]];
+    return 1;
 }
 
-int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
-                              FLIF16ChanceContext *ctx,
-                              int min, int max, int *target)
-{
-    uint8_t temp = 0;
-    if (min == max) {
-        *target = min;
-        rc->active = 0;
-        return 1;
+#define RAC_NZ_PUT(rc, ctx, chance, value)                                    \
+    if (!ff_flif16_rac_nz_read_internal((rc), (ctx), (chance),                 \
+                                        (uint8_t) (value))) {               \
+        goto need_more_buffer;                                                   \
     }
+
+int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max,
+                                   int value)
+{
+    if (min == max)
+        return 1;
 
     if (!rc->active) {
         rc->segment = 0;
@@ -173,67 +128,94 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
         rc->have    = 0;
     }
 
-    switch (rc->segment) {
-    case 0:
-        RAC_NZ_GET(rc, ctx, NZ_INT_ZERO, &(temp));
-        if (temp) {
-            *target = 0;
-            rc->active = 0;
-            return 1;
-        }
-        rc->segment++;
+    RAC_NZ_SET(rc, ctx, NZ_INT_ZERO, &(temp));
 
-    case 1:
-        if (min < 0) {
-            if (max > 0) {
-                RAC_NZ_GET(rc, ctx, NZ_INT_SIGN, &(rc->sign));
-            } else {
-                rc->sign = 0;
-            }
-        } else {
-            rc->sign = 1;
-        }
-        rc->amax = (rc->sign ? max : -min);
-        rc->emax = ff_log2(rc->amax);
-        rc->e    = ff_log2(rc->amin);
-        rc->segment++;
-
-    case 2:
-        for (; (rc->e) < (rc->emax); (rc->e++)) {
-            RAC_NZ_GET(rc, ctx, NZ_INT_EXP((((rc->e) << 1) + rc->sign)),
-                       &(temp));
-            if (temp)
-                break;
-            temp = 0;
-        }
-        rc->have = (1 << (rc->e));
-        rc->left = rc->have - 1;
-        rc->pos  = rc->e;
-        rc->segment++;
-
-        while (rc->pos > 0) {
-            (rc->pos)--;
-            rc->left >>= 1;
-            rc->minabs1 = (rc->have) | (1 << (rc->pos));
-            rc->maxabs0 = (rc->have) | (rc->left);
-
-            if ((rc->minabs1) > (rc->amax)) {
-                continue;
-            } else if ((rc->maxabs0) >= (rc->amin)) {
-    case 3:
-                RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
-                if (temp)
-                    rc->have = rc->minabs1;
-                temp = 0;
-            } else
-                rc->have = rc->minabs1;
-        }
+    if (value == 0) { // value is zero
+        return 1;
     }
 
-    *target = ((rc->sign) ? (rc->have) : -(rc->have));
-    rc->active = 0;
-    return 1;
+    int sign = (value > 0 ? 1 : 0);
 
-    need_more_data:
-    return 0;
+    if (max > 0 && min < 0) {
+        RAC_NZ_SET(rc, ctx, NZ_INT_SIGN, &(rc->sign));
+    }
+
+    max = (sign ? 1 : -1);
+    const int rc->a = abs(value);
+    const int rc->e = ff_log2(a);
+    rc->amin = sign ? abs(min) : abs(max);
+    rc->amax = sign ? abs(max) : abs(min);
+
+    rc->emax = ff_log2(amax);
+    rc->i = ff_log2(amin);
+
+    while (rc->i < emax) {
+        // if exponent >i is impossible, we are done
+        if ((1 << (rc->i + 1)) > rc->amax) break;
+        // if exponent i is possible, output the exponent bit
+        //coder.write(rc->i == re, BIT_EXP, (i<<1) + sign);
+        RAC_NZ_GET(rc, ctx, NZ_INT_EXP((((rc->e) << 1) + rc->sign)),
+        if (rc->i == rc->e)
+            break;
+        rc->i++;
+    }
+
+    rc->have = (1 << rc->e);
+    rc->left = rc->have - 1;
+    for (rc->pos = e; rc->pos > 0;) {
+        int s->bit = 1;
+        left ^= (1 << (--rc->pos));
+        int s->minabs1 = rc->have | (1 << rc->pos);
+        // int maxabs1 = have | left | (1<<pos);
+        // int minabs0 = have;
+        int s->maxabs0 = rc->have | rc->left;
+        if (s->minabs1 > s->amax) { // 1-bit is impossible
+            s->bit = 0;
+        } else if (maxabs0 >= rc->amin) { // 0-bit and 1-bit are both possible
+            s->bit = (rc->a >> rc->pos) & 1;
+            //coder.write(bit, BIT_MANT, pos);
+            RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), rc->bit);
+        }
+        rc->have |= (rc->bit << rc->pos);
+    }
 }
+
+
+/*
+template <typename BitChance, typename RAC>
+void MetaPropertySymbolCoder<BitChance,RAC>::write_subtree(int pos, Ranges &subrange, const Tree &tree)
+{
+    const PropertyDecisionNode &n = tree[pos];
+    int p = n.property;
+    coder[0].write_int2(0,nb_properties,p+1);
+    if (p != -1) {
+        coder[1].write_int2(CONTEXT_TREE_MIN_COUNT, CONTEXT_TREE_MAX_COUNT, n.count);
+//            printf("From properties 0..%i, split node at PROPERTY %i\n",nb_properties-1,p);
+        int oldmin = subrange[p].first;
+        int oldmax = subrange[p].second;
+        assert(oldmin < oldmax);
+        coder[2].write_int2(oldmin, oldmax-1, n.splitval);
+//            e_printf( "Pos %i: prop %i splitval %i in [%i..%i]\n", pos, n.property, n.splitval, oldmin, oldmax-1);
+        // > splitval
+        subrange[p].first = n.splitval+1;
+        write_subtree(n.childID, subrange, tree);
+
+        // <= splitval
+        subrange[p].first = oldmin;
+        subrange[p].second = n.splitval;
+        write_subtree(n.childID+1, subrange, tree);
+
+        subrange[p].second = oldmax;
+    }
+}
+template <typename BitChance, typename RAC>
+void MetaPropertySymbolCoder<BitChance,RAC>::write_tree(const Tree &tree)
+{
+    //fprintf(stdout,"Saving tree with %lu nodes.\n",tree.size());
+    Ranges rootrange(range);
+    write_subtree(0, rootrange, tree);
+}
+*/
+
+
+

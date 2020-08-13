@@ -98,7 +98,7 @@ typedef struct FLIF16Context {
     uint32_t meta;       ///< Size of a meta chunk
 
     // Primary Header
-    uint32_t bpc;         ///< 2 ^ Bytes per channel
+    uint32_t bpc;         ///< 2 ^ Bits per channel - 1
     uint16_t *framedelay; ///< Frame delay for each frame
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint8_t  num_planes;  ///< Number of planes
