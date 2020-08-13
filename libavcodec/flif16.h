@@ -257,10 +257,15 @@ static inline void ff_flif16_copy_cols(FLIF16Context *s,
                                        uint32_t row, uint32_t col_start,
                                        uint32_t col_end)
 {
-    for (uint32_t col = col_start; col < col_end; ++col) {
-        ((FLIF16ColorVal *) dest->data[plane])[s->width * row + col] =
-        ((FLIF16ColorVal *) src->data[plane])[s->width * row + col];
-    }
+    FLIF16ColorVal *desti = ((FLIF16ColorVal *) dest->data[plane]) +
+                            s->width * row + col_start;
+    FLIF16ColorVal *destif = ((FLIF16ColorVal *) dest->data[plane]) +
+                             s->width * row + col_end;
+    FLIF16ColorVal *srci = ((FLIF16ColorVal *) src->data[plane]) +
+                            s->width * row + col_start;
+    while (desti < destif) {
+        *(desti++) = *(srci++);
+    } 
 }
 
 static inline void ff_flif16_copy_cols_stride(FLIF16Context *s,

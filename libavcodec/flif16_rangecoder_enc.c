@@ -96,7 +96,7 @@ static int ff_flif16_rac_enc_write_uni_int(int min, int max, int val)
 
 #define RAC_PUT(rc, ctx, val1, val2, in)
 
-int ff_flif16_rac_enc_write_nz_int(SymbolCoder& coder, int min, int max, int value)
+int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max, int value)
 {
     // avoid doing anything if the value is already known
     if (min == max) return;

@@ -50,7 +50,6 @@
 #define BUF_SIZE 4096
 
 typedef struct FLIFDemuxContext {
-    const AVClass *class;
 #if CONFIG_ZLIB
     z_stream stream;
     uint8_t active;
@@ -416,19 +415,6 @@ static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-
-static const AVOption options[] = {
-    { NULL }
-};
-
-static const AVClass demuxer_class = {
-    .class_name = "FLIF demuxer",
-    .item_name  = av_default_item_name,
-    .option     = options,
-    .version    = LIBAVUTIL_VERSION_INT,
-    .category   = AV_CLASS_CATEGORY_DEMUXER,
-};
-
 AVInputFormat ff_flif_demuxer = {
     .name           = "flif",
     .long_name      = NULL_IF_CONFIG_SMALL("Free Lossless Image Format (FLIF)"),
@@ -437,5 +423,4 @@ AVInputFormat ff_flif_demuxer = {
     .read_probe     = flif16_probe,
     .read_header    = flif16_read_header,
     .read_packet    = flif16_read_packet,
-    .priv_class     = &demuxer_class,
 };
