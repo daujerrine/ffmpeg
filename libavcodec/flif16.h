@@ -82,6 +82,7 @@ typedef struct FLIF16PixelData {
     int s_r[MAX_PLANES];
     int s_c[MAX_PLANES];
     void *data[MAX_PLANES];
+    uint8_t palette;
 } FLIF16PixelData;
 
 typedef int32_t FLIF16ColorVal;
