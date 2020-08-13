@@ -50,7 +50,6 @@
 #define BUF_SIZE 4096
 
 typedef struct FLIFDemuxContext {
-    const AVClass *class;
 #if CONFIG_ZLIB
     z_stream stream;
     uint8_t active;
@@ -386,9 +385,10 @@ static int flif16_read_header(AVFormatContext *s)
         return AVERROR_PATCHWELCOME;
     }
 
+    format = flif16_out_frame_type[FFMIN(num_planes, 4)][bpc > 255];
+
     // The minimum possible delay in a FLIF16 image is 1 millisecond.
     // Therefore time base is 10^-3, i.e. 1/1000
-    format = flif16_out_frame_type[FFMIN(num_planes, 4)][bpc > 255];
     avpriv_set_pts_info(st, 64, 1, 1000);
     st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codecpar->codec_id   = AV_CODEC_ID_FLIF16;
@@ -415,19 +415,6 @@ static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-
-static const AVOption options[] = {
-    { NULL }
-};
-
-static const AVClass demuxer_class = {
-    .class_name = "FLIF demuxer",
-    .item_name  = av_default_item_name,
-    .option     = options,
-    .version    = LIBAVUTIL_VERSION_INT,
-    .category   = AV_CLASS_CATEGORY_DEMUXER,
-};
-
 AVInputFormat ff_flif_demuxer = {
     .name           = "flif",
     .long_name      = NULL_IF_CONFIG_SMALL("Free Lossless Image Format (FLIF)"),
@@ -436,5 +423,4 @@ AVInputFormat ff_flif_demuxer = {
     .read_probe     = flif16_probe,
     .read_header    = flif16_read_header,
     .read_packet    = flif16_read_packet,
-    .priv_class     = &demuxer_class,
 };

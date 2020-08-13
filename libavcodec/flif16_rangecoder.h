@@ -184,7 +184,6 @@ typedef struct FLIF16RangeCoder {
 
     uint_fast32_t range;
     uint_fast32_t low;
-    uint16_t chance;
     uint8_t active;   ///< Is an integer reader currently active (to save/
                       ///  transfer state)
     uint8_t segment;  ///< The "segment" the function currently is in
@@ -193,13 +192,19 @@ typedef struct FLIF16RangeCoder {
 
     // uni_int state management
     int32_t min;
+    int32_t max;
     int32_t len;
+    int32_t val;
 
     // nz_int state management
     int amin, amax, emax, e, have, left, minabs1, maxabs0, pos;
 
     // maniac_int state management
     int oldmin, oldmax;
+
+    // encoder state management
+    int straddle_byte;
+    int straddle_count;
 } FLIF16RangeCoder;
 
 /**
