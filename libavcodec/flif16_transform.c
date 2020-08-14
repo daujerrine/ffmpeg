@@ -2513,14 +2513,14 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
         if (exists == 0) {
             cb->i = 0;
-            goto end; // Empty bucket
+            return 1; // Empty bucket
         }
         if (cb->smin == cb->smax) {
             b->min = cb->smin;
             b->max = cb->smin;
             b->discrete = 0;
             cb->i = 0;
-            goto end;
+            return 1;
         }
         cb->i = 2;
 
@@ -2533,12 +2533,12 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         if (b->min == b->max) {
             b->discrete = 0;
             cb->i = 0;
-            goto end;
+            return 1;
         }
         if (b->min + 1 == b->max) {
             b->discrete = 0;
             cb->i = 0;
-            goto end;
+            return 1;
         }
         cb->i = 4;
 
@@ -2593,7 +2593,6 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         }
     }
 
-    end:
     cb->i = 0;
     cb->i2 = 0;
     cb->nb = 0;
@@ -2725,7 +2724,7 @@ static int transform_framedup_read(FLIF16TransformContext  *ctx,
                     &data->seen_before[data->i], FLIF16_RAC_NZ_INT);
         }
         data->i = 0;
-        goto end;
+        return 1;
     }
 
     end:
