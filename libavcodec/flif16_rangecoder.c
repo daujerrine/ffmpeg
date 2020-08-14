@@ -150,6 +150,7 @@ static inline int ff_flif16_rac_nz_read_internal(FLIF16RangeCoder *rc,
 {
     if(!ff_flif16_rac_renorm(rc))
         return 0; // EAGAIN condition
+    printf("type = %d %ld %ld\n", type, rc->low, rc->range);
     ff_flif16_rac_read_chance(rc, ctx->data[type], target);
     ctx->data[type] = (!*target) ? rc->ct.zero_state[ctx->data[type]]
                                  : rc->ct.one_state[ctx->data[type]];
@@ -178,7 +179,7 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
         rc->amin    = 1;
         rc->active  = 1;
         rc->sign    = 0;
-        rc->have    = 0;
+        rc->pos     = 0;
     }
 
     switch (rc->segment) {
@@ -217,27 +218,33 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
         rc->have = (1 << (rc->e));
         rc->left = rc->have - 1;
         rc->pos  = rc->e;
+        printf("%d %d %d %d %d %d\n", max, min, rc->amax, rc->have, rc->e, rc->pos);
         rc->segment++;
 
         while (rc->pos > 0) {
             (rc->pos)--;
+            //printf("%d ", rc->pos);
             rc->left >>= 1;
             rc->minabs1 = (rc->have) | (1 << (rc->pos));
             rc->maxabs0 = (rc->have) | (rc->left);
 
             if ((rc->minabs1) > (rc->amax)) {
+                //printf("a ");
                 continue;
             } else if ((rc->maxabs0) >= (rc->amin)) {
     case 3:
+                //printf("b ");
                 RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
                 if (temp)
                     rc->have = rc->minabs1;
                 temp = 0;
-            } else
+            } else {
+                //printf("c ");
                 rc->have = rc->minabs1;
+            }
         }
     }
-
+    printf("end\n");
     *target = ((rc->sign) ? (rc->have) : -(rc->have));
     rc->active = 0;
     return 1;

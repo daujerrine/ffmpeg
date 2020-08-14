@@ -284,11 +284,10 @@ static int flif16_read_header(AVFormatContext *s)
         /*
          * Decompression Routines
          * There are 3 supported metadata chunks currently in FLIF: eXmp, eXif,
-         * and iCCp. Currently, iCCp color profiles are not handeled.
+         * and iCCp. Currently, iCCp color profiles are not handled.
          */
 
         if (*((uint32_t *) tag) ==  MKTAG('i','C','C','P')) {
-            avio_skip(pb, metadata_size);
             goto metadata_skip;
         }
 
@@ -301,7 +300,6 @@ static int flif16_read_header(AVFormatContext *s)
                 if (ret == AVERROR(ENOMEM) || ret == AVERROR_INVALIDDATA)
                     return ret;
                 av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
-                avio_skip(pb, metadata_size);
                 goto metadata_skip;
             }
         }
@@ -323,8 +321,10 @@ static int flif16_read_header(AVFormatContext *s)
         avio_skip(pb, metadata_size);
 #endif
 
-        metadata_skip:
         continue;
+
+        metadata_skip:
+        avio_skip(pb, metadata_size);
     }
 
     av_freep(&out_buf);

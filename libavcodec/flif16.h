@@ -134,9 +134,8 @@ typedef struct FLIF16Ranges {
 
 typedef struct FLIF16TransformContext {
     uint8_t t_no;
-    unsigned int segment;     ///< Segment the code is executing in.
-    int i;                    ///< Variable to store iteration number.
-    uint8_t done;
+    unsigned int segment; ///< Segment the code is executing in.
+    int i;                ///< Variable to store iteration number.
     void *priv_data;
 } FLIF16TransformContext;
 
