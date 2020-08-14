@@ -2510,7 +2510,6 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         transform_colorbuckets_minmax(src_ctx, plane,
                                       pixelL, pixelU,
                                       &cb->smin, &cb->smax);
-        printf("fflb: %d\n", __LINE__);
         RAC_GET(rc, &chancectx[0], 0, 1, &exists, FLIF16_RAC_GNZ_INT);
         if (exists == 0) {
             cb->i = 0;
@@ -2526,12 +2525,10 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         cb->i = 2;
 
     case 2:
-        printf("fflb: %d\n", __LINE__);
         RAC_GET(rc, &chancectx[1], cb->smin, cb->smax, &b->min, FLIF16_RAC_GNZ_INT);
         cb->i = 3;
 
     case 3:
-        printf("fflb: %d\n", __LINE__);
         RAC_GET(rc, &chancectx[2], b->min, cb->smax, &b->max, FLIF16_RAC_GNZ_INT);
         if (b->min == b->max) {
             b->discrete = 0;
@@ -2546,7 +2543,6 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
         cb->i = 4;
 
     case 4:
-        printf("fflb: %d\n", __LINE__);
         RAC_GET(rc, &chancectx[3], 0, 1, &b->discrete, FLIF16_RAC_GNZ_INT);
         cb->i = 5;
     }
@@ -2554,7 +2550,6 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
     if (b->discrete) {
         switch (cb->i) {
         case 5:
-            printf("fflb: %d\n", __LINE__);
             RAC_GET(rc, &chancectx[4], 2,
                     FFMIN(max_per_colorbucket[plane], b->max - b->min),
                     &cb->nb, FLIF16_RAC_GNZ_INT);
@@ -2571,7 +2566,6 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
             cb->i = 6;
 
         case 6:
-            printf("fflb: %d\n", __LINE__);
             for (; cb->i2 < cb->nb - 1; cb->i2++) {
                 RAC_GET(rc, &chancectx[5], cb->v + 1,
                         b->max + 1 - cb->nb + cb->i2, &temp,
@@ -2606,7 +2600,6 @@ static int ff_load_bucket(FLIF16RangeCoder *rc, FLIF16ChanceContext *chancectx,
     return 1;
 
     need_more_data:
-    printf("fflberr\n");
     return AVERROR(EAGAIN);
 }
 
@@ -2620,28 +2613,21 @@ static int transform_colorbuckets_read(FLIF16TransformContext *ctx,
 
     switch (data->i) {
     case 0:
-        printf("cb: %d\n", __LINE__);
         ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket0, cb,
                              src_ctx, 0, data->pixelL, data->pixelU);
-        if (ret <= 0) {
-            printf("cberr: %d\n", __LINE__);
+        if (ret <= 0)
             return AVERROR(EAGAIN);
-        }
         data->pixelL[0] = cb->min0;
         data->pixelU[0] = cb->min0;
         data->i = 1;
 
     case 1:
-        printf("cb: %d\n", __LINE__);
         for (; data->j < cb->bucket1_size; data->j++) {
-            printf("iter %d\n", data->j);
             ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
                                  &cb->bucket1[data->j], cb,
                                  src_ctx, 1, data->pixelL, data->pixelU);
-            if (ret <= 0) {
-                printf("cberr: %d\n", __LINE__);
+            if (ret <= 0)
                 return AVERROR(EAGAIN);
-            }
             data->pixelL[0] += 1;
             data->pixelU[0] += 1;
         }
@@ -2658,7 +2644,6 @@ static int transform_colorbuckets_read(FLIF16TransformContext *ctx,
     }
 
     switch (data->i) {
-        printf("cb: %d\n", __LINE__);
         for (; data->j < cb->bucket2_size; data->j++) {
             data->pixelL[1] = cb->min1;
             data->pixelU[1] = cb->min1 + 4 - 1;
@@ -2667,10 +2652,8 @@ static int transform_colorbuckets_read(FLIF16TransformContext *ctx,
                 ret = ff_load_bucket(&dec_ctx->rc, data->ctx,
                                      &cb->bucket2[data->j][data->k], cb,
                                      src_ctx, 2, data->pixelL, data->pixelU);
-                if (ret <= 0) {
-                    printf("cberr: %d\n", __LINE__);
+                if (ret <= 0)
                     return AVERROR(EAGAIN);
-                }
                 data->pixelL[1] += 4;
                 data->pixelU[1] += 4;
             }
@@ -2683,13 +2666,10 @@ static int transform_colorbuckets_read(FLIF16TransformContext *ctx,
 
     case 3:
         if (src_ctx->num_planes > 3) {
-            printf("cb: %d\n", __LINE__);
             ret = ff_load_bucket(&dec_ctx->rc, data->ctx, &cb->bucket3, cb,
                                  src_ctx, 3, data->pixelL, data->pixelU);
-            if (ret <= 0) {
-                printf("cberr: %d\n", __LINE__);
+            if (ret <= 0)
                 return AVERROR(EAGAIN);
-            }
         }
 
     }
