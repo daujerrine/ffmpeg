@@ -127,6 +127,7 @@ static int flif_read_exif(void *logctx, uint8_t *buf, int buf_size, AVDictionary
     uint32_t temp;
     int ret;
     GetByteContext gb;
+
     // Read exif header
     if (memcmp("Exif", buf, 4))
         return AVERROR_INVALIDDATA;
@@ -279,11 +280,18 @@ static int flif16_read_header(AVFormatContext *s)
         count = 4;
 
 #if CONFIG_ZLIB
+
         /*
          * Decompression Routines
          * There are 3 supported metadata chunks currently in FLIF: eXmp, eXif,
-         * and iCCp.
+         * and iCCp. Currently, iCCp color profiles are not handeled.
          */
+
+        if (*((uint32_t *) tag) ==  MKTAG('i','C','C','P')) {
+            avio_skip(pb, metadata_size);
+            goto metadata_skip;
+        }
+
         while (metadata_size > 0) {
             if ((buf_size = avio_read_partial(pb, buf, FFMIN(BUF_SIZE, metadata_size))) < 0)
                 return buf_size;
@@ -294,7 +302,7 @@ static int flif16_read_header(AVFormatContext *s)
                     return ret;
                 av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
                 avio_skip(pb, metadata_size);
-                goto metadata_fail;
+                goto metadata_skip;
             }
         }
 
@@ -307,9 +315,6 @@ static int flif16_read_header(AVFormatContext *s)
 #endif
             break;
 
-        case MKTAG('i','C','C','P'):
-            break;
-
         default:
             av_dict_set(&s->metadata, tag, out_buf, 0);
             break;
@@ -318,17 +323,17 @@ static int flif16_read_header(AVFormatContext *s)
         avio_skip(pb, metadata_size);
 #endif
 
-        metadata_fail:
+        metadata_skip:
         continue;
     }
 
     av_freep(&out_buf);
 
-    avio_read(pb, buf, FLIF16_RAC_MAX_RANGE_BYTES);
-    ff_flif16_rac_init(&rc, NULL, buf, FLIF16_RAC_MAX_RANGE_BYTES);
-    ret = avio_read_partial(pb, buf, BUF_SIZE);
-    bytestream2_init(&gb, buf, ret);
-    rc.gb = &gb;
+    do {
+        if ((ret = avio_read_partial(pb, buf, BUF_SIZE)) < 0)
+            return ret;
+        bytestream2_init(&gb, buf, ret);
+    } while (ff_flif16_rac_init(&rc, &gb) < 0);
 
     while (1) {
         switch (segment) {

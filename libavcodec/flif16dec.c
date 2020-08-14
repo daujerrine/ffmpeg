@@ -91,8 +91,6 @@ typedef struct FLIF16DecoderContext {
     int i;                 ///< A generic iterator used to save states between for loops.
     int i2;
     int i3;
-    uint8_t buf[FLIF16_RAC_MAX_RANGE_BYTES]; ///< Storage for initial RAC buffer
-    uint8_t buf_count;                       ///< Count for initial RAC buffer
 
     // Secondary Header
     uint8_t alphazero;   ///< Alphazero Flag
@@ -264,18 +262,14 @@ static int flif16_read_header(AVCodecContext *avctx)
 
 static int flif16_read_second_header(AVCodecContext *avctx)
 {
+    int ret;
     uint32_t temp;
     FLIF16DecoderContext *s = avctx->priv_data;
 
     switch (s->segment) {
     case 0:
-        s->buf_count += bytestream2_get_buffer(&s->gb, s->buf + s->buf_count,
-                                               FFMIN(bytestream2_get_bytes_left(&s->gb),
-                                               (FLIF16_RAC_MAX_RANGE_BYTES - s->buf_count)));
-        if (s->buf_count < FLIF16_RAC_MAX_RANGE_BYTES)
-            return AVERROR(EAGAIN);
-
-        ff_flif16_rac_init(&s->rc, &s->gb, s->buf, s->buf_count);
+        if ((ret = ff_flif16_rac_init(&s->rc, &s->gb)) < 0)
+            return ret;
         s->segment++;
 
     case 1:

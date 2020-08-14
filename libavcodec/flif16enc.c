@@ -50,3 +50,28 @@ typedef struct FLIF16EncoderContext {
 
     
 } FLIF16EncoderContext;
+
+
+AVCodec ff_flif16_encoder = {
+    .name           = "flif16",
+    .long_name      = NULL_IF_CONFIG_SMALL("FLIF (Free Lossless Imange Format)"),
+    .type           = AVMEDIA_TYPE_VIDEO,
+    .id             = AV_CODEC_ID_PNG,
+    .priv_data_size = sizeof(FLIF16EncoderContext),
+    .init           = flif16_enc_init,
+    .close          = flif16_enc_end,
+    .encode2        = encode_png,
+    .capabilities   = AV_CODEC_CAP_FRAME_THREADS | AV_CODEC_CAP_INTRA_ONLY,
+    .pix_fmts       = (const enum AVPixelFormat[]) {
+        AV_PIX_FMT_RGB24, AV_PIX_FMT_RGBA,
+        AV_PIX_FMT_RGB48BE, AV_PIX_FMT_RGBA64BE,
+        AV_PIX_FMT_PAL8,
+        AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY8A,
+        AV_PIX_FMT_GRAY16BE, AV_PIX_FMT_YA16BE,
+        AV_PIX_FMT_MONOBLACK, AV_PIX_FMT_NONE
+    },
+    .priv_class     = &pngenc_class,
+};
+
+
+

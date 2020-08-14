@@ -245,8 +245,7 @@ typedef struct FLIF16MANIACContext {
     unsigned int stack_size;
 } FLIF16MANIACContext;
 
-void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
-                        uint8_t buf_size);
+int ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb);
 
 void ff_flif16_rac_free(FLIF16RangeCoder *rc);
 

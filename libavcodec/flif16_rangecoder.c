@@ -29,29 +29,33 @@
 #include "flif16_rangecoder.h"
 #include "flif16.h"
 
-/*
- * The coder requires a certain number of bytes for initiialization. buf
- * provides it. gb is used by the coder functions for actual coding. This is
- * done to be able to use leftover bytes from a previous packet. This prevents
- * the creation of an additional buffer to append the new packet to the
- * bytestream. This may seem cumbersome, but is done due to the fact that
- * end of stream or end of frame is not easily determined.
+/**
+ * Initializes the range decoder
+ * @param rc Pointer to the rangecoder struct
+ * @param gb Pointer to the encoded bytestream
+ * @returns AVERROR(EAGAIN) on insufficient buffer, 0 on success.
  */
-void ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb, uint8_t *buf,
-                        uint8_t buf_size)
+int ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb)
 {
-    // This function shouldn't be called if this condition is true.
-    if(buf_size < FLIF16_RAC_MAX_RANGE_BYTES)
-        return;
+    int ret = 0;
 
-    rc->range = FLIF16_RAC_MAX_RANGE;
+    if(bytestream2_get_bytes_left(gb) < FLIF16_RAC_MAX_RANGE_BYTES)
+        ret = AVERROR(EAGAIN);
+
+    if (!rc->gb)
+        rc->range = FLIF16_RAC_MAX_RANGE;
     rc->gb    = gb;
 
-    for (uint32_t r = FLIF16_RAC_MAX_RANGE; r > 1; r >>= 8) {
+    for (; rc->range > 1 && bytestream2_get_bytes_left(rc->gb) > 0;
+         rc->range >>= 8) {
         rc->low <<= 8;
-        rc->low |= *buf;
-        buf++;
+        rc->low |= bytestream2_get_byte(rc->gb);
     }
+
+    if (rc->range <= 1)
+        rc->range = FLIF16_RAC_MAX_RANGE;
+
+    return ret;
 }
 
 static uint8_t ff_flif16_rac_get(FLIF16RangeCoder *rc, uint32_t chance,
@@ -87,8 +91,7 @@ uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
  */
 int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
                                int32_t min, int32_t len,
-                               int type,
-                               void *target)
+                               int type, void *target)
 {
     int med;
     uint8_t bit;
