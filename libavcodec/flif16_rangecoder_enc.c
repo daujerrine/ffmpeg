@@ -94,11 +94,18 @@ static int ff_flif16_rac_enc_write_uni_int(int min, int max, int val)
     return 0;
 }
 
+void inline ff_flif16_rac_enc_write_12bit_chance(FLIF16RangeCoder *rc,
+                                                 uint64_t b12, uint8_t bit)
+{
+    uint32_t ret = (rc->range * b12 + 0x800) >> 12;
+    return ff_flif16_rac_enc_put(rc, ret, bit);
+}
+
 // NearZero Integer Coder
 
-static inline int ff_flif16_rac_nz_read_internal(FLIF16RangeCoder *rc,
-                                                 FLIF16ChanceContext *ctx,
-                                                 uint16_t type, uint8_t value)
+static inline int ff_flif16_rac_nz_write_internal(FLIF16RangeCoder *rc,
+                                                  FLIF16ChanceContext *ctx,
+                                                  uint16_t type, uint8_t value)
 {
     if(!ff_flif16_rac_enc_renorm(rc))
         return 0; // EAGAIN condition
@@ -141,8 +148,7 @@ int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max,
     }
 
     max = (sign ? 1 : -1);
-    const int rc->a = abs(value);
-    const int rc->e = ff_log2(a);
+    const int rc->e = ff_log2(abs(value));
     rc->amin = sign ? abs(min) : abs(max);
     rc->amax = sign ? abs(max) : abs(min);
 
@@ -151,9 +157,8 @@ int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max,
 
     while (rc->i < emax) {
         // if exponent >i is impossible, we are done
-        if ((1 << (rc->i + 1)) > rc->amax) break;
-        // if exponent i is possible, output the exponent bit
-        //coder.write(rc->i == re, BIT_EXP, (i<<1) + sign);
+        if ((1 << (rc->i + 1)) > rc->amax)
+            break;
         RAC_NZ_GET(rc, ctx, NZ_INT_EXP((((rc->e) << 1) + rc->sign)),
         if (rc->i == rc->e)
             break;
@@ -166,13 +171,11 @@ int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max,
         int s->bit = 1;
         left ^= (1 << (--rc->pos));
         int s->minabs1 = rc->have | (1 << rc->pos);
-        // int maxabs1 = have | left | (1<<pos);
-        // int minabs0 = have;
         int s->maxabs0 = rc->have | rc->left;
         if (s->minabs1 > s->amax) { // 1-bit is impossible
             s->bit = 0;
         } else if (maxabs0 >= rc->amin) { // 0-bit and 1-bit are both possible
-            s->bit = (rc->a >> rc->pos) & 1;
+            s->bit = (abs(value) >> rc->pos) & 1;
             //coder.write(bit, BIT_MANT, pos);
             RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), rc->bit);
         }
@@ -216,6 +219,7 @@ void MetaPropertySymbolCoder<BitChance,RAC>::write_tree(const Tree &tree)
     write_subtree(0, rootrange, tree);
 }
 */
+
 
 
 
