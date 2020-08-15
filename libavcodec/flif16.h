@@ -40,13 +40,23 @@
 #define MAX_PREDICTORS 2
 #define MAX_PROP_RANGES 12
 
-
 #define VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint32_t) ((x) & 127)
 #define ZOOM_ROWPIXELSIZE(zoomlevel) (1 << (((zoomlevel) + 1) / 2))
 #define ZOOM_COLPIXELSIZE(zoomlevel) (1 << (((zoomlevel)) / 2))
 #define ZOOM_HEIGHT(h, z) ((!h) ? 0 : (1 + ((h) - 1) / ZOOM_ROWPIXELSIZE(z)))
 #define ZOOM_WIDTH(w, z) ((!w) ? 0 : (1 + ((w) - 1) / ZOOM_COLPIXELSIZE(z)))
 #define MEDIAN3(a, b, c) (((a) < (b)) ? (((b) < (c)) ?  (b) : ((a) < (c) ? (c) : (a))) : (((a) < (c)) ? (a) : ((b) < (c) ? (c) : (b))))
+
+typedef enum FLIF16States {
+    FLIF16_HEADER = 0,
+    FLIF16_SECONDHEADER,
+    FLIF16_TRANSFORM,
+    FLIF16_ROUGH_PIXELDATA,
+    FLIF16_MANIAC,
+    FLIF16_PIXELDATA,
+    FLIF16_OUTPUT,
+    FLIF16_EOS
+} FLIF16States;
 
 static const uint8_t flif16_header[4] = "FLIF";
 

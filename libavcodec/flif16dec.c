@@ -34,17 +34,6 @@
 #include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 
-typedef enum FLIF16States {
-    FLIF16_HEADER = 0,
-    FLIF16_SECONDHEADER,
-    FLIF16_TRANSFORM,
-    FLIF16_ROUGH_PIXELDATA,
-    FLIF16_MANIAC,
-    FLIF16_PIXELDATA,
-    FLIF16_OUTPUT,
-    FLIF16_EOS
-} FLIF16States;
-
 /*
  * Due to the nature of the format, the decoder has to take the entirety of the
  * data before it can generate any frames. The decoder has to return
@@ -400,7 +389,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
             case FLIF16_TRANSFORM_YCOCG:
             case FLIF16_TRANSFORM_PALETTE:
-                s->plane_mode[FLIF16_PLANE_Y] = FLIF16_PLANEMODE_NORMAL;
+                s->plane_mode[FLIF16_PLANE_Y]  = FLIF16_PLANEMODE_NORMAL;
                 s->plane_mode[FLIF16_PLANE_CO] = FLIF16_PLANEMODE_NORMAL;
                 s->plane_mode[FLIF16_PLANE_CG] = FLIF16_PLANEMODE_NORMAL;
                 break;
@@ -1375,7 +1364,7 @@ static inline int get_plane_zoomlevel(uint8_t num_planes, int begin_zl, int end_
         nextp = highest_priority_plane;
         for (int p = 0; p < num_planes; p++) {
             if (zl_list[p] > zl_list[highest_priority_plane] + max_behind[p]) {
-                nextp = p; //break;
+                nextp = p;
             }
         }
 
@@ -1684,6 +1673,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
     AVFrame *p              = data;
 
     bytestream2_init(&s->gb, buf, buf_size);
+
     /*
      * Looping is done to change states in between functions.
      * Function will either exit on AVERROR(EAGAIN) or AVERROR_EOF
@@ -1774,6 +1764,5 @@ AVCodec ff_flif16_decoder = {
     .priv_data_size = sizeof(FLIF16DecoderContext),
     .decode         = flif16_decode_frame,
     .capabilities   = AV_CODEC_CAP_DELAY,
-    //.caps_internal  = 0,
     .priv_class     = NULL,
 };

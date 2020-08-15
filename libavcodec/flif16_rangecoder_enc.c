@@ -64,13 +64,14 @@ static void ff_flif16_rac_enc_write_bit(FLIF16RangeCoder *rc, uint8_t bit)
     ff_flif16_rac_enc_put(rc, range >> 1, bit);
 }
 
-static int ff_flif16_rac_enc_write_uni_int(int min, int max, int val)
+static int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
+                                           int max, int val, int type)
 {
     int med;
     if (!rc->active) {
         rc->active = 1;
-        rc->min    = 0;
-        rc->max    = 1;
+        rc->min    = min;
+        rc->max    = max;
     }
 
     if (rc->min) {
@@ -78,8 +79,10 @@ static int ff_flif16_rac_enc_write_uni_int(int min, int max, int val)
         rc->val -= rc->min;
     }
 
-    if (!rc->max)
+    if (!rc->max) {
+        rc->active = 0;
         return 1;
+    }
 
     med = rc->max / 2;
 
@@ -135,54 +138,78 @@ int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max,
         rc->have    = 0;
     }
 
-    RAC_NZ_SET(rc, ctx, NZ_INT_ZERO, &(temp));
+    switch (rc->segment) {
+    case 0:
+        RAC_NZ_PUT(rc, ctx, NZ_INT_ZERO, 0);
+        rc->segment++;
 
-    if (value == 0) { // value is zero
-        return 1;
-    }
-
-    int sign = (value > 0 ? 1 : 0);
-
-    if (max > 0 && min < 0) {
-        RAC_NZ_SET(rc, ctx, NZ_INT_SIGN, &(rc->sign));
-    }
-
-    max = (sign ? 1 : -1);
-    const int rc->e = ff_log2(abs(value));
-    rc->amin = sign ? abs(min) : abs(max);
-    rc->amax = sign ? abs(max) : abs(min);
-
-    rc->emax = ff_log2(amax);
-    rc->i = ff_log2(amin);
-
-    while (rc->i < emax) {
-        // if exponent >i is impossible, we are done
-        if ((1 << (rc->i + 1)) > rc->amax)
-            break;
-        RAC_NZ_GET(rc, ctx, NZ_INT_EXP((((rc->e) << 1) + rc->sign)),
-        if (rc->i == rc->e)
-            break;
-        rc->i++;
-    }
-
-    rc->have = (1 << rc->e);
-    rc->left = rc->have - 1;
-    for (rc->pos = e; rc->pos > 0;) {
-        int s->bit = 1;
-        left ^= (1 << (--rc->pos));
-        int s->minabs1 = rc->have | (1 << rc->pos);
-        int s->maxabs0 = rc->have | rc->left;
-        if (s->minabs1 > s->amax) { // 1-bit is impossible
-            s->bit = 0;
-        } else if (maxabs0 >= rc->amin) { // 0-bit and 1-bit are both possible
-            s->bit = (abs(value) >> rc->pos) & 1;
-            //coder.write(bit, BIT_MANT, pos);
-            RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), rc->bit);
+        if (value == 0) { // value is zero
+            return 1;
         }
-        rc->have |= (rc->bit << rc->pos);
+
+        rc->sign = (value > 0 ? 1 : 0);
+
+        if (max > 0 && min < 0) {
+    case 1:
+            RAC_NZ_PUT(rc, ctx, NZ_INT_SIGN, rc->sign);
+        }
+        rc->segment++;
+
+        max = (sign ? 1 : -1);
+        const int rc->e = ff_log2(abs(value));
+        rc->amin = sign ? abs(min) : abs(max);
+        rc->amax = sign ? abs(max) : abs(min);
+
+        rc->emax = ff_log2(amax);
+        rc->i = ff_log2(amin);
+
+        while (rc->i < emax) {
+            // if exponent >i is impossible, we are done
+            if ((1 << (rc->i + 1)) > rc->amax)
+                break;
+    case 2:
+            RAC_NZ_PUT(rc, ctx, NZ_INT_EXP((((rc->e) << 1) + rc->sign), rc->i == rc->e);
+            if (rc->i == rc->e)
+                break;
+            rc->i++;
+        }
+
+        rc->have = (1 << rc->e);
+        rc->left = rc->have - 1;
+        rc->segment++;
+
+        for (rc->pos = e; rc->pos > 0;) {
+            int s->bit = 1;
+            left ^= (1 << (--rc->pos));
+            int s->minabs1 = rc->have | (1 << rc->pos);
+            int s->maxabs0 = rc->have | rc->left;
+            if (s->minabs1 > s->amax) { // 1-bit is impossible
+                s->bit = 0;
+            } else if (maxabs0 >= rc->amin) { // 0-bit and 1-bit are both possible
+                s->bit = (abs(value) >> rc->pos) & 1;
+                //coder.write(bit, BIT_MANT, pos);
+    case 3:
+                RAC_NZ_PUT(rc, ctx, NZ_INT_MANT(rc->pos), rc->bit);
+            }
+            rc->have |= (rc->bit << rc->pos);
+        }
     }
 }
 
+int ff_flif16_rac_enc_write_gnz_int(FLIF16RangeCoder *rc,
+                                    FLIF16ChanceContext *ctx,
+                                    int min, int max, int value)
+{
+    int ret;
+    if (min > 0) {
+        ret = ff_flif16_rac_enc_write_nz_int(rc, ctx, 0, max - min, value - min);
+    } else if (max < 0) {
+        ret = ff_flif16_rac_enc_write_nz_int(rc, ctx, min - max, 0, value - max);
+    } else
+        ret = ff_flif16_rac_enc_write_nz_int(rc, ctx, min, max, value);
+
+    return ret;
+}
 
 /*
 template <typename BitChance, typename RAC>
@@ -220,6 +247,64 @@ void MetaPropertySymbolCoder<BitChance,RAC>::write_tree(const Tree &tree)
 }
 */
 
+static inline int ff_flif16_rac_enc_process(FLIF16RangeCoder *rc,
+                                            void *ctx, int val1, int val2,
+                                            int value, int type)
+{
+    int flag = 0;
+    while (!flag) {
+        if (!ff_flif16_rac_enc_renorm(rc)) {
+            return 0; // EAGAIN condition
+        }
 
+        switch (type) {
+        case FLIF16_RAC_BIT:
+            flag = ff_flif16_rac_enc_write_bit(rc, (uint8_t) value);
+            break;
 
+        case FLIF16_RAC_UNI_INT8:
+        case FLIF16_RAC_UNI_INT16:
+        case FLIF16_RAC_UNI_INT32:
+            flag = ff_flif16_rac_enc_write_uni_int(rc, val1, val2, value, type);
+            break;
 
+        case FLIF16_RAC_CHANCE:
+            flag = ff_flif16_rac_enc_write_chance(rc, val1, (uint8_t) value);
+            break;
+
+        case FLIF16_RAC_NZ_INT:
+            flag = ff_flif16_rac_enc_write_nz_int(rc, (FLIF16ChanceContext *) ctx,
+                                                  val1, val2, value);
+            break;
+
+        case FLIF16_RAC_GNZ_INT:
+            flag = ff_flif16_rac_enc_write_gnz_int(rc, (FLIF16ChanceContext *) ctx,
+                                                   val1, val2, value);
+            break;
+/*
+#ifdef MULTISCALE_CHANCES_ENABLED
+        case FLIF16_RAC_NZ_MULTISCALE_INT:
+            flag = ff_flif16_rac_read_nz_multiscale_int(rc, (FLIF16MultiscaleChanceContext *) ctx,
+                                                        val1, val2, (int *) target);
+            break;
+
+        case FLIF16_RAC_GNZ_MULTISCALE_INT:
+            flag = ff_flif16_rac_read_gnz_multiscale_int(rc, (FLIF16MultiscaleChanceContext *) ctx,
+                                                         val1, val2, (int *) target);
+            break;
+#endif
+*/
+        }
+    }
+    return 1;
+}
+
+#define RAC_PUT(rc, ctx, val1, val2, value, type) \
+    if (!ff_flif16_rac_enc_process((rc), (ctx), (val1), (val2), (value), (type))) {\
+        goto need_more_data; \
+    }
+
+#define MANIAC_GET(rc, m, prop, channel, min, max, value) \
+    if (!ff_flif16_maniac_write_int((rc), (m), (prop), (channel), (min), (max), (value))) {\
+        goto need_more_data; \
+    }

@@ -254,8 +254,8 @@ uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc, uint8_t *target);
 uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
                                    uint64_t b12, uint8_t *target);
 
-int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc, int32_t min, int32_t len,
-                               int type, void *target);
+int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc, int min, int len,
+                               void *target, int type);
 
 int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
                               int min, int max, int *target);
@@ -345,7 +345,7 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
         case FLIF16_RAC_UNI_INT8:
         case FLIF16_RAC_UNI_INT16:
         case FLIF16_RAC_UNI_INT32:
-            flag = ff_flif16_rac_read_uni_int(rc, val1, val2, type, target);
+            flag = ff_flif16_rac_read_uni_int(rc, val1, val2, target, type);
             break;
 
         case FLIF16_RAC_CHANCE:
@@ -372,8 +372,6 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
                                                          val1, val2, (int *) target);
             break;
 #endif
-        default:
-            break;
         }
     }
     return 1;

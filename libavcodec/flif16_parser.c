@@ -33,10 +33,10 @@
 #include <stdlib.h>
 
 typedef enum FLIF16ParseStates {
-    FLIF16_INIT_STATE = 0,
-    FLIF16_HEADER,
-    FLIF16_METADATA,
-    FLIF16_BITSTREAM
+    FLIF16_PARSE_INIT_STATE = 0,
+    FLIF16_PARSE_HEADER,
+    FLIF16_PARSE_METADATA,
+    FLIF16_PARSE_BITSTREAM
 } FLIF16ParseStates;
 
 typedef struct FLIF16ParseContext {
@@ -60,13 +60,13 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
 
     for (index = 0; index < buf_size; index++) {
         switch (f->state) {
-        case FLIF16_INIT_STATE:
+        case FLIF16_PARSE_INIT_STATE:
             if (!memcmp(flif16_header, buf + index, 4))
-                f->state = FLIF16_HEADER;
+                f->state = FLIF16_PARSE_HEADER;
             f->index++;
             break;
 
-        case FLIF16_HEADER:
+        case FLIF16_PARSE_HEADER:
             if (f->index == 3 + 1) {
                 // See whether image is animated or not
                 f->animated = (((buf[index] >> 4) > 4)?1:0);
@@ -106,7 +106,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                             f->frames += 2;
                         else
                             f->frames = 1;
-                        f->state = FLIF16_METADATA;
+                        f->state = FLIF16_PARSE_METADATA;
                         f->varint = 0;
                         f->index = 0;
                         f->count = 0;
@@ -119,11 +119,11 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
             f->index++;
             break;
 
-        case FLIF16_METADATA:
+        case FLIF16_PARSE_METADATA:
             if (f->index == 0) {
                 // Identifier for the bitstream chunk is a null byte.
                 if (buf[index] == 0) {
-                    f->state = FLIF16_BITSTREAM;
+                    f->state = FLIF16_PARSE_BITSTREAM;
                     return buf_size;
                 }
             } else if (f->index < 3) {
@@ -141,7 +141,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
                 VARINT_APPEND(f->meta, buf[index]);
                 f->count++;
             } else if (f->meta > 1) {
-                // increment varint until equal to size
+                // Increment varint until equal to size
                 f->meta--;
             } else {
                 f->meta = 0;
@@ -151,7 +151,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
             f->index++;
             break;
 
-        case FLIF16_BITSTREAM:
+        case FLIF16_PARSE_BITSTREAM:
             /*
              * Since we cannot find the end of the bitstream without any
              * processing, we will simply return each read chunk as a packet

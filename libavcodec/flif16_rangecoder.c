@@ -42,6 +42,8 @@ int ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb)
     if(bytestream2_get_bytes_left(gb) < FLIF16_RAC_MAX_RANGE_BYTES)
         ret = AVERROR(EAGAIN);
 
+    // This is used to check whether the function is being run for the first
+    // time or not.
     if (!rc->gb)
         rc->range = FLIF16_RAC_MAX_RANGE;
     rc->gb    = gb;
@@ -90,8 +92,8 @@ uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
  * Reads a Uniform Symbol Coded Integer.
  */
 int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
-                               int32_t min, int32_t len,
-                               int type, void *target)
+                               int min, int len,
+                               void *target, int type)
 {
     int med;
     uint8_t bit;
@@ -701,7 +703,7 @@ void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes,
 
     av_freep(&m->forest);
 
-    /* Should be already freed in maniac reading, but checking anyway. */
+    /* Should be already freed in MANIAC reading, but checking anyway. */
     if(m->stack)
         av_freep(&m->stack);
 }
