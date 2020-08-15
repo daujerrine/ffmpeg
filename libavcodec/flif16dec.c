@@ -34,6 +34,17 @@
 #include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 
+typedef enum FLIF16DecodeStates {
+    FLIF16_HEADER = 0,
+    FLIF16_SECONDHEADER,
+    FLIF16_TRANSFORM,
+    FLIF16_ROUGH_PIXELDATA,
+    FLIF16_MANIAC,
+    FLIF16_PIXELDATA,
+    FLIF16_OUTPUT,
+    FLIF16_EOS
+} FLIF16States;
+
 /*
  * Due to the nature of the format, the decoder has to take the entirety of the
  * data before it can generate any frames. The decoder has to return
@@ -74,10 +85,10 @@ typedef struct FLIF16DecoderContext {
     int64_t pts;
     uint32_t out_frames_count;
 
-    FLIF16States state;    ///< The section of the file the parser is in currently.
-    unsigned int segment;  ///< The "segment" the code is supposed to jump to
+    FLIF16DecodeStates state; ///< The section of the file the parser is in currently.
+    unsigned int segment;     ///< The "segment" the code is supposed to jump to
     unsigned int segment2;
-    int i;                 ///< A generic iterator used to save states between for loops.
+    int i;                    ///< A generic iterator used to save states between for loops.
     int i2;
     int i3;
 

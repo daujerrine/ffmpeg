@@ -19,13 +19,27 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+/*
+ * In the case of the encoder, we have to first of all copy all frames to our
+ * pixeldata array, determine the header components and write our image in the
+ * encoder's flush mode.
+ */
+
+typedef enum FLIF16EncodeStates {
+    FLIF16_HEADER = 0,
+    FLIF16_SECONDHEADER,
+    FLIF16_TRANSFORM,
+    FLIF16_OUTPUT,
+    FLIF16_EOS
+} FLIF16States;
+
 typedef struct FLIF16EncoderContext {
 
     /* Inheritance from FLIF16Context */
 
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
-    PutByteContext pb;
+    GetByteContext pb;
 
     // Dimensions
     uint32_t width;
@@ -51,7 +65,73 @@ typedef struct FLIF16EncoderContext {
     
 } FLIF16EncoderContext;
 
-static int flif16_enc_frame(AVCodecContext *avctx, AVPacket *pkt,
+static flif16_determine_header(AVCodecContext *avctx)
+{
+    FLIF16EncoderContext *s = avctx->priv_data;
+    s->bpc = 0xFF;
+    s->width  = avctx->width;
+    s->height = avctx->height;
+
+    // Determine depth and number of planes
+    switch (avctx->pix_fmt) {
+    case AV_PIX_FMT_GRAY16:
+        s->bpc = 0xFFFF;
+    case AV_PIX_FMT_GRAY8:
+        s->num_planes = 1;
+        break;
+
+    case AV_PIX_FMT_RGB48:
+        s->bpc = 0xFFFF;
+    case AV_PIX_FMT_RGB24:
+        s->num_planes = 3;
+        break;
+
+    case AV_PIX_FMT_RGBA64:
+        s->bpc = 0xFFFF;
+    case AV_PIX_FMT_RGB32:
+        s->num_planes = 4;
+        break;
+    }
+
+    s->state = FLIF16_SECONDHEADER;
+    return AVERROR_EOF;
+}
+
+static int flif16_determine_secondheader(AVCodecContext *avctx)
+{
+    // Read all frames, copy to pixeldata array, determine pts, determine duration,
+    // On next step, determine transforms
+    return AVERROR_EOF;
+}
+
+static int flif16_determine_transforms(AVCodecContext * avctx)
+{
+    // From pixeldata determine transforms, fill up transform array.
+    // Make ranges
+    return AVERROR_EOF;
+}
+
+static int flif16_determine_maniac_forest(AVCodecContext * avctx)
+{
+    // This involves a single pass for making the MANIAC tree for the image.
+    return AVERROR_EOF;
+}
+
+static int flif16_determine_maniac_forest(AVCodecContext * avctx)
+{
+    // This involves a single pass pixel decoding for making the MANIAC tree
+    // for the image.
+    return AVERROR_EOF;
+}
+
+static int flif16_write_stream(AVCodecContext * avctx)
+{
+    // Write the whole file in this section: header, secondheader, transforms,
+    // rough pixeldata, maniac tree, pixeldata and checksum.
+    return AVERROR_EOF;
+}
+
+static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                       const AVFrame *pict, int *got_packet)
 {
     int ret = 0;
@@ -63,11 +143,23 @@ static int flif16_enc_frame(AVCodecContext *avctx, AVPacket *pkt,
     do {
         switch (s->state) {
         case FLIF16_HEADER:
-            ret = flif16_write_header(avctx);
+            ret = flif16_determine_header(avctx);
             break;
 
         case FLIF16_SECONDHEADER:
-            ret = flif16_write_secondheader(avctx);
+            ret = flif16_determine_secondheader(avctx);
+            break;
+
+        case FLIF16_TRANSFORM:
+            ret = flif16_determine_transforms(avctx);
+            break;
+
+        case FLIF16_OUTPUT:
+            ret = flif16_write_frame(avctx);
+            break;
+
+        case FLIF16_EOS:
+            ret = AVERROR_EOF;
             break;
         }
     } while (!ret);
@@ -77,6 +169,7 @@ static int flif16_enc_frame(AVCodecContext *avctx, AVPacket *pkt,
 
 static int flif16_encode_end(AVCodecContext *avctx)
 {
+    FLIF16EncoderContext *s = avctx->priv_data;
     
     return 0;
 }
@@ -90,7 +183,7 @@ AVCodec ff_flif16_encoder = {
     .priv_data_size = sizeof(FLIF16EncoderContext),
     .close          = flif16_encode_end,
     .encode2        = flif16_encode_frame,
-    .capabilities   = AV_CODEC_CAP_ENCODER_FLUSH,
+    .capabilities   = AV_CODEC_CAP_DELAY,
     .pix_fmts       = (const enum AVPixelFormat[]) {
         AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY16,
         AV_PIX_FMT_RGB24, AV_PIX_FMT_RGB32,

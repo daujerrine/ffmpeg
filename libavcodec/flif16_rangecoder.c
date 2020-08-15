@@ -46,7 +46,7 @@ int ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb)
     // time or not.
     if (!rc->gb)
         rc->range = FLIF16_RAC_MAX_RANGE;
-    rc->gb    = gb;
+    rc->gb = gb;
 
     for (; rc->range > 1 && bytestream2_get_bytes_left(rc->gb) > 0;
          rc->range >>= 8) {
