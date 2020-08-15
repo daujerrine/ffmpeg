@@ -62,6 +62,9 @@ typedef struct FLIF16EncoderContext {
 
     /* End Inheritance from FLFIF16Context */
 
+    AVFrame *curr_frame;
+    AVPacket *out_packet;
+
     
 } FLIF16EncoderContext;
 
@@ -113,13 +116,7 @@ static int flif16_determine_transforms(AVCodecContext * avctx)
 
 static int flif16_determine_maniac_forest(AVCodecContext * avctx)
 {
-    // This involves a single pass for making the MANIAC tree for the image.
-    return AVERROR_EOF;
-}
-
-static int flif16_determine_maniac_forest(AVCodecContext * avctx)
-{
-    // This involves a single pass pixel decoding for making the MANIAC tree
+    // This involves a single pass pixel encoding for making the MANIAC tree
     // for the image.
     return AVERROR_EOF;
 }
@@ -132,13 +129,11 @@ static int flif16_write_stream(AVCodecContext * avctx)
 }
 
 static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
-                      const AVFrame *pict, int *got_packet)
+                               const AVFrame *frame, int *got_packet)
 {
     int ret = 0;
     FLIF16EncoderContext *s = avctx->priv_data;
-    const uint8_t *buf      = avpkt->data;
-    int buf_size            = avpkt->size;
-    AVFrame *p              = data;
+    s->curr_frame = frame;
 
     do {
         switch (s->state) {
@@ -152,6 +147,10 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
         case FLIF16_TRANSFORM:
             ret = flif16_determine_transforms(avctx);
+            break;
+
+        case FLIF16_MANIAC:
+            ret = flif16_determine_maniac_forest(avctx);
             break;
 
         case FLIF16_OUTPUT:
