@@ -301,10 +301,10 @@ static inline int ff_flif16_rac_enc_process(FLIF16RangeCoder *rc,
 
 #define RAC_PUT(rc, ctx, val1, val2, value, type) \
     if (!ff_flif16_rac_enc_process((rc), (ctx), (val1), (val2), (value), (type))) {\
-        goto need_more_data; \
+        goto need_more_data;\
     }
 
-#define MANIAC_GET(rc, m, prop, channel, min, max, value) \
+#define MANIAC_PUT(rc, m, prop, channel, min, max, value) \
     if (!ff_flif16_maniac_write_int((rc), (m), (prop), (channel), (min), (max), (value))) {\
-        goto need_more_data; \
+        goto need_more_data;\
     }
