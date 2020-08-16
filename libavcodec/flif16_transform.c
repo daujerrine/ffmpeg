@@ -1059,7 +1059,7 @@ static void ff_flif16_planes_set(FLIF16Context *ctx, FLIF16PixelData *frame,
  * =============================================================================
  */
 
-#define RAC_PUT(rc, ctx, val1, val2, input)
+#define RAC_PUT(rc, ctx, val1, val2, input, type)
 
 /*
  * YCoCg
@@ -1322,13 +1322,23 @@ static int transform_permuteplanes_forward(FLIF16Context *ctx,
     return 1;
 }
 
+static void transform_permuteplanes_configure(FLIF16TransformContext *ctx,
+                                              const int setting)
+{
+    TransformPrivPermuteplanes *data = ctx->priv_data;
+    data->subtract = setting;
+}
+
 static void transform_permuteplanes_write(FLIF16Context *enc_ctx,
                                           FLIF16TransformContext *t_ctx,
                                           FLIF16RangesContext *src_ctx)
 {
     TransformPrivPermuteplanes *data = t_ctx->priv_data;
-    RAC_PUT(&enc_ctx->rc, &data->ctx_a, 0, 1, data->subtract);
-    // GNZ_INT
+    RAC_PUT(&enc_ctx->rc, &data->ctx_a, 0, 1, data->subtract, FLIF16_RAC_GNZ_INT);
+    for (int p = 0; p < src_ctx->num_planes; p++) {
+        RAC_PUT(&enc_ctx->rc, &data->ctx_a, 0, src_ctx->num_planes - 1,
+                data->permutation[p], FLIF16_RAC_GNZ_INT);
+    }
 }
 
 static int transform_permuteplanes_reverse(FLIF16Context *ctx,
@@ -1708,13 +1718,13 @@ static void transform_channelcompact_write(FLIF16Context *enc_ctx,
     for (int p = 0; p < src_ctx->num_planes; p++) {
         RAC_PUT(&enc_ctx->rc, &data->ctx_a, 0,
                 ff_flif16_ranges_max(src_ctx, p) - ff_flif16_ranges_min(src_ctx, p),
-                data->cpalette_size[p] - 1);
+                data->cpalette_size[p] - 1, FLIF16_RAC_NZ_INT);
         min = ff_flif16_ranges_min(src_ctx, p);
         remaining = data->cpalette_size[p] - 1;
         for (unsigned int i = 0; i < data->cpalette_size[p]; i++) {
             RAC_PUT(&enc_ctx, &data->ctx_a, 0,
                     ff_flif16_ranges_max(p) - min - remaining,
-                    data->cpalette[p][i] - min);
+                    data->cpalette[p][i] - min, FLIF16_RAC_NZ_INT);
             min = data->cpalette[p][i] + 1;
             remaining--;
         }
@@ -1827,6 +1837,70 @@ static FLIF16RangesContext *transform_bounds_meta(FLIF16Context *ctx,
     }
     return r_ctx;
 }
+
+static int transform_bounds_process(FLIF16Context *ctx,
+                                    FLIF16TransformContext *t_ctx,
+                                    FLIF16RangesContext *src_ctx,
+                                    FLIF16PixelData *frame)
+{
+    TransformPrivBounds *data = t_ctx->priv_data;
+    if (frame->palette)
+        return 0;
+    // bounds.clear();
+    uint8_t trivialbounds = 1;
+    int nump = src_ctx->num_planes;
+    
+    for (int p = 0; p < nump; p++) {
+        FLIF16ColorVal min = ff_flif16_ranges_max(src_ctx, p);
+        FLIF16ColorVal max = ff_flif16_ranges_min(src_ctx, p);
+        for (uint32_t r = 0; r < ctx->height; r++) {
+            for (uint32_t c = 0; c < ctx->width; c++) {
+                if (/* image.alpha_zero_special && */ nump > 3 && p < 3 &&
+                    ff_flif16_pixel_get(ctx, frame, 3, r, c) == 0)
+                    continue;
+
+                FLIF16ColorVal v = ff_flif16_pixel_get(ctx, frame, p, r, c);;
+                if (v < min)
+                    min = v;
+                if (v > max)
+                    max = v;
+                av_assert1(v <= ff_flif16_ranges_max(src_ctx, p));
+                av_assert1(v >= ff_flif16_ranges_min(src_ctx, p));
+            }
+        }
+        if (min > max) {
+            min = (min+max)/2;
+            max = (min+max)/2;
+        }
+
+        data->bounds[p][0] = min;
+        data->bounds[p][1] = max;
+        // bounds.push_back(std::make_pair(min,max));
+        
+        if (min > ff_flif16_ranges_min(src_ctx, p))
+            trivialbounds = 0;
+        if (max < ff_flif16_ranges_max(src_ctx, p))
+            trivialbounds = 0;
+    }
+    return !trivialbounds;
+}                                    
+
+static void transform_bounds_write(FLIF16Context *enc_ctx,
+                                   FLIF16TransformContext *t_ctx,
+                                   FLIF16RangesContext *src_ctx)
+{
+    TransformPrivBounds *data = t_ctx->priv_data;
+    FLIF16ColorVal min, max;
+    
+    for (int p = 0; p < src_ctx->num_planes; p++) {
+        min = data->bounds[p][0];
+        max = data->bounds[p][1];
+        RAC_PUT(&enc_ctx->rc, &data->ctx_a, ff_flif16_ranges_min(src_ctx, p),
+                ff_flif16_ranges_max(src_ctx, p), min, FLIF16_RAC_GNZ_INT);
+        RAC_PUT(&enc_ctx->rc, &data->ctx_a, min,
+                ff_flif16_ranges_max(src_ctx, p), max, FLIF16_RAC_GNZ_INT);
+    }
+}                                   
 
 /*
  * Palette
