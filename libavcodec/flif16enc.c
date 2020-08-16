@@ -25,6 +25,11 @@
  * encoder's flush mode.
  */
 
+/**
+ * The size that the framedelay array will be initialized with
+ */
+#define FRAMEPTS_BASE_SIZE 16
+
 typedef enum FLIF16EncodeStates {
     FLIF16_HEADER = 0,
     FLIF16_SECONDHEADER,
@@ -64,7 +69,10 @@ typedef struct FLIF16EncoderContext {
 
     AVFrame *curr_frame;
     AVPacket *out_packet;
-
+    
+    FLIF16PixelData *frames;
+    uint16_t *framepts;
+    uint16_t framepts_size;
     
 } FLIF16EncoderContext;
 
@@ -100,10 +108,101 @@ static flif16_determine_header(AVCodecContext *avctx)
     return AVERROR_EOF;
 }
 
+static int flif16_copy_pixeldata(AVCodecContext *avctx)
+{
+    FLIF16EncoderContext *s = avctx->priv_data;
+    uint64_t temp;
+
+    if (s->num_frames > 1) {
+        if (!s->framedelay) {
+            s->framepts      = av_malloc_array(FRAMEPTS_BASE_SIZE, sizeof(*s->framepts));
+            s->framepts_size = FRAMEPTS_BASE_SIZE;
+        }
+        if (s->num_frames + 1 >= s->framepts_size) {
+            s->framepts = av_realloc_f(s->framepts, s->framepts_size * 2, sizeof(*s->framepts))
+            s->framepts_size *= 2;
+        }
+        s->framepts[s->num_frames] = s->curr_frame->pts;
+        s->num_frames++;
+    }
+
+    switch (avctx->pix_fmt) {
+    case AV_PIX_FMT_GRAY8:
+        for (uint32_t i = 0; i < s->height; i++) {
+            for (uint32_t j = 0; j < s->width; j++) {
+                PIXEL_SET(s, s->num_frames, 0, i, j, *(s->out_frame->data[0] + i * s->out_frame->linesize[0] + j));
+            }
+        }
+        break;
+
+    case AV_PIX_FMT_RGB24:
+        for (uint32_t i = 0; i < s->height; i++) {
+            for (uint32_t j = 0; j < s->width; j++) {
+                PIXEL_SET(s, s->num_frames, 0, i, j, *(s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 3 + 0));
+                PIXEL_SET(s, s->num_frames, 1, i, j, *(s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 3 + 1));
+                PIXEL_SET(s, s->num_frames, 2, i, j, *(s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 3 + 2));
+            }
+        }
+        break;
+
+    case AV_PIX_FMT_RGB32:
+        for (uint32_t i = 0; i < s->height; i++) {
+            for (uint32_t j = 0; j < s->width; j++) {
+                  temp = *((uint32_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 4))
+                  PIXEL_SET(s, s->num_frames, 3, i, j, (uint8_t) temp >> 24);
+                  PIXEL_SET(s, s->num_frames, 0, i, j, (uint8_t) temp >> 16);
+                  PIXEL_SET(s, s->num_frames, 1, i, j, (uint8_t) temp >> 8);
+                  PIXEL_SET(s, s->num_frames, 2, i, j, (uint8_t) temp);
+            }
+        }
+        break;
+
+    case AV_PIX_FMT_GRAY16:
+        for (uint32_t i = 0; i < s->height; i++) {
+            for (uint32_t j = 0; j < s->width; j++) {
+                PIXEL_SET(s, s->num_frames, 0, i, j,
+                          *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 2)));
+            }
+        }
+        break;
+
+    case AV_PIX_FMT_RGB48:
+        for (uint32_t i = 0; i < s->height; i++) {
+            for (uint32_t j = 0; j < s->width; j++) {
+                PIXEL_SET(s, s->num_frames, 0, i, j, *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 6 + 0)));
+                PIXEL_SET(s, s->num_frames, 1, i, j, *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 6 + 1)));
+                PIXEL_SET(s, s->num_frames, 2, i, j, *((uint16_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 6 + 2)));
+            }
+        }
+
+    case AV_PIX_FMT_RGBA64:
+        for (uint32_t i = 0; i < s->height; i++) {
+            for (uint32_t j = 0; j < s->width; j++) {
+                temp = *((uint64_t *) (s->out_frame->data[0] + i * s->out_frame->linesize[0] + j * 8))
+                PIXEL_SET(s, s->num_frames, 3, i, j, (uint16_t) temp >> 48);
+                PIXEL_SET(s, s->num_frames, 2, i, j, (uint16_t) temp >> 32);
+                PIXEL_SET(s, s->num_frames, 1, i, j. (uint16_t) temp >> 16);
+                PIXEL_SET(s, s->num_frames, 0, i, j, (uint16_t) temp);
+            }
+        }
+        break;
+
+    default:
+        av_log(avctx, AV_LOG_FATAL, "Pixel format %d out of bounds?\n", avctx->pix_fmt);
+        return AVERROR_PATCHWELCOME;
+    }
+    
+    return AVERROR_EOF;
+}
+
 static int flif16_determine_secondheader(AVCodecContext *avctx)
 {
     // Read all frames, copy to pixeldata array, determine pts, determine duration,
     // On next step, determine transforms
+    int ret;
+    FLIF16EncoderContext *s = avctx->priv_data;
+    if (ret = flif16_copy_pixeldata(avctx) < 0)
+        return ret;
     return AVERROR_EOF;
 }
 

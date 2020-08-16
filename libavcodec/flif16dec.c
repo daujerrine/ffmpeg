@@ -43,7 +43,7 @@ typedef enum FLIF16DecodeStates {
     FLIF16_PIXELDATA,
     FLIF16_OUTPUT,
     FLIF16_EOS
-} FLIF16States;
+} FLIF16DecodeStates;
 
 /*
  * Due to the nature of the format, the decoder has to take the entirety of the
