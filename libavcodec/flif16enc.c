@@ -26,6 +26,21 @@
  */
 
 /**
+ * @file
+ * FLIF16 Decoder
+*/
+
+#include "flif16.h"
+#include "flif16_rangecoder.h"
+#include "flif16_transform.h"
+
+#include "avcodec.h"
+#include "bytestream.h"
+#include "internal.h"
+#include "libavutil/common.h"
+#include "libavutil/imgutils.h"
+
+/**
  * The size that the framedelay array will be initialized with
  */
 #define FRAMEPTS_BASE_SIZE 16
@@ -69,7 +84,8 @@ typedef struct FLIF16EncoderContext {
 
     AVFrame *curr_frame;
     AVPacket *out_packet;
-    
+
+    FLIF16EncodeStates state;
     FLIF16PixelData *frames;
     uint16_t *framepts;
     uint16_t framepts_size;
@@ -191,7 +207,8 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
         av_log(avctx, AV_LOG_FATAL, "Pixel format %d out of bounds?\n", avctx->pix_fmt);
         return AVERROR_PATCHWELCOME;
     }
-    
+
+    s->state = FLIF16_TRANSFORM;
     return AVERROR_EOF;
 }
 
