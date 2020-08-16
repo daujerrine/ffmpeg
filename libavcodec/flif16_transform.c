@@ -73,7 +73,7 @@ typedef struct TransformPrivPalette {
     FLIF16ColorVal Y, I, Q;
     long unsigned size;
     unsigned int p; // Iterator
-    uint32_t max_palette_size;
+    int32_t max_palette_size;
     uint8_t has_alpha;
     uint8_t ordered_palette;
     uint8_t sorted;
@@ -2064,6 +2064,60 @@ static FLIF16RangesContext *transform_palette_meta(FLIF16Context *ctx,
     return r_ctx;
 }
 
+static void transform_palette_configure(FLIF16TransformContext *ctx, const int setting)
+{
+    TransformPrivPalette *data = ctx->priv_data;
+    if (setting > 0) {
+        data->ordered_palette = 1;
+        data->max_palette_size = setting;
+    } else {
+        data->ordered_palette = 0;
+        data->max_palette_size = -setting;
+    }
+}
+
+static int transform_palette_process(FLIF16Context *ctx,
+                                     FLIF16TransformContext *t_ctx,
+                                     FLIF16RangesContext *src_ctx,
+                                     FLIF16PixelData *frame)
+{
+    TransformPrivPalette *data = t_ctx->priv_data;
+    
+    // Below code also requires AVL trees to be used just like they were used in
+    // channelcompact process.
+
+//     if (data->ordered_palette) {
+//           std::set<Color> Palette;
+//           for (const Image& image : images)
+//           for (uint32_t r=0; r<image.rows(); r++) {
+//             for (uint32_t c=0; c<image.cols(); c++) {
+//                 int Y=image(0,r,c), I=image(1,r,c), Q=image(2,r,c);
+//                 if (image.alpha_zero_special && image.numPlanes()>3 && image(3,r,c)==0) continue;
+//                 Palette.insert(Color(Y,I,Q));
+//                 if (Palette.size() > max_palette_size) return false;
+//             }
+//           }
+//           for (Color c : Palette) Palette_vector.push_back(c);
+//         } else {
+//           for (const Image& image : images)
+//           for (uint32_t r=0; r<image.rows(); r++) {
+//             for (uint32_t c=0; c<image.cols(); c++) {
+//                 int Y=image(0,r,c), I=image(1,r,c), Q=image(2,r,c);
+//                 if (image.alpha_zero_special && image.numPlanes()>3 && image(3,r,c)==0) continue;
+//                 Color C(Y,I,Q);
+//                 bool found=false;
+//                 for (Color c : Palette_vector) if (c==C) {found=true; break;}
+//                 if (!found) {
+//                     Palette_vector.push_back(C);
+//                     if (Palette_vector.size() > max_palette_size) return false;
+//                 }
+//             }
+//           }
+//         }
+// //        printf("Palette size: %lu\n",Palette.size());
+//         return true;
+}                                     
+
 static int transform_palette_reverse(FLIF16Context *ctx,
                                         FLIF16TransformContext *t_ctx,
                                         FLIF16PixelData *frame,
@@ -3190,6 +3244,7 @@ const FLIF16Transform flif16_transform_palette = {
     .init           = &transform_palette_init,
     .read           = &transform_palette_read,
     .meta           = &transform_palette_meta,
+    .configure      = &transform_palette_configure,
     .forward        = NULL,
     .reverse        = &transform_palette_reverse,
     .close          = &transform_palette_close
