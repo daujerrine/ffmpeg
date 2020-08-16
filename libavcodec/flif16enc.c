@@ -59,7 +59,6 @@ typedef struct FLIF16EncoderContext {
 
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
-    GetByteContext pb;
 
     // Dimensions
     uint32_t width;

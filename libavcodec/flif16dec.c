@@ -57,7 +57,6 @@ typedef struct FLIF16DecoderContext {
 
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
-    GetByteContext gb;
 
     // Dimensions
     uint32_t width;
@@ -82,6 +81,7 @@ typedef struct FLIF16DecoderContext {
 
     AVFrame *out_frame;
     FLIF16PixelData  *frames;
+    GetByteContext gb;
     int64_t pts;
     uint32_t out_frames_count;
 

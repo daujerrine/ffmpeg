@@ -43,8 +43,8 @@ void ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
     }
 }
 
-static void ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
-                              uint8_t bit)
+void ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
+                           uint8_t bit)
 {
     if (bit) {
         low += range - chance;
@@ -52,7 +52,7 @@ static void ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
     } else
         range -= chance;
 }
-static void ff_flif16_rac_enc_flush()
+void ff_flif16_rac_enc_flush(FLIF16RangeCoder *rc)
 {
     rc->low += (FLIF16_RAC_MIN_RANGE - 1);
     for (int i = 0; i < 4; ++i) {

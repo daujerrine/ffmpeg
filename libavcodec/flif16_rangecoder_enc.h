@@ -9,8 +9,8 @@ void ff_flif16_rac_enc_init(FLIF16RangeCoder *rc, PutByteContext *gb);
 
 void ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc);
 
-static void ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
-                              uint8_t bit);
+void ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
+                           uint8_t bit);
 
 void ff_flif16_rac_enc_flush();
 

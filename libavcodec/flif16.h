@@ -89,7 +89,6 @@ typedef int32_t FLIF16ColorVal;
 typedef struct FLIF16Context {
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
-    GetByteContext gb;
 
     // Dimensions
     uint32_t width;
