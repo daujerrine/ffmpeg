@@ -43,7 +43,7 @@ typedef enum FLIF16DecodeStates {
     FLIF16_PIXELDATA,
     FLIF16_OUTPUT,
     FLIF16_EOS
-} FLIF16States;
+} FLIF16DecodeStates;
 
 /*
  * Due to the nature of the format, the decoder has to take the entirety of the
@@ -57,7 +57,6 @@ typedef struct FLIF16DecoderContext {
 
     FLIF16MANIACContext maniac_ctx;
     FLIF16RangeCoder rc;
-    GetByteContext gb;
 
     // Dimensions
     uint32_t width;
@@ -82,6 +81,7 @@ typedef struct FLIF16DecoderContext {
 
     AVFrame *out_frame;
     FLIF16PixelData  *frames;
+    GetByteContext gb;
     int64_t pts;
     uint32_t out_frames_count;
 
