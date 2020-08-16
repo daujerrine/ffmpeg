@@ -7,27 +7,23 @@
 
 void ff_flif16_rac_enc_init(FLIF16RangeCoder *rc, PutByteContext *gb);
 
-void ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc);
+int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc);
 
-void ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
-                           uint8_t bit);
+int ff_flif16_rac_enc_flush(FLIF16RangeCoder *rc);
 
-void ff_flif16_rac_enc_flush();
+int ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
+                          uint8_t bit);
 
-void ff_flif16_rac_enc_write_bit(FLIF16RangeCoder *rc, uint8_t bit);
+int ff_flif16_rac_enc_write_bit(FLIF16RangeCoder *rc, uint8_t bit);
 
 int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
                                     int max, int val, int type);
 
-void inline ff_flif16_rac_enc_write_12bit_chance(FLIF16RangeCoder *rc,
-                                                 uint64_t b12, uint8_t bit);
+int ff_flif16_rac_enc_write_chance(FLIF16RangeCoder *rc,
+                                   uint64_t b12, uint8_t bit);
 
-static inline int ff_flif16_rac_nz_write_internal(FLIF16RangeCoder *rc,
-                                                  FLIF16ChanceContext *ctx,
-                                                  uint16_t type, uint8_t value);
-
-int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, int min, int max,
-                                   int value);
+int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
+                                   int min, int max, int value);
 
 int ff_flif16_rac_enc_write_gnz_int(FLIF16RangeCoder *rc,
                                     FLIF16ChanceContext *ctx,
