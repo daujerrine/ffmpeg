@@ -44,14 +44,14 @@ int ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb)
 
     // This is used to check whether the function is being run for the first
     // time or not.
-    if (!rc->gb)
+    if (!rc->bytestream)
         rc->range = FLIF16_RAC_MAX_RANGE;
-    rc->gb = gb;
+    rc->bytestream = gb;
 
-    for (; rc->range > 1 && bytestream2_get_bytes_left(rc->gb) > 0;
+    for (; rc->range > 1 && bytestream2_get_bytes_left(rc->bytestream) > 0;
          rc->range >>= 8) {
         rc->low <<= 8;
-        rc->low |= bytestream2_get_byte(rc->gb);
+        rc->low |= bytestream2_get_byte(rc->bytestream);
     }
 
     if (rc->range <= 1)

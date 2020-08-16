@@ -179,7 +179,8 @@ typedef struct FLIF16RangeCoder {
     FLIF16Log4kTable log4k;
     FLIF16MultiscaleChanceTable *mct;
 #endif
-    GetByteContext *gb;
+    void *bytestream; ///< Pointer to a PutByteStream or a GetByteStream
+                      ///  Struct
     FLIF16MANIACChanceContext *curr_leaf;
 
     uint_fast32_t range;
@@ -299,20 +300,12 @@ int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
 
 static inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
 {
-    uint32_t left;
     while (rc->range <= FLIF16_RAC_MIN_RANGE) {
-        left = bytestream2_get_bytes_left(rc->gb);
-        if (!left) {
+        if (!bytestream2_get_bytes_left(rc->bytestream))
             return 0;
-        }
         rc->low <<= 8;
         rc->range <<= 8;
-        rc->low |= bytestream2_get_byte(rc->gb);
-        if(!left) {
-            return 0;
-        } else {
-            left--;
-        }
+        rc->low |= bytestream2_get_byte(rc->bytestream);
     }
     return 1;
 }
