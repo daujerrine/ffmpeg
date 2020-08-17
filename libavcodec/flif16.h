@@ -173,7 +173,11 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
                           uint8_t *is_const, uint8_t *const_plane_value,
                           uint8_t lookback);
 
-FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s);
+FLIF16PixelData *ff_flif16_frames_init(uint16_t num_frames);
+
+FLIF16PixelData *ff_flif16_frames_resize(FLIF16PixelData *frames,
+                                         uint16_t curr_num_frames,
+                                         uint16_t new_num_frames);
 
 void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
                            uint32_t num_planes, uint8_t lookback);

@@ -163,15 +163,29 @@ static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes,
     }
 }
 
-FLIF16PixelData *ff_flif16_frames_init(FLIF16Context *s)
+FLIF16PixelData *ff_flif16_frames_init(uint16_t num_frames)
 {
-    FLIF16PixelData *frames = av_mallocz_array(s->num_frames, sizeof(*frames));
+    FLIF16PixelData *frames = av_mallocz_array(num_frames, sizeof(*frames));
     if (!frames)
         return NULL;
 
-    for (int i = 0; i < s->num_frames; i++)
+    for (int i = 0; i < num_frames; i++)
         frames[i].seen_before = -1;
     return frames;
+}
+
+FLIF16PixelData *ff_flif16_frames_resize(FLIF16PixelData *frames,
+                                         uint16_t curr_num_frames,
+                                         uint16_t new_num_frames)
+{
+    FLIF16PixelData *new_frames = av_realloc_f(frames, new_num_frames,
+                                               sizeof(*frames));
+    if (!new_frames)
+        return NULL;
+
+    for (int i = curr_num_frames; i < new_num_frames; i++)
+        new_frames[i].seen_before = -1;
+    return new_frames;
 }
 
 void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,

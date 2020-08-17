@@ -179,7 +179,7 @@ typedef struct FLIF16RangeCoder {
     FLIF16Log4kTable log4k;
     FLIF16MultiscaleChanceTable *mct;
 #endif
-    void *bytestream; ///< Pointer to a PutByteStream or a GetByteStream
+    void *bytestream; ///< Pointer to a PutByteContext or a GetByteContext
                       ///  Struct
     FLIF16MANIACChanceContext *curr_leaf;
 
