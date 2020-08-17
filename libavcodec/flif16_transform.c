@@ -1528,12 +1528,7 @@ typedef struct palette_node {
     int height;
 } palette_node;
 
-static int height(palette_node *N)  
-{  
-    if (N == NULL)  
-        return 0;  
-    return N->height;  
-}
+#define height(N) ((N == NULL) ? (0) : (N->height))
 
 static palette_node *ff_new_palette_node(FLIF16ColorVal *color, int num_colors, size_t *size)
 {
@@ -1743,7 +1738,7 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
         if (!data->cpalette[p])
             return NULL;
 
-        if (!ff_traversal(cpalette, data, p, cpalette_size, &nontrivial))
+        if (!ff_channelcompact_traversal(cpalette, data, p, cpalette_size, &nontrivial))
             return AVERROR(ENOMEM);
         
         ff_palette_close(cpalette);
