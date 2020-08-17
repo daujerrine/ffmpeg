@@ -171,13 +171,13 @@ int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ct
         }
         rc->segment++;
 
-        max = (rc->sign ? 1 : -1);
-        rc->e = ff_log2(abs(value));
+        max      = (rc->sign ? 1 : -1);
+        rc->e    = ff_log2(abs(value));
         rc->amin = rc->sign ? abs(min) : abs(max);
         rc->amax = rc->sign ? abs(max) : abs(min);
 
         rc->emax = ff_log2(rc->amax);
-        rc->i = ff_log2(rc->amin);
+        rc->i    = ff_log2(rc->amin);
 
         while (rc->i < rc->emax) {
             // if exponent >i is impossible, we are done
@@ -266,3 +266,5 @@ void MetaPropertySymbolCoder<BitChance,RAC>::write_tree(const Tree &tree)
     write_subtree(0, rootrange, tree);
 }
 */
+
+
