@@ -2075,7 +2075,7 @@ static void transform_palette_configure(FLIF16TransformContext *ctx, const int s
         data->max_palette_size = -setting;
     }
 }
-
+/*
 static int transform_palette_process(FLIF16Context *ctx,
                                      FLIF16TransformContext *t_ctx,
                                      FLIF16RangesContext *src_ctx,
@@ -2116,8 +2116,8 @@ static int transform_palette_process(FLIF16Context *ctx,
 //         }
 // //        printf("Palette size: %lu\n",Palette.size());
 //         return true;
-}                                     
-
+//}                                     
+*/
 static int transform_palette_reverse(FLIF16Context *ctx,
                                         FLIF16TransformContext *t_ctx,
                                         FLIF16PixelData *frame,
