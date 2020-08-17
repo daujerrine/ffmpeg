@@ -1528,6 +1528,13 @@ typedef struct palette_node {
     int height;
 } palette_node;
 
+static int height(palette_node *N)  
+{  
+    if (N == NULL)  
+        return 0;  
+    return N->height;  
+}
+
 static palette_node *ff_new_palette_node(FLIF16ColorVal *color, int num_colors, size_t *size)
 {
     palette_node *node = av_mallocz(sizeof(*node));
@@ -1568,8 +1575,8 @@ static palette_node *ff_right_rotate(palette_node *node)
     node->left = left->right; 
     left->right = node;
 
-    node->height = 1 + FFMAX(node->left->height, node->right->height);
-    left->height = 1 + FFMAX(left->left->height, left->right->height);
+    node->height = 1 + FFMAX(height(node->left), height(node->right));
+    left->height = 1 + FFMAX(height(left->left), height(left->right));
     
     return left;
 }
@@ -1581,8 +1588,8 @@ static palette_node *ff_left_rotate(palette_node *node)
     node->right = right->left; 
     right->left = node;
 
-    node->height = 1 + FFMAX(node->left->height, node->right->height);
-    right->height = 1 + FFMAX(right->left->height, right->right->height);
+    node->height = 1 + FFMAX(height(node->left), height(node->right));
+    right->height = 1 + FFMAX(height(right->left), height(right->right));
     
     return right;
 }
@@ -1618,9 +1625,9 @@ static palette_node *ff_insert_palette_node(palette_node *node, FLIF16ColorVal *
             break;
         }
     }
-    node->height = 1 + FFMAX(node->left->height, node->right->height);
+    node->height = 1 + FFMAX(height(node->left), height(node->right));
 
-    int balance = node->left->height - node->right->height;
+    int balance = height(node->left) - height(node->right);
 
     if (balance > 1 && color[i] < node->left->color[i])
         return ff_right_rotate(node);
@@ -1651,7 +1658,7 @@ static int ff_channelcompact_traversal(palette_node *root, TransformPrivChannelc
 {
     stack s;
     s.top = -1;
-    s.arr = av_malloc_array(data->cpalette_size, sizeof(*s.arr));
+    s.arr = av_malloc_array(cpalette_size, sizeof(*s.arr));
     if (!s.arr) {
         return AVERROR(ENOMEM);
     }
@@ -1694,9 +1701,9 @@ static int ff_channelcompact_traversal(palette_node *root, TransformPrivChannelc
 static void ff_palette_close(palette_node *palette)
 {
     if (palette->left)
-        ff_cpalette_close(palette->left);
+        ff_palette_close(palette->left);
     if (palette->right)
-        ff_cpalette_close(palette->right);
+        ff_palette_close(palette->right);
 
     av_free(palette->color);
     av_free(palette);
@@ -1714,7 +1721,7 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
     if (frame->palette)
         return 0;
 
-    palette_node *cpalette;
+    palette_node *cpalette = NULL;
     size_t cpalette_size = 0;
     for (int p = 0; p < src_ctx->num_planes; p++) {
         if (p == 3) {
@@ -1739,7 +1746,7 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
         if (!ff_traversal(cpalette, data, p, cpalette_size, &nontrivial))
             return AVERROR(ENOMEM);
         
-        ff_cpalette_close(cpalette);
+        ff_palette_close(cpalette);
             
         data->cpalette_inv_size[p] = ff_flif16_ranges_max(src_ctx, p) + 1;
         data->cpalette_inv[p] = av_malloc_array(data->cpalette_inv_size[p],
