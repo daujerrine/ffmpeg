@@ -73,7 +73,7 @@ typedef struct TransformPrivPalette {
     FLIF16ColorVal Y, I, Q;
     long unsigned size;
     unsigned int p; // Iterator
-    uint32_t max_palette_size;
+    int32_t max_palette_size;
     uint8_t has_alpha;
     uint8_t ordered_palette;
     uint8_t sorted;
@@ -1122,8 +1122,8 @@ static int transform_ycocg_process(FLIF16Context *ctx,
 }                                   
 
 static int transform_ycocg_forward(FLIF16Context *ctx,
-                                      FLIF16TransformContext *t_ctx,
-                                      FLIF16PixelData *pixel_data)
+                                   FLIF16TransformContext *t_ctx,
+                                   FLIF16PixelData *pixel_data)
 {
     int r, c;
     FLIF16ColorVal RGB[3], YCOCG[3];
@@ -2063,6 +2063,60 @@ static FLIF16RangesContext *transform_palette_meta(FLIF16Context *ctx,
     r_ctx->priv_data = data;
     return r_ctx;
 }
+
+static void transform_palette_configure(FLIF16TransformContext *ctx, const int setting)
+{
+    TransformPrivPalette *data = ctx->priv_data;
+    if (setting > 0) {
+        data->ordered_palette = 1;
+        data->max_palette_size = setting;
+    } else {
+        data->ordered_palette = 0;
+        data->max_palette_size = -setting;
+    }
+}
+
+static int transform_palette_process(FLIF16Context *ctx,
+                                     FLIF16TransformContext *t_ctx,
+                                     FLIF16RangesContext *src_ctx,
+                                     FLIF16PixelData *frame)
+{
+    TransformPrivPalette *data = t_ctx->priv_data;
+    
+    // Below code also requires AVL trees to be used just like they were used in
+    // channelcompact process.
+
+//     if (data->ordered_palette) {
+//           std::set<Color> Palette;
+//           for (const Image& image : images)
+//           for (uint32_t r=0; r<image.rows(); r++) {
+//             for (uint32_t c=0; c<image.cols(); c++) {
+//                 int Y=image(0,r,c), I=image(1,r,c), Q=image(2,r,c);
+//                 if (image.alpha_zero_special && image.numPlanes()>3 && image(3,r,c)==0) continue;
+//                 Palette.insert(Color(Y,I,Q));
+//                 if (Palette.size() > max_palette_size) return false;
+//             }
+//           }
+//           for (Color c : Palette) Palette_vector.push_back(c);
+//         } else {
+//           for (const Image& image : images)
+//           for (uint32_t r=0; r<image.rows(); r++) {
+//             for (uint32_t c=0; c<image.cols(); c++) {
+//                 int Y=image(0,r,c), I=image(1,r,c), Q=image(2,r,c);
+//                 if (image.alpha_zero_special && image.numPlanes()>3 && image(3,r,c)==0) continue;
+//                 Color C(Y,I,Q);
+//                 bool found=false;
+//                 for (Color c : Palette_vector) if (c==C) {found=true; break;}
+//                 if (!found) {
+//                     Palette_vector.push_back(C);
+//                     if (Palette_vector.size() > max_palette_size) return false;
+//                 }
+//             }
+//           }
+//         }
+// //        printf("Palette size: %lu\n",Palette.size());
+//         return true;
+}                                     
 
 static int transform_palette_reverse(FLIF16Context *ctx,
                                         FLIF16TransformContext *t_ctx,
@@ -3141,7 +3195,9 @@ const FLIF16Transform flif16_transform_channelcompact = {
     .init           = &transform_channelcompact_init,
     .read           = &transform_channelcompact_read,
     .meta           = &transform_channelcompact_meta,
+    .process        = &transform_channelcompact_process,
     .forward        = NULL,
+    .write          = &transform_channelcompact_write,
     .reverse        = &transform_channelcompact_reverse,
     .close          = &transform_channelcompact_close
 };
@@ -3151,7 +3207,9 @@ const FLIF16Transform flif16_transform_ycocg = {
     .init           = &transform_ycocg_init,
     .read           = NULL,
     .meta           = &transform_ycocg_meta,
+    .process        = &transform_ycocg_process,
     .forward        = &transform_ycocg_forward,
+    .write          = NULL,
     .reverse        = &transform_ycocg_reverse,
     .close          = NULL
 };
@@ -3161,7 +3219,10 @@ const FLIF16Transform flif16_transform_permuteplanes = {
     .init           = &transform_permuteplanes_init,
     .read           = &transform_permuteplanes_read,
     .meta           = &transform_permuteplanes_meta,
+    .configure      = &transform_permuteplanes_configure,
+    .process        = &transform_permuteplanes_process,
     .forward        = &transform_permuteplanes_forward,
+    .write          = &transform_permuteplanes_write,
     .reverse        = &transform_permuteplanes_reverse,
     .close          = NULL
 };
@@ -3171,7 +3232,9 @@ const FLIF16Transform flif16_transform_bounds = {
     .init           = &transform_bounds_init,
     .read           = &transform_bounds_read,
     .meta           = &transform_bounds_meta,
+    .process        = &transform_bounds_process,
     .forward        = NULL,
+    .write          = &transform_bounds_write,
     .reverse        = NULL,
     .close          = NULL
 };
@@ -3181,6 +3244,7 @@ const FLIF16Transform flif16_transform_palette = {
     .init           = &transform_palette_init,
     .read           = &transform_palette_read,
     .meta           = &transform_palette_meta,
+    .configure      = &transform_palette_configure,
     .forward        = NULL,
     .reverse        = &transform_palette_reverse,
     .close          = &transform_palette_close
@@ -3256,7 +3320,6 @@ const FLIF16Transform *flif16_transforms[13] = {
     [FLIF16_TRANSFORM_FRAMELOOKBACK]  = &flif16_transform_framecombine
 };
 
-
 FLIF16TransformContext *ff_flif16_transform_init(int t_no, FLIF16RangesContext *r_ctx)
 {
     const FLIF16Transform *trans;
@@ -3320,10 +3383,39 @@ void ff_flif16_transform_configure(FLIF16TransformContext *ctx, const int settin
         trans->configure(ctx, setting);
 }
 
-int ff_flif16_transform_reverse(FLIF16Context *ctx,
-                                FLIF16TransformContext *t_ctx,
-                                FLIF16PixelData *frame,
-                                uint8_t stride_row, uint8_t stride_col)
+int ff_flif16_transform_process(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
+                                FLIF16RangesContext *src_ctx, FLIF16PixelData *frame)
+{
+    const FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
+    if (trans->process != NULL)
+        return trans->process(ctx, t_ctx, src_ctx, frame);
+    else
+        return 1;
+}
+
+int ff_flif16_transform_forward(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
+                                FLIF16PixelData *pixel_data)
+{
+    const FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
+    if (trans->forward != NULL)
+        return trans->forward(ctx, t_ctx, pixel_data);
+    else
+        return 1;
+}
+
+void ff_flif16_transform_write(FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
+                               FLIF16RangesContext *src_ctx)
+{
+    const FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
+    if (trans->write)
+        trans->write(enc_ctx, t_ctx, src_ctx);
+    else
+        return;
+}                               
+
+int ff_flif16_transform_reverse(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
+                                FLIF16PixelData *frame, uint8_t stride_row,
+                                uint8_t stride_col)
 {
     const FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
     if (trans->reverse != NULL)
