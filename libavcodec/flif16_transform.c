@@ -1528,13 +1528,31 @@ typedef struct palette_node {
     int height;
 } palette_node;
 
-static palette_node *ff_new_node(FLIF16ColorVal color, size_t *size)
+static palette_node *ff_new_palette_node(FLIF16ColorVal *color, int num_colors, size_t *size)
 {
     palette_node *node = av_mallocz(sizeof(*node));
     if (!node)
         return NULL;
+    
+    node->color = av_malloc_array(num_colors, sizeof(*node->color));
+    if (!node->color) {
+        av_free(node);
+        return NULL;
+    }
+    
+    switch (num_colors) {
+    case CPALETTE:
+        node->color[0] = color[0];
+        break;
 
-    node->color = color;
+    case PALETTE:
+    case PALETTEALPHA:
+        for (int i = 0; i < num_colors; i++)
+            node->color[i] = color[i];
+        break;
+    }
+
+    node->num_colors = num_colors;
     node->left = NULL;
     node->right = NULL;
     node->height = 1;
@@ -1573,44 +1591,33 @@ static palette_node *ff_insert_palette_node(palette_node *node, FLIF16ColorVal *
                                             int num_colors, int i, size_t *size)
 {
     if (node == NULL)
-        return ff_new_node(color, size);
+        return ff_new_palette_node(color, num_colors, size);
     
-    switch (num_colors) {
-    case CPALETTE:
-        if (color[i] < node->color[i])
-            node->left = ff_insert_palette_node(node->left, color, num_colors, i, size);
-        else if (color[i] > node->color[i])
-            node->right = ff_insert_palette_node(node->right, color, num_colors, i, size);
-        else
+    if (color[i] < node->color[i])
+        node->left = ff_insert_palette_node(node->left, color, num_colors, i, size);
+    else if (color[i] > node->color[i])
+        node->right = ff_insert_palette_node(node->right, color, num_colors, i, size);
+    else {
+        switch (num_colors) {
+        case CPALETTE:
             return node;
+            break;
 
-    case PALETTE:
-        if (color[i] < node->color[i])
-            node->left = ff_insert_palette_node(node->left, color, num_colors, i, size);
-        else if (color[i] > node->color[i])
-            node->right = ff_insert_palette_node(node->right, color, num_colors, i, size);
-        else {
+        case PALETTE:
             if (i == 2)
                 return node;
-            else {
+            else
                 return ff_insert_palette_node(node, color, num_colors, i+1, size);
-            }
-        }
+            break;
 
-    case PALETTEALPHA:
-        if (color[i] < node->color[i])
-            node->left = ff_insert_palette_node(node->left, color, num_colors, i, size);
-        else if (color[i] > node->color[i])
-            node->right = ff_insert_palette_node(node->right, color, num_colors, i, size);
-        else {
+        case PALETTEALPHA:
             if (i == 3)
                 return node;
-            else {
+            else
                 return ff_insert_palette_node(node, color, num_colors, i+1, size);
-            }
+            break;
         }
     }
-
     node->height = 1 + FFMAX(node->left->height, node->right->height);
 
     int balance = node->left->height - node->right->height;
@@ -1661,7 +1668,7 @@ static int ff_channelcompact_traversal(palette_node *root, TransformPrivChannelc
         curr = s.arr[s.top];
         s.top--;
         
-        c = curr->color;
+        c = curr->color[0];
         
         if (cpalette_size < 10) {
             if (c > prev + 1) {
@@ -1684,14 +1691,15 @@ static int ff_channelcompact_traversal(palette_node *root, TransformPrivChannelc
     return 1;
 }
 
-static void ff_cpalette_close(palette_node *cpalette)
+static void ff_palette_close(palette_node *palette)
 {
-    if (cpalette->left)
-        ff_cpalette_close(cpalette->left);
-    if (cpalette->right)
-        ff_cpalette_close(cpalette->right);
+    if (palette->left)
+        ff_cpalette_close(palette->left);
+    if (palette->right)
+        ff_cpalette_close(palette->right);
 
-    av_free(cpalette);
+    av_free(palette->color);
+    av_free(palette);
 }
 
 static int transform_channelcompact_process(FLIF16Context *ctx,
@@ -1709,12 +1717,14 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
     palette_node *cpalette;
     size_t cpalette_size = 0;
     for (int p = 0; p < src_ctx->num_planes; p++) {
-        if (p == 3)
-            cpalette = ff_insert_palette_node(cpalette, 0, &cpalette_size);
+        if (p == 3) {
+            val = 0;
+            cpalette = ff_insert_palette_node(cpalette, &val, 1, 0, &cpalette_size);
+        }
         for (uint32_t r = 0; r < ctx->height; r++) {
             for (uint32_t c = 0; c < ctx->width; c++) {
                 val = ff_flif16_pixel_get(ctx, frame, p, r, c);
-                cpalette = ff_insert_palette_node(cpalette, val, &cpalette_size);
+                cpalette = ff_insert_palette_node(cpalette, &val, 1, 0, &cpalette_size);
             }
         }
 
