@@ -1517,22 +1517,22 @@ static enum PALETTES{
     PALETTE      = 3
 };
 
-typedef struct palette_node palette_node;
+typedef struct PaletteNode PaletteNode;
 
-typedef struct palette_node {
+typedef struct PaletteNode {
     FLIF16ColorVal *color;
     int num_colors;
 
-    palette_node *left;
-    palette_node *right;
+    PaletteNode *left;
+    PaletteNode *right;
     int height;
-} palette_node;
+} PaletteNode;
 
 #define height(N) ((N == NULL) ? (0) : (N->height))
 
-static palette_node *ff_new_palette_node(FLIF16ColorVal *color, int num_colors, size_t *size)
+static PaletteNode *ff_new_palette_node(FLIF16ColorVal *color, int num_colors, size_t *size)
 {
-    palette_node *node = av_mallocz(sizeof(*node));
+    PaletteNode *node = av_mallocz(sizeof(*node));
     if (!node)
         return NULL;
     
@@ -1563,9 +1563,9 @@ static palette_node *ff_new_palette_node(FLIF16ColorVal *color, int num_colors, 
     return node;
 }
 
-static palette_node *ff_right_rotate(palette_node *node)
+static PaletteNode *ff_right_rotate(PaletteNode *node)
 {
-    palette_node *left = node->left;
+    PaletteNode *left = node->left;
     
     node->left = left->right; 
     left->right = node;
@@ -1576,9 +1576,9 @@ static palette_node *ff_right_rotate(palette_node *node)
     return left;
 }
 
-static palette_node *ff_left_rotate(palette_node *node)
+static PaletteNode *ff_left_rotate(PaletteNode *node)
 {
-    palette_node *right = node->right;
+    PaletteNode *right = node->right;
     
     node->right = right->left; 
     right->left = node;
@@ -1589,7 +1589,7 @@ static palette_node *ff_left_rotate(palette_node *node)
     return right;
 }
 
-static palette_node *ff_insert_palette_node(palette_node *node, FLIF16ColorVal *color,
+static PaletteNode *ff_insert_palette_node(PaletteNode *node, FLIF16ColorVal *color,
                                             int num_colors, int i, size_t *size)
 {
     if (node == NULL)
@@ -1643,22 +1643,22 @@ static palette_node *ff_insert_palette_node(palette_node *node, FLIF16ColorVal *
 /*  Traversing the AVL tree created using palette_node
  *  for channelcompact_process
  */
-typedef struct stack {
+typedef struct PaletteNodeStack {
     int top;
-    palette_node **arr;
-} stack;
+    PaletteNode **arr;
+} PaletteNodeStack;
 
-static int ff_channelcompact_traversal(palette_node *root, TransformPrivChannelcompact *data,
+static int ff_channelcompact_traversal(PaletteNode *root, TransformPrivChannelcompact *data,
                                        int p, int cpalette_size, uint8_t *nontrivial)
 {
-    stack s;
+    PaletteNodeStack s;
     s.top = -1;
     s.arr = av_malloc_array(cpalette_size, sizeof(*s.arr));
     if (!s.arr) {
         return AVERROR(ENOMEM);
     }
     int i = 0;
-    palette_node *curr = root;
+    PaletteNode *curr = root;
     FLIF16ColorVal prev = 0, c;
 
     while (curr != NULL || s.top >= 0) {
@@ -1693,12 +1693,12 @@ static int ff_channelcompact_traversal(palette_node *root, TransformPrivChannelc
     return 1;
 }
 
-static void ff_palette_close(palette_node *palette)
+static void ff_palettenode_close(PaletteNode *palette)
 {
     if (palette->left)
-        ff_palette_close(palette->left);
+        ff_palettenode_close(palette->left);
     if (palette->right)
-        ff_palette_close(palette->right);
+        ff_palettenode_close(palette->right);
 
     av_free(palette->color);
     av_free(palette);
@@ -1716,7 +1716,7 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
     if (frame->palette)
         return 0;
 
-    palette_node *cpalette = NULL;
+    PaletteNode *cpalette = NULL;
     size_t cpalette_size = 0;
     for (int p = 0; p < src_ctx->num_planes; p++) {
         if (p == 3) {
@@ -1741,7 +1741,7 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
         if (!ff_channelcompact_traversal(cpalette, data, p, cpalette_size, &nontrivial))
             return AVERROR(ENOMEM);
         
-        ff_palette_close(cpalette);
+        ff_palettenode_close(cpalette);
             
         data->cpalette_inv_size[p] = ff_flif16_ranges_max(src_ctx, p) + 1;
         data->cpalette_inv[p] = av_malloc_array(data->cpalette_inv_size[p],
@@ -2124,53 +2124,101 @@ static void transform_palette_configure(FLIF16TransformContext *ctx, const int s
     }
 }
 
+enum COLORS{Y, I, Q, A};
+
+static int ff_palette_traversal(PaletteNode *root, TransformPrivPalette *data,
+                                int palette_size)
+{
+    PaletteNodeStack s;
+    s.top = -1;
+    s.arr = av_malloc_array(palette_size, sizeof(*s.arr));
+    if (!s.arr) {
+        return AVERROR(ENOMEM);
+    }
+    int i = 0;
+    PaletteNode *curr = root;
+
+    while (curr != NULL || s.top >= 0) {
+        while (curr != NULL) {
+            s.arr[++s.top] = curr;
+            curr = curr->left;
+        }
+
+        curr = s.arr[s.top];
+        s.top--;
+
+        for (int j = 0; j < 3; j++) {
+            data->Palette[i][j] = curr->color[j];
+            i++;
+        }
+
+        curr = curr->right;
+    }
+
+    av_free(s.arr);
+    return 1;
+}                                
+
 static int transform_palette_process(FLIF16Context *ctx,
                                      FLIF16TransformContext *t_ctx,
                                      FLIF16RangesContext *src_ctx,
                                      FLIF16PixelData *frame)
 {
     TransformPrivPalette *data = t_ctx->priv_data;
-    FLIF16ColorVal Y, I, Q;
+    FLIF16ColorVal colors[3];
+    data->size = 0;
     // Below code also requires AVL trees to be used just like they were used in
     // channelcompact process.
 
-    /*
     if (data->ordered_palette) {
-          palette_node *Palette;
-          for (uint32_t r = 0; r < ctx->height; r++) {
+        PaletteNode *Palette = NULL;
+        for (uint32_t r = 0; r < ctx->height; r++) {
             for (uint32_t c = 0; c < ctx->width; c++) {
-                Y = ff_flif16_pixel_get(ctx, frame, 0, r, c);
-                I = ff_flif16_pixel_get(ctx, frame, 1, r, c);
-                Q = ff_flif16_pixel_get(ctx, frame, 2, r, c);
-                if (ctx->alphazero && ctx->num_planes > 3 &&
+                colors[Y] = ff_flif16_pixel_get(ctx, frame, 0, r, c);
+                colors[I] = ff_flif16_pixel_get(ctx, frame, 1, r, c);
+                colors[Q] = ff_flif16_pixel_get(ctx, frame, 2, r, c);
+                if (/* ctx->alphazero && */ ctx->num_planes > 3 &&
                     ff_flif16_pixel_get(ctx, frame, 3, r, c) == 0)
                     continue;
-                Palette.insert(Color(Y,I,Q));
-                ff_insert_palette_node
-                if (Palette.size() > max_palette_size) return false;
+                ff_insert_palette_node(Palette, colors, 3, 0, &data->size);
+                if (data->size > data->max_palette_size)
+                    return 0;
             }
-          }
-          for (Color c : Palette) Palette_vector.push_back(c);
-        } else {
-          for (const Image& image : images)
-          for (uint32_t r=0; r<image.rows(); r++) {
-            for (uint32_t c=0; c<image.cols(); c++) {
-                int Y=image(0,r,c), I=image(1,r,c), Q=image(2,r,c);
-                if (image.alpha_zero_special && image.numPlanes()>3 && image(3,r,c)==0) continue;
-                Color C(Y,I,Q);
-                bool found=false;
-                for (Color c : Palette_vector) if (c==C) {found=true; break;}
+        }
+            data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
+            if (!ff_palette_traversal(Palette, data, data->size))
+                return AVERROR(ENOMEM);
+    } else {
+        int j;
+        for (uint32_t r = 0; r < ctx->height; r++) {
+            for (uint32_t c = 0; c < ctx->width; c++) {
+                colors[Y] = ff_flif16_pixel_get(ctx, frame, 0, r, c);
+                colors[I] = ff_flif16_pixel_get(ctx, frame, 1, r, c);
+                colors[Q] = ff_flif16_pixel_get(ctx, frame, 2, r, c);
+                if (/* ctx->alphazero && */ ctx->num_planes > 3 &&
+                    ff_flif16_pixel_get(ctx, frame, 3, r, c) == 0)
+                    continue;
+                uint8_t found = 0;
+                for (int i = 0; i < data->size; i++) {
+                    if (data->Palette[i][Y] == colors[Y] &&
+                        data->Palette[i][I] == colors[I] &&
+                        data->Palette[i][Q] == colors[Q])
+                        found = 1;
+                        break;
+                }
                 if (!found) {
-                    Palette_vector.push_back(C);
-                    if (Palette_vector.size() > max_palette_size) return false;
+                    // Linked list required here.
+                    data->Palette[j][Y] = colors[Y];
+                    data->Palette[j][I] = colors[I];
+                    data->Palette[j][Q] = colors[Q];
+                    // Palette_vector.push_back(C);
+                    if (data->size > data->max_palette_size)
+                        return 0;
                 }
             }
           }
         }
-//        printf("Palette size: %lu\n",Palette.size());
-        return true;
-
-    */
+        return 1;
 }                                     
 
 static int transform_palette_reverse(FLIF16Context *ctx,
