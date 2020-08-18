@@ -119,6 +119,7 @@ extern AVCodec ff_flashsv_decoder;
 extern AVCodec ff_flashsv2_encoder;
 extern AVCodec ff_flashsv2_decoder;
 extern AVCodec ff_flic_decoder;
+extern AVCodec ff_flif16_encoder;
 extern AVCodec ff_flif16_decoder;
 extern AVCodec ff_flv_encoder;
 extern AVCodec ff_flv_decoder;

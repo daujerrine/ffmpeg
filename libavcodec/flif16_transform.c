@@ -1511,7 +1511,7 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
     return 1;
 }
 
-static enum PALETTES{
+static enum PALETTES {
     PALETTEALPHA = 4,
     CPALETTE     = 1,
     PALETTE      = 3
@@ -1528,7 +1528,7 @@ typedef struct PaletteNode {
     int height;
 } PaletteNode;
 
-#define height(N) ((N == NULL) ? (0) : (N->height))
+#define P_HEIGHT(N) (((N) == NULL) ? (0) : ((N)->height))
 
 static PaletteNode *ff_new_palette_node(FLIF16ColorVal *color, int num_colors, size_t *size)
 {
@@ -1570,8 +1570,8 @@ static PaletteNode *ff_right_rotate(PaletteNode *node)
     node->left = left->right; 
     left->right = node;
 
-    node->height = 1 + FFMAX(height(node->left), height(node->right));
-    left->height = 1 + FFMAX(height(left->left), height(left->right));
+    node->height = 1 + FFMAX(P_HEIGHT(node->left), P_HEIGHT(node->right));
+    left->height = 1 + FFMAX(P_HEIGHT(left->left), P_HEIGHT(left->right));
     
     return left;
 }
@@ -1583,14 +1583,14 @@ static PaletteNode *ff_left_rotate(PaletteNode *node)
     node->right = right->left; 
     right->left = node;
 
-    node->height = 1 + FFMAX(height(node->left), height(node->right));
-    right->height = 1 + FFMAX(height(right->left), height(right->right));
+    node->height = 1 + FFMAX(P_HEIGHT(node->left), P_HEIGHT(node->right));
+    right->height = 1 + FFMAX(P_HEIGHT(right->left), P_HEIGHT(right->right));
     
     return right;
 }
 
 static PaletteNode *ff_insert_palette_node(PaletteNode *node, FLIF16ColorVal *color,
-                                            int num_colors, int i, size_t *size)
+                                           int num_colors, int i, size_t *size)
 {
     if (node == NULL)
         return ff_new_palette_node(color, num_colors, size);
@@ -1620,9 +1620,9 @@ static PaletteNode *ff_insert_palette_node(PaletteNode *node, FLIF16ColorVal *co
             break;
         }
     }
-    node->height = 1 + FFMAX(height(node->left), height(node->right));
+    node->height = 1 + FFMAX(P_HEIGHT(node->left), P_HEIGHT(node->right));
 
-    int balance = height(node->left) - height(node->right);
+    int balance = P_HEIGHT(node->left) - P_HEIGHT(node->right);
 
     if (balance > 1 && color[i] < node->left->color[i])
         return ff_right_rotate(node);
