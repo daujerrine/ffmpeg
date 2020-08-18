@@ -22,7 +22,8 @@ int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
 int ff_flif16_rac_enc_write_chance(FLIF16RangeCoder *rc,
                                    uint64_t b12, uint8_t bit);
 
-int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
+int ff_flif16_rac_enc_write_nz_int(FLIF16RangeCoder *rc,
+                                   FLIF16ChanceContext *ctx,
                                    int min, int max, int value);
 
 int ff_flif16_rac_enc_write_gnz_int(FLIF16RangeCoder *rc,
@@ -87,10 +88,10 @@ static inline int ff_flif16_rac_enc_process(FLIF16RangeCoder *rc,
 
 #define RAC_PUT(rc, ctx, val1, val2, value, type) \
     if (!ff_flif16_rac_enc_process((rc), (ctx), (val1), (val2), (value), (type))) {\
-        goto need_more_data;\
+        goto need_more_buffer;\
     }
 
 #define MANIAC_PUT(rc, m, prop, channel, min, max, value) \
     if (!ff_flif16_maniac_write_int((rc), (m), (prop), (channel), (min), (max), (value))) {\
-        goto need_more_data;\
+        goto need_more_buffer;\
     }

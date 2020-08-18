@@ -32,6 +32,7 @@
 
 #include "flif16.h"
 #include "flif16_rangecoder.h"
+#include "flif16_rangecoder_enc.h"
 #include "flif16_transform.h"
 
 #include "avcodec.h"
@@ -49,9 +50,10 @@ typedef enum FLIF16EncodeStates {
     FLIF16_HEADER = 0,
     FLIF16_SECONDHEADER,
     FLIF16_TRANSFORM,
+    FLIF16_MANIAC,
     FLIF16_OUTPUT,
     FLIF16_EOS
-} FLIF16States;
+} FLIF16EncodeStates;
 
 typedef struct FLIF16EncoderContext {
 
@@ -90,10 +92,41 @@ typedef struct FLIF16EncoderContext {
     uint16_t *framepts;
     uint16_t frames_size;
     uint8_t interlaced; ///< Flag. Is image interlaced?
+    uint8_t alphazero;
+
+    // State management variables
+    int segment;
+    int segment2;
+    int i;
+    int i2;
+    int i3;
     
 } FLIF16EncoderContext;
 
-static flif16_determine_header(AVCodecContext *avctx)
+
+// Cast values to FLIF16Context for some functions.
+#define CTX_CAST(x) ((FLIF16Context *) (x))
+
+#define PIXEL_SET(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
+#define PIXEL_GET(ctx, fr, p, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
+#define PIXEL_SETZ(ctx, fr, p, z, r, c, val) ff_flif16_pixel_setz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c, val)
+#define PIXEL_GETZ(ctx, fr, p, z, r, c) ff_flif16_pixel_getz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c)
+#define PIXEL_GETFAST(ctx, fr, p, r, c) ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
+#define PIXEL_SETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_set_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
+
+#define PREV_FRAME(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
+#define PREV_FRAMENUM(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
+#define LOOKBACK_FRAMENUM(ctx, frames, f_no, r, c) (((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before >= 0) ? \
+                                                    ((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before) : \
+                                                    ((f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))))
+#define LOOKBACK_FRAMENUMZ(ctx, frames, f_no, z, r, c) (((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before >= 0) ? \
+                                                       ((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before) : \
+                                                       ((f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))))
+
+#define IS_CONSTANT(ranges, plane) (ff_flif16_ranges_min((ranges), (plane)) >= \
+                                    ff_flif16_ranges_max((ranges), (plane)))
+
+static int flif16_determine_header(AVCodecContext *avctx)
 {
     FLIF16EncoderContext *s = avctx->priv_data;
     s->bpc = 0xFF;
@@ -148,13 +181,13 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
             s->frames_size = FRAMES_BASE_SIZE;
         }
         if (s->num_frames + 1 >= s->frames_size) {
-            s->framepts = av_realloc_f(s->frame, s->frames_size * 2,
+            s->framepts = av_realloc_f(s->framepts, s->frames_size * 2,
                                        sizeof(*s->framepts));
             s->frames   = ff_flif16_frames_resize(s->frames, s->frames_size,
                                                   s->frames_size * 2);
             s->frames_size *= 2;
         }
-        s->framepts[s->num_frames] = s->curr_frame->pts;
+        s->framepts[s->num_frames] = s->in_frame->pts;
     }
 
     switch (avctx->pix_fmt) {
@@ -179,10 +212,10 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     case AV_PIX_FMT_RGB32:
         for (uint32_t i = 0; i < s->height; i++) {
             for (uint32_t j = 0; j < s->width; j++) {
-                  temp = *((uint32_t *) (s->in_frame->data[0] + i * s->in_frame->linesize[0] + j * 4))
-                  PIXEL_SET(s, s->num_frames, 3, i, j, (uint8_t) temp >> 24);
-                  PIXEL_SET(s, s->num_frames, 0, i, j, (uint8_t) temp >> 16);
-                  PIXEL_SET(s, s->num_frames, 1, i, j, (uint8_t) temp >> 8);
+                  temp = *((uint32_t *) (s->in_frame->data[0] + i * s->in_frame->linesize[0] + j * 4));
+                  PIXEL_SET(s, s->num_frames, 3, i, j, (uint8_t) (temp >> 24));
+                  PIXEL_SET(s, s->num_frames, 0, i, j, (uint8_t) (temp >> 16));
+                  PIXEL_SET(s, s->num_frames, 1, i, j, (uint8_t) (temp >> 8));
                   PIXEL_SET(s, s->num_frames, 2, i, j, (uint8_t) temp);
             }
         }
@@ -209,10 +242,10 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     case AV_PIX_FMT_RGBA64:
         for (uint32_t i = 0; i < s->height; i++) {
             for (uint32_t j = 0; j < s->width; j++) {
-                temp = *((uint64_t *) (s->in_frame->data[0] + i * s->in_frame->linesize[0] + j * 8))
-                PIXEL_SET(s, s->num_frames, 3, i, j, (uint16_t) temp >> 48);
-                PIXEL_SET(s, s->num_frames, 2, i, j, (uint16_t) temp >> 32);
-                PIXEL_SET(s, s->num_frames, 1, i, j. (uint16_t) temp >> 16);
+                temp = *((uint64_t *) (s->in_frame->data[0] + i * s->in_frame->linesize[0] + j * 8));
+                PIXEL_SET(s, s->num_frames, 3, i, j, (uint16_t) (temp >> 48));
+                PIXEL_SET(s, s->num_frames, 2, i, j, (uint16_t) (temp >> 32));
+                PIXEL_SET(s, s->num_frames, 1, i, j, (uint16_t) (temp >> 16));
                 PIXEL_SET(s, s->num_frames, 0, i, j, (uint16_t) temp);
             }
         }
@@ -238,7 +271,7 @@ static int flif16_determine_secondheader(AVCodecContext *avctx)
         return ret;
     s->frames = ff_flif16_frames_resize(s->frames, s->frames_size,
                                         s->num_frames);
-    s->framepts = av_realloc_f(s->frame, s->num_frames, sizeof(*s->framepts));
+    s->framepts = av_realloc_f(s->framepts, s->num_frames, sizeof(*s->framepts));
     return AVERROR_EOF;
 }
 
@@ -275,7 +308,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
         bytestream2_put_byte(&s->pb, s->bpc > 255 ? '2' : '1');
         varint_write(&s->pb, s->width - 1);
         varint_write(&s->pb, s->height - 1);
-        varint_write(&s->pb, s->frames > 1 ? s->frames - 2 : 1);
+        varint_write(&s->pb, s->num_frames > 1 ? s->num_frames - 2 : 1);
 
         // TODO handle metadata
 
@@ -292,19 +325,19 @@ static int flif16_write_stream(AVCodecContext * avctx)
 
         // Alphazero flag
         if (s->num_planes > 3)
-            RAC_PUT(s->rc, NULL, 0, 1, s->alphazero, FLIF16_RAC_UNI_INT8);
+            RAC_PUT(&s->rc, NULL, 0, 1, s->alphazero, FLIF16_RAC_UNI_INT8);
 
         if (s->num_frames > 1) {
             // Loops
-            RAC_PUT(s->rc, NULL, 0, 100, 0, FLIF16_RAC_UNI_INT8);
+            RAC_PUT(&s->rc, NULL, 0, 100, 0, FLIF16_RAC_UNI_INT8);
 
             // Frame delay TODO handle duration from demuxer
             for (int i = 0; i < s->num_frames - 1; i++)
-                RAC_PUT(s->rc, NULL, 0, 60000, s->framepts[i], FLIF16_RAC_UNI_INT16);
+                RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[i], FLIF16_RAC_UNI_INT16);
         }
         
         // Custom Alpha
-        RAC_PUT(s->rc, NULL, 0, 1, 0, FLIF16_RAC_UNI_INT8);
+        RAC_PUT(&s->rc, NULL, 0, 1, 0, FLIF16_RAC_UNI_INT8);
 
         // Custom bitchance may be present if custom alpha is present.
         s->segment++;
@@ -351,9 +384,13 @@ static int flif16_write_stream(AVCodecContext * avctx)
         /*
          * flfi16_write_crc32_checksum();
          */
+         break;
     }
     
     return AVERROR_EOF;
+
+    need_more_buffer:
+    return AVERROR(EAGAIN);
 }
 
 static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
@@ -361,7 +398,7 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 {
     int ret = 0;
     FLIF16EncoderContext *s = avctx->priv_data;
-    s->curr_frame = frame;
+    s->in_frame = (AVFrame *) frame;
 
     do {
         switch (s->state) {
@@ -382,7 +419,7 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             break;
 
         case FLIF16_OUTPUT:
-            ret = flif16_write_packet(avctx);
+            ret = flif16_write_stream(avctx);
             break;
 
         case FLIF16_EOS:
@@ -396,8 +433,6 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
 static int flif16_encode_end(AVCodecContext *avctx)
 {
-    FLIF16EncoderContext *s = avctx->priv_data;
-    
     return 0;
 }
 

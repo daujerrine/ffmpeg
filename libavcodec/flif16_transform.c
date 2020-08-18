@@ -1693,7 +1693,7 @@ static int ff_channelcompact_traversal(palette_node *root, TransformPrivChannelc
     return 1;
 }
 
-static void ff_palette_close(palette_node *palette)
+static void ff_palette_node_close(palette_node *palette)
 {
     if (palette->left)
         ff_palette_close(palette->left);
@@ -1741,7 +1741,7 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
         if (!ff_channelcompact_traversal(cpalette, data, p, cpalette_size, &nontrivial))
             return AVERROR(ENOMEM);
         
-        ff_palette_close(cpalette);
+        ff_palette_node_close(cpalette);
             
         data->cpalette_inv_size[p] = ff_flif16_ranges_max(src_ctx, p) + 1;
         data->cpalette_inv[p] = av_malloc_array(data->cpalette_inv_size[p],
@@ -2171,6 +2171,7 @@ static int transform_palette_process(FLIF16Context *ctx,
         return true;
 
     */
+    return -1;
 }                                     
 
 static int transform_palette_reverse(FLIF16Context *ctx,
