@@ -102,7 +102,7 @@ typedef struct FLIF16Context {
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint8_t  num_planes;  ///< Number of planes
     uint8_t  loops;       ///< Number of times animation loops
-    uint8_t  plane_mode[MAX_PLANES];
+    FLIF16PlaneMode  plane_mode[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;

@@ -53,11 +53,20 @@ int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
 int ff_flif16_rac_enc_flush(FLIF16RangeCoder *rc)
 {
     rc->low += (FLIF16_RAC_MIN_RANGE - 1);
-    for (int i = 0; i < 4; ++i) {
-        rc->range = FLIF16_RAC_MIN_RANGE - 1;
-        ff_flif16_rac_enc_renorm(rc);
+
+    rc->segment = 0;
+    switch (rc->segment) {
+    default:
+        rc->segment = 1;
+        for (int i = 0; i < 4; ++i) {
+            rc->range = FLIF16_RAC_MIN_RANGE - 1;
+    case 1:
+            if (!ff_flif16_rac_enc_renorm(rc))
+                return 0;
+        }
     }
 
+    rc->segment = 0;
     return 1;
 }
 

@@ -121,7 +121,6 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
                           uint8_t lookback)
 {
     for (int j = 0; j < s->num_frames; j++) {
-        printf("nf: %d\n", s->num_frames);
         if (frames[j].seen_before >= 0)
             continue;
 
@@ -148,6 +147,9 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
                 for (int k = 0; k < s->width * s->height; k++)
                         ((int32_t *) frames[j].data[i])[k] = const_plane_value[i];
                 break;
+
+            default:
+                return AVERROR_INVALIDDATA;
             }
         }
     }
@@ -171,7 +173,6 @@ FLIF16PixelData *ff_flif16_frames_init(uint16_t num_frames)
         return NULL;
     for (int i = 0; i < num_frames; i++)
         frames[i].seen_before = -1;
-    printf("alloc done\n");
     return frames;
 }
 

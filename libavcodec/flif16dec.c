@@ -70,7 +70,7 @@ typedef struct FLIF16DecoderContext {
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint8_t  num_planes;  ///< Number of planes
     uint8_t  loops;       ///< Number of times animation loops
-    uint8_t  plane_mode[MAX_PLANES];
+    FLIF16PlaneMode plane_mode[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;
@@ -366,7 +366,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     FLIF16RangesContext *prev_range;
     int ret;
     int unique_frames;
-    uint8_t const_plane_value[MAX_PLANES];
+    int32_t const_plane_value[MAX_PLANES];
     uint8_t temp;
 
     switch (s->segment) {
@@ -475,7 +475,6 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
     s->plane_mode[FLIF16_PLANE_LOOKBACK] = FLIF16_PLANEMODE_FILL;
     const_plane_value[FLIF16_PLANE_LOOKBACK] = 0;
-
     if (ret = ff_flif16_planes_init(CTX_CAST(s), s->frames, s->plane_mode,
                               const_plane_value, s->framelookback) < 0) {
         return ret;

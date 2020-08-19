@@ -337,7 +337,9 @@ static int flif16_write_stream(AVCodecContext * avctx)
         bytestream2_put_byte(&s->pb, s->bpc > 255 ? '2' : '1');
         varint_write(&s->pb, s->width - 1);
         varint_write(&s->pb, s->height - 1);
-        varint_write(&s->pb, s->num_frames > 1 ? s->num_frames - 2 : 1);
+
+        if (s->num_frames > 1)
+            varint_write(&s->pb, s->num_frames > 1 ? s->num_frames - 2 : 1);
 
         // TODO handle metadata
 
@@ -413,9 +415,15 @@ static int flif16_write_stream(AVCodecContext * avctx)
         /*
          * flfi16_write_crc32_checksum();
          */
-         break;
+         s->segment++;
+
+    case 7:
+        // Flush the RAC
+        if (!ff_flif16_rac_enc_flush(&s->rc))
+            goto need_more_buffer;
     }
-    PRINT_LINE
+
+    s->state = FLIF16_EOS;
     return 0;
 
     need_more_buffer:
