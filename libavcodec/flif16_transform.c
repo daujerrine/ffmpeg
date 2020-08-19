@@ -1640,13 +1640,14 @@ static PaletteNode *ff_insert_palette_node(PaletteNode *node, FLIF16ColorVal *co
     return node;
 }
 
-/*  Traversing the AVL tree created using palette_node
- *  for channelcompact_process
- */
 typedef struct PaletteNodeStack {
     int top;
     PaletteNode **arr;
 } PaletteNodeStack;
+
+/*  Traversing the AVL tree created using palette_node
+ *  for channelcompact_process
+ */
 
 static int ff_channelcompact_traversal(PaletteNode *root, TransformPrivChannelcompact *data,
                                        int p, int cpalette_size, uint8_t *nontrivial)
@@ -2124,7 +2125,7 @@ static void transform_palette_configure(FLIF16TransformContext *ctx, const int s
     }
 }
 
-enum COLORS{Y, I, Q, A};
+enum PALETTECHANNELS {Y, I, Q, A};
 
 static int ff_palette_traversal(PaletteNode *root, TransformPrivPalette *data,
                                 int palette_size)
@@ -2154,10 +2155,16 @@ static int ff_palette_traversal(PaletteNode *root, TransformPrivPalette *data,
 
         curr = curr->right;
     }
-
     av_free(s.arr);
     return 1;
-}                                
+}
+
+typedef struct PaletteLinkedList PaletteLinkedList;
+
+typedef struct PaletteLinkedList {
+    FLIF16ColorVal colors[4];
+    PaletteLinkedList *next;
+} PaletteLinkedList;
 
 static int transform_palette_process(FLIF16Context *ctx,
                                      FLIF16TransformContext *t_ctx,
@@ -2185,11 +2192,13 @@ static int transform_palette_process(FLIF16Context *ctx,
                     return 0;
             }
         }
-            data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
-            if (!ff_palette_traversal(Palette, data, data->size))
-                return AVERROR(ENOMEM);
+        data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
+        if (!ff_palette_traversal(Palette, data, data->size))
+            return AVERROR(ENOMEM);
     } else {
         int j;
+        PaletteLinkedList *Palette = NULL, *last_elem = NULL;
+        PaletteLinkedList *temp;
         for (uint32_t r = 0; r < ctx->height; r++) {
             for (uint32_t c = 0; c < ctx->width; c++) {
                 colors[Y] = ff_flif16_pixel_get(ctx, frame, 0, r, c);
@@ -2199,33 +2208,55 @@ static int transform_palette_process(FLIF16Context *ctx,
                     ff_flif16_pixel_get(ctx, frame, 3, r, c) == 0)
                     continue;
                 uint8_t found = 0;
-                for (int i = 0; i < data->size; i++) {
-                    if (data->Palette[i][Y] == colors[Y] &&
-                        data->Palette[i][I] == colors[I] &&
-                        data->Palette[i][Q] == colors[Q])
+                temp = Palette;
+                for (int i = 0; i < data->size; i++, temp = temp->next) {
+                    if (colors[Y] == temp->colors[Y] &&
+                        colors[I] == temp->colors[I] &&
+                        colors[Q] == temp->colors[Q])
                         found = 1;
                         break;
                 }
                 if (!found) {
-                    // Linked list required here.
-                    data->Palette[j][Y] = colors[Y];
-                    data->Palette[j][I] = colors[I];
-                    data->Palette[j][Q] = colors[Q];
-                    // Palette_vector.push_back(C);
+                    if (!Palette) {
+                        Palette = av_mallocz(sizeof(*last_elem));
+                        if (!Palette)
+                            return AVERROR(ENOMEM);
+                        last_elem = Palette;
+                    } else {
+                        last_elem->next = av_mallocz(sizeof(*last_elem));
+                        if (!last_elem->next)
+                            return AVERROR(ENOMEM);
+                        last_elem = last_elem->next;
+                    }
+                    for (enum PALETTECHANNELS i = 0; i < Q; i++)
+                        last_elem->colors[i] = colors[i];
+                    data->size++;
+                    last_elem->next = NULL;
+                    
                     if (data->size > data->max_palette_size)
                         return 0;
                 }
             }
-          }
         }
-        return 1;
+        temp = Palette;
+        PaletteLinkedList *list;
+        data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
+        for (int i = 0; i < data->size; i++) {
+            for (enum PALETTECHANNELS j = Y; j < Q; j++)
+                data->Palette[i][j] = temp->colors[j];
+            list = temp;
+            temp = temp->next;
+            av_free(list);
+        }
+    }
+    return 1;
 }                                     
 
 static int transform_palette_reverse(FLIF16Context *ctx,
-                                        FLIF16TransformContext *t_ctx,
-                                        FLIF16PixelData *frame,
-                                        uint32_t stride_row,
-                                        uint32_t stride_col)
+                                     FLIF16TransformContext *t_ctx,
+                                     FLIF16PixelData *frame,
+                                     uint32_t stride_row,
+                                     uint32_t stride_col)
 {
     int r, c;
     int P;
