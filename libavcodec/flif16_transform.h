@@ -1,5 +1,5 @@
 /*
- * Transforms for FLIF16.
+ * Transforms for FLIF16
  * Copyright (c) 2020 Kartik K. Khullar <kartikkhullar840@gmail.com>
  *
  * This file is part of FFmpeg.
@@ -31,7 +31,7 @@
 #include "libavutil/common.h"
 #include "flif16.h"
 
-typedef enum FLIF16RangesTypes{
+typedef enum FLIF16RangesTypes {
     FLIF16_RANGES_CHANNELCOMPACT,
     FLIF16_RANGES_YCOCG,
     FLIF16_RANGES_PERMUTEPLANES,
@@ -63,8 +63,8 @@ typedef enum FLIF16TransformsTypes {
 extern const FLIF16Ranges *flif16_ranges[14];
 extern const FLIF16Transform *flif16_transforms[13];
 
-FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
-                                                  unsigned int bpc);
+FLIF16RangesContext *ff_flif16_ranges_static_init(uint8_t num_planes,
+                                                  uint32_t bpc);
 
 void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx);
 

@@ -41,6 +41,8 @@
 #include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 
+#define PRINT_LINE printf("At: %s, %s %d\n", __func__, __FILE__, __LINE__);
+
 /**
  * The size that the frame/pixeldata array will be initialized with
  */
@@ -107,14 +109,14 @@ typedef struct FLIF16EncoderContext {
 // Cast values to FLIF16Context for some functions.
 #define CTX_CAST(x) ((FLIF16Context *) (x))
 
-#define PIXEL_SET(ctx, fr, p, r, c, val) ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
-#define PIXEL_GET(ctx, fr, p, r, c) ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
+#define PIXEL_SET(ctx, fr, p, r, c, val)     ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
+#define PIXEL_GET(ctx, fr, p, r, c)          ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
 #define PIXEL_SETZ(ctx, fr, p, z, r, c, val) ff_flif16_pixel_setz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c, val)
-#define PIXEL_GETZ(ctx, fr, p, z, r, c) ff_flif16_pixel_getz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c)
-#define PIXEL_GETFAST(ctx, fr, p, r, c) ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
+#define PIXEL_GETZ(ctx, fr, p, z, r, c)      ff_flif16_pixel_getz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c)
+#define PIXEL_GETFAST(ctx, fr, p, r, c)      ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
 #define PIXEL_SETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_set_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
 
-#define PREV_FRAME(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
+#define PREV_FRAME(frames, f_no)    (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
 #define PREV_FRAMENUM(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
 #define LOOKBACK_FRAMENUM(ctx, frames, f_no, r, c) (((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before >= 0) ? \
                                                     ((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before) : \
@@ -128,11 +130,19 @@ typedef struct FLIF16EncoderContext {
 
 static int flif16_determine_header(AVCodecContext *avctx)
 {
+    int ret;
     FLIF16EncoderContext *s = avctx->priv_data;
+    FLIF16PlaneMode plane_mode[MAX_PLANES] = {
+        FLIF16_PLANEMODE_NORMAL,
+        FLIF16_PLANEMODE_NORMAL,
+        FLIF16_PLANEMODE_NORMAL,
+        FLIF16_PLANEMODE_NORMAL
+    };
+    int32_t const_plane_value[MAX_PLANES] = {0};
     s->bpc = 0xFF;
     s->width  = avctx->width;
     s->height = avctx->height;
-
+    PRINT_LINE
     // Determine depth and number of planes
     switch (avctx->pix_fmt) {
     case AV_PIX_FMT_GRAY16:
@@ -154,10 +164,20 @@ static int flif16_determine_header(AVCodecContext *avctx)
         break;
     }
 
+    // Check for multiplication overflow
+    if ((ret = av_image_check_size2(s->width, s->height, avctx->max_pixels,
+        avctx->pix_fmt, 0, avctx)) < 0)
+        return ret;
+    PRINT_LINE
     s->frames = ff_flif16_frames_init(1);
+    s->num_frames++;
+    ff_flif16_planes_init(CTX_CAST(s), s->frames, plane_mode, const_plane_value, 0);
+    s->num_frames--;
+    PRINT_LINE
     s->frames_size = 1;
+    PRINT_LINE
     s->state = FLIF16_SECONDHEADER;
-    return AVERROR_EOF;
+    return 0;
 }
 
 static inline void varint_write(PutByteContext *pb, uint32_t num)
@@ -257,8 +277,7 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     }
 
     s->num_frames++;
-    s->state = FLIF16_TRANSFORM;
-    return AVERROR_EOF;
+    return 0;
 }
 
 static int flif16_determine_secondheader(AVCodecContext *avctx)
@@ -269,10 +288,17 @@ static int flif16_determine_secondheader(AVCodecContext *avctx)
     FLIF16EncoderContext *s = avctx->priv_data;
     if (ret = flif16_copy_pixeldata(avctx) < 0)
         return ret;
+    else {
+        ff_flif16_rac_enc_init(&s->rc, &s->pb);
+        s->state = FLIF16_OUTPUT;
+    }
+
     s->frames = ff_flif16_frames_resize(s->frames, s->frames_size,
                                         s->num_frames);
-    s->framepts = av_realloc_f(s->framepts, s->num_frames, sizeof(*s->framepts));
-    return AVERROR_EOF;
+    if (s->num_frames > 1)
+        s->framepts = av_realloc_f(s->framepts, s->num_frames,
+                                   sizeof(*s->framepts));
+    return 0;
 }
 
 static int flif16_determine_transforms(AVCodecContext * avctx)
@@ -298,12 +324,15 @@ static int flif16_write_stream(AVCodecContext * avctx)
     switch (s->segment) {
     case 0:
         // Uncoded data
-        
+        PRINT_LINE
         // Write magic number
         bytestream2_put_buffer(&s->pb, flif16_header, FF_ARRAY_ELEMS(flif16_header));
         // Write interlaced/animated/num_planes flag
+        printf("numplanes flag: %x %x : %x\n", (3 + (s->interlaced * 2) + (s->num_frames > 1)),
+               s->num_planes, (uint8_t) ((3 + (s->interlaced * 2) +
+                             (s->num_frames > 1)) << 4) | s->num_planes );
         bytestream2_put_byte(&s->pb, (uint8_t) ((3 + (s->interlaced * 2) +
-                             (s->num_frames > 1)) << 4) & s->num_planes);
+                             (s->num_frames > 1)) << 4) | s->num_planes);
         // Write bpc flag
         bytestream2_put_byte(&s->pb, s->bpc > 255 ? '2' : '1');
         varint_write(&s->pb, s->width - 1);
@@ -318,7 +347,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
 
     case 1:
         // Coded data
-
+        PRINT_LINE
         // Second header
 
         // We don't write the custom bpc segment.
@@ -344,7 +373,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
 
     case 2:
         // Transforms
-
+        PRINT_LINE
         // We will just write the transform here
         /*
          * for (int i = 0; i < s->transforms_top; i++) {
@@ -386,8 +415,8 @@ static int flif16_write_stream(AVCodecContext * avctx)
          */
          break;
     }
-    
-    return AVERROR_EOF;
+    PRINT_LINE
+    return 0;
 
     need_more_buffer:
     return AVERROR(EAGAIN);
@@ -398,7 +427,18 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 {
     int ret = 0;
     FLIF16EncoderContext *s = avctx->priv_data;
+
+    if (!frame) {
+        printf("Encoder draining mode\n");
+        return AVERROR_EOF;
+    }
+    PRINT_LINE
+    if ((ret = ff_alloc_packet2(avctx, pkt, 10000 + AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
+        return ret;
+    
     s->in_frame = (AVFrame *) frame;
+    printf("bs init %d\n", pkt->size);
+    bytestream2_init_writer(&s->pb, pkt->data, pkt->size);
 
     do {
         switch (s->state) {
@@ -420,6 +460,13 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
         case FLIF16_OUTPUT:
             ret = flif16_write_stream(avctx);
+            if (!ret) {
+                *got_packet = 1;
+                av_shrink_packet(pkt, bytestream2_tell_p(&s->pb));
+                printf("bs tellp %d %d\n", bytestream2_tell_p(&s->pb), pkt->size);
+                pkt->pts = 0;
+                return 0;
+            }
             break;
 
         case FLIF16_EOS:
@@ -450,5 +497,6 @@ AVCodec ff_flif16_encoder = {
         AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY16,
         AV_PIX_FMT_RGB24, AV_PIX_FMT_RGB32,
         AV_PIX_FMT_RGB48, AV_PIX_FMT_RGBA64,
+        AV_PIX_FMT_NONE
     }
 };

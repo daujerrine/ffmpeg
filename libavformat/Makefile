@@ -189,6 +189,7 @@ OBJS-$(CONFIG_FLAC_MUXER)                += flacenc.o flacenc_header.o \
                                             vorbiscomment.o
 OBJS-$(CONFIG_FLIC_DEMUXER)              += flic.o
 OBJS-$(CONFIG_FLIF_DEMUXER)              += flifdec.o
+OBJS-$(CONFIG_FLIF_MUXER)                += flifenc.o
 OBJS-$(CONFIG_FLV_DEMUXER)               += flvdec.o
 OBJS-$(CONFIG_LIVE_FLV_DEMUXER)          += flvdec.o
 OBJS-$(CONFIG_FLV_MUXER)                 += flvenc.o avc.o

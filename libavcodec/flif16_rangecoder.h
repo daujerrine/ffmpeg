@@ -376,13 +376,24 @@ static inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
  * scope.
  */
 #define RAC_GET(rc, ctx, val1, val2, target, type) \
-    if (!ff_flif16_rac_process((rc), (ctx), (val1), (val2), (target), (type))) {\
+    if (!ff_flif16_rac_process((rc), (ctx), (val1), (val2), (target), (type))) { \
         goto need_more_data; \
     }
 
+/**
+ * Macro meant to handle intermittent bytestreams with slightly more
+ * convenience. Requires a "need_more_data" label to be present in the given
+ * scope.
+ * This macro will trigger a return with an integer value if an error occurs.
+ */
 #define MANIAC_GET(rc, m, prop, channel, min, max, target) \
-    if (!ff_flif16_maniac_read_int((rc), (m), (prop), (channel), (min), (max), (target))) {\
-        goto need_more_data; \
+    { \
+        int ret = ff_flif16_maniac_read_int((rc), (m), (prop), (channel), (min), (max), (target)); \
+        if (ret < 0) { \
+            return ret; \
+        } else if (!ret) { \
+            goto need_more_data; \
+        } \
     }
 
 #endif /* FLIF16_RANGECODER_H */

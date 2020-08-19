@@ -1,5 +1,5 @@
 /*
- * Transforms for FLIF16.
+ * Transforms for FLIF16
  * Copyright (c) 2020 Kartik K. Khullar <kartikkhullar840@gmail.com>
  *
  * This file is part of FFmpeg.
@@ -1000,8 +1000,8 @@ const FLIF16Ranges *flif16_ranges[] = {
     [FLIF16_RANGES_YCOCG]                 = &flif16_ranges_ycocg
 };
 
-FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
-                                                  unsigned int bpc)
+FLIF16RangesContext *ff_flif16_ranges_static_init(uint8_t num_planes,
+                                                  uint32_t bpc)
 {
     const FLIF16Ranges *r = flif16_ranges[FLIF16_RANGES_STATIC];
     FLIF16RangesContext *ctx;
@@ -1010,20 +1010,20 @@ FLIF16RangesContext *ff_flif16_ranges_static_init(unsigned int channels,
     if (!ctx)
         return NULL;
     ctx->r_no       = FLIF16_RANGES_STATIC;
-    ctx->num_planes = channels;
+    ctx->num_planes = num_planes;
     ctx->priv_data  = av_mallocz(r->priv_data_size);
     if (!ctx->priv_data) {
         av_free(ctx);
         return NULL;
     }
     data = ctx->priv_data;
-    data->bounds = av_malloc_array(channels, sizeof(*data->bounds));
+    data->bounds = av_malloc_array(num_planes, sizeof(*data->bounds));
     if (!data->bounds) {
         av_free(ctx);
         av_free(ctx->priv_data);
         return NULL;
     }
-    for (unsigned int i = 0; i < channels; ++i) {
+    for (unsigned int i = 0; i < num_planes; ++i) {
         data->bounds[i][0] = 0;
         data->bounds[i][1] = bpc;
     }
@@ -1162,8 +1162,8 @@ static int transform_ycocg_reverse(FLIF16Context *ctx,
         for (c = 0; c<width; c+=stride_col) {
             ff_flif16_planes_get(ctx, pixel_data, YCOCG, r, c);
 
-            RGB[1] = YCOCG[0] - ((-YCOCG[2])>>1);
-            RGB[2] = YCOCG[0] + ((1-YCOCG[2])>>1) - (YCOCG[1]>>1);
+            RGB[1] = YCOCG[0] - ((-YCOCG[2]) >> 1);
+            RGB[2] = YCOCG[0] + ((1 - YCOCG[2]) >> 1) - (YCOCG[1] >> 1);
             RGB[0] = YCOCG[1] + RGB[2];
 
             RGB[0] = av_clip(RGB[0], 0, ranges->max(data->r_ctx, 0));
