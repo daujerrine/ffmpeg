@@ -28,6 +28,9 @@
 #include "libavcodec/bytestream.h"
 #include "libavcodec/flif16.h"
 
+#define PRINT_LINE printf("At: %s, %s %d\n", __func__, __FILE__, __LINE__);
+
+
 static int flif16_write_header(AVFormatContext *s)
 {
     if (s->nb_streams != 1 ||
@@ -35,21 +38,25 @@ static int flif16_write_header(AVFormatContext *s)
         s->streams[0]->codecpar->codec_id   != AV_CODEC_ID_FLIF16) {
         av_log(s, AV_LOG_ERROR,
                "incorrect stream configuration for FLIF muxer.\n");
+        PRINT_LINE
         return AVERROR(EINVAL);
     }
-
+    PRINT_LINE
     avpriv_set_pts_info(s->streams[0], 64, 1, 1000);
 
     return 0;
 }
 
-static int flif16_write_packet(AVFormatContext *s, AVPacket *new_pkt)
+static int flif16_write_packet(AVFormatContext *s, AVPacket *pkt)
 {
+    AVIOContext *pb = s->pb;
+    printf("Writing %d\n", pkt->size);
     avio_write(pb, pkt->data, pkt->size);
+    PRINT_LINE
     return 0;
 }
 
-AVOutputFormat ff_gif_muxer = {
+AVOutputFormat ff_flif_muxer = {
     .name           = "flif",
     .long_name      = NULL_IF_CONFIG_SMALL("Free Lossless Image Format (FLIF)"),
     .extensions     = "flif",

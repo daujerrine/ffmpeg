@@ -147,6 +147,7 @@ extern AVInputFormat  ff_flac_demuxer;
 extern AVOutputFormat ff_flac_muxer;
 extern AVInputFormat  ff_flic_demuxer;
 extern AVInputFormat  ff_flif_demuxer;
+extern AVOutputFormat  ff_flif_muxer;
 extern AVInputFormat  ff_flv_demuxer;
 extern AVOutputFormat ff_flv_muxer;
 extern AVInputFormat  ff_live_flv_demuxer;

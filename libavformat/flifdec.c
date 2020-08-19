@@ -297,7 +297,7 @@ static int flif16_read_header(AVFormatContext *s)
             metadata_size -= buf_size;
             if((ret = flif_inflate(dc, buf, buf_size, &out_buf, &out_buf_size)) < 0 &&
                 ret != AVERROR(EAGAIN)) {
-                if (ret == AVERROR(ENOMEM) || ret == AVERROR_INVALIDDATA)
+                if (ret == AVERROR(ENOMEM))
                     return ret;
                 av_log(s, AV_LOG_ERROR, "could not decode metadata segment: %s\n", tag);
                 goto metadata_skip;
