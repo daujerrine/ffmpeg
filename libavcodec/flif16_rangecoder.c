@@ -185,7 +185,7 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
 
     switch (rc->segment) {
     case 0:
-        RAC_NZ_GET(rc, ctx, NZ_INT_ZERO, &(temp));
+        RAC_NZ_GET(rc, ctx, NZ_INT_ZERO, &temp);
         if (temp) {
             *target = 0;
             rc->active = 0;
@@ -196,7 +196,7 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
     case 1:
         if (min < 0) {
             if (max > 0) {
-                RAC_NZ_GET(rc, ctx, NZ_INT_SIGN, &(rc->sign));
+                RAC_NZ_GET(rc, ctx, NZ_INT_SIGN, &rc->sign);
             } else {
                 rc->sign = 0;
             }
@@ -209,27 +209,26 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
         rc->segment++;
 
     case 2:
-        for (; (rc->e) < (rc->emax); (rc->e++)) {
-            RAC_NZ_GET(rc, ctx, NZ_INT_EXP((((rc->e) << 1) + rc->sign)),
-                       &(temp));
+        for (; rc->e < rc->emax; rc->e++) {
+            RAC_NZ_GET(rc, ctx, NZ_INT_EXP(((rc->e << 1) + rc->sign)), &temp);
             if (temp)
                 break;
             temp = 0;
         }
-        rc->have = (1 << (rc->e));
+        rc->have = (1 << rc->e);
         rc->left = rc->have - 1;
         rc->pos  = rc->e;
         rc->segment++;
 
         while (rc->pos > 0) {
-            (rc->pos)--;
+            rc->pos--;
             rc->left >>= 1;
-            rc->minabs1 = (rc->have) | (1 << (rc->pos));
-            rc->maxabs0 = (rc->have) | (rc->left);
+            rc->minabs1 = rc->have | (1 << rc->pos);
+            rc->maxabs0 = rc->have | rc->left;
 
-            if ((rc->minabs1) > (rc->amax)) {
+            if (rc->minabs1 > rc->amax) {
                 continue;
-            } else if ((rc->maxabs0) >= (rc->amin)) {
+            } else if (rc->maxabs0 >= rc->amin) {
     case 3:
                 RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
                 if (temp)
@@ -240,7 +239,7 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
             }
         }
     }
-    *target = ((rc->sign) ? (rc->have) : -(rc->have));
+    *target = (rc->sign ? rc->have : -rc->have);
     rc->active = 0;
     return 1;
 
@@ -345,7 +344,7 @@ int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
 
     switch (rc->segment) {
     case 0:
-        RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_ZERO, &(temp));
+        RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_ZERO, &temp);
         if (temp) {
             *target = 0;
             rc->active = 0;
@@ -356,7 +355,7 @@ int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
     case 1:
         if (min < 0) {
             if (max > 0) {
-                RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_SIGN, &(rc->sign));
+                RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_SIGN, &rc->sign);
             } else {
                 rc->sign = 0;
             }
@@ -369,27 +368,27 @@ int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
         rc->segment++;
 
     case 2:
-        for (; (rc->e) < (rc->emax); (rc->e++)) {
-            RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_EXP((((rc->e) << 1) + rc->sign)),
-                       &(temp));
+        for (; rc->e < rc->emax; rc->e++) {
+            RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_EXP(((rc->e << 1) + rc->sign)),
+                       &temp);
             if (temp)
                 break;
             temp = 0;
         }
-        rc->have = (1 << (rc->e));
+        rc->have = (1 << rc->e);
         rc->left = rc->have - 1;
         rc->pos  = rc->e;
         rc->segment++;
 
         while (rc->pos > 0) {
-            (rc->pos)--;
+            rc->pos--;
             rc->left >>= 1;
-            rc->minabs1 = (rc->have) | (1 << (rc->pos));
-            rc->maxabs0 = (rc->have) | (rc->left);
+            rc->minabs1 = rc->have | (1 << rc->pos);
+            rc->maxabs0 = rc->have | rc->left;
 
-            if ((rc->minabs1) > (rc->amax)) {
+            if (rc->minabs1 > rc->amax) {
                 continue;
-            } else if ((rc->maxabs0) >= (rc->amin)) {
+            } else if (rc->maxabs0 >= rc->amin) {
     case 3:
                 RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
                 if (temp)
@@ -400,7 +399,7 @@ int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
         }
     }
 
-    *target = ((rc->sign) ? (rc->have) : -(rc->have));
+    *target = (rc->sign ? rc->have : -rc->have);
     rc->active = 0;
     return 1;
 

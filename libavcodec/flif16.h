@@ -40,7 +40,7 @@
 #define MAX_PREDICTORS 2
 #define MAX_PROP_RANGES 12
 
-#define VARINT_APPEND(a,x) (a) = ((a) << 7) | (uint32_t) ((x) & 127)
+#define VARINT_APPEND(a,x) (a) = (((a) << 7) | (uint32_t) ((x) & 127))
 #define ZOOM_ROWPIXELSIZE(zoomlevel) (1 << (((zoomlevel) + 1) / 2))
 #define ZOOM_COLPIXELSIZE(zoomlevel) (1 << (((zoomlevel)) / 2))
 #define ZOOM_HEIGHT(h, z) ((!h) ? 0 : (1 + ((h) - 1) / ZOOM_ROWPIXELSIZE(z)))
@@ -169,9 +169,8 @@ void ff_flif16_maniac_prop_ranges_init(FLIF16MinMax *prop_ranges,
                                        uint8_t plane,
                                        uint8_t channels);
 
-int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frames,
-                          FLIF16PlaneMode *plane_mode, int32_t *const_plane_value,
-                          uint8_t lookback);
+int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frame,
+                          int32_t *const_plane_value);
 
 FLIF16PixelData *ff_flif16_frames_init(uint16_t num_frames);
 

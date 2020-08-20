@@ -27,7 +27,7 @@
 
 /**
  * @file
- * FLIF16 Decoder
+ * FLIF16 Encoder
 */
 
 #include "flif16.h"
@@ -76,7 +76,7 @@ typedef struct FLIF16EncoderContext {
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint8_t  num_planes;  ///< Number of planes
     uint8_t  loops;       ///< Number of times animation loops
-    uint8_t  plane_mode[MAX_PLANES];
+    FLIF16PlaneMode plane_mode[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;
@@ -132,13 +132,11 @@ static int flif16_determine_header(AVCodecContext *avctx)
 {
     int ret;
     FLIF16EncoderContext *s = avctx->priv_data;
-    FLIF16PlaneMode plane_mode[MAX_PLANES] = {
-        FLIF16_PLANEMODE_NORMAL,
-        FLIF16_PLANEMODE_NORMAL,
-        FLIF16_PLANEMODE_NORMAL,
-        FLIF16_PLANEMODE_NORMAL
-    };
-    int32_t const_plane_value[MAX_PLANES] = {0};
+    s->plane_mode[0] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[1] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[2] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[4] = FLIF16_PLANEMODE_NORMAL;
+    
     s->bpc = 0xFF;
     s->width  = avctx->width;
     s->height = avctx->height;
@@ -170,9 +168,6 @@ static int flif16_determine_header(AVCodecContext *avctx)
         return ret;
     PRINT_LINE
     s->frames = ff_flif16_frames_init(1);
-    s->num_frames++;
-    ff_flif16_planes_init(CTX_CAST(s), s->frames, plane_mode, const_plane_value, 0);
-    s->num_frames--;
     PRINT_LINE
     s->frames_size = 1;
     PRINT_LINE
@@ -186,6 +181,7 @@ static inline void varint_write(PutByteContext *pb, uint32_t num)
         bytestream2_put_byte(pb, (uint8_t) (num | 128));
         num >>= 7;
     }
+
     bytestream2_put_byte(pb, num);
 }
 
@@ -193,7 +189,16 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
 {
     FLIF16EncoderContext *s = avctx->priv_data;
     uint64_t temp;
-
+    int32_t const_plane_value[MAX_PLANES] = {0};
+    PRINT_LINE
+    if (!s->in_frame) {
+        // We have processed all the frames
+        printf("Encoder draining mode\n");
+        ff_flif16_rac_enc_init(&s->rc, &s->pb);
+        s->state = FLIF16_OUTPUT;
+        return 1;
+    }
+    PRINT_LINE
     if (s->num_frames > 1) {
         if (!s->framepts) {
             s->framepts = av_malloc_array(FRAMES_BASE_SIZE, sizeof(*s->framepts));
@@ -209,7 +214,8 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
         }
         s->framepts[s->num_frames] = s->in_frame->pts;
     }
-
+    ff_flif16_planes_init(CTX_CAST(s), &s->frames[s->num_frames],
+                          const_plane_value);
     switch (avctx->pix_fmt) {
     case AV_PIX_FMT_GRAY8:
         for (uint32_t i = 0; i < s->height; i++) {
@@ -275,9 +281,9 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
         av_log(avctx, AV_LOG_FATAL, "Pixel format %d out of bounds?\n", avctx->pix_fmt);
         return AVERROR_PATCHWELCOME;
     }
-
+    PRINT_LINE
     s->num_frames++;
-    return 0;
+    return AVERROR(EAGAIN);
 }
 
 static int flif16_determine_secondheader(AVCodecContext *avctx)
@@ -286,18 +292,18 @@ static int flif16_determine_secondheader(AVCodecContext *avctx)
     // On next step, determine transforms
     int ret;
     FLIF16EncoderContext *s = avctx->priv_data;
-    if (ret = flif16_copy_pixeldata(avctx) < 0)
+    ret = flif16_copy_pixeldata(avctx);
+    if (ret) {
+        PRINT_LINE
         return ret;
-    else {
-        ff_flif16_rac_enc_init(&s->rc, &s->pb);
-        s->state = FLIF16_OUTPUT;
     }
 
+    ff_flif16_rac_enc_init(&s->rc, &s->pb);
     s->frames = ff_flif16_frames_resize(s->frames, s->frames_size,
                                         s->num_frames);
     if (s->num_frames > 1)
         s->framepts = av_realloc_f(s->framepts, s->num_frames,
-                                   sizeof(*s->framepts));
+                                    sizeof(*s->framepts));
     return 0;
 }
 
@@ -435,11 +441,6 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 {
     int ret = 0;
     FLIF16EncoderContext *s = avctx->priv_data;
-
-    if (!frame) {
-        printf("Encoder draining mode\n");
-        return AVERROR_EOF;
-    }
     PRINT_LINE
     if ((ret = ff_alloc_packet2(avctx, pkt, 10000 + AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
         return ret;
@@ -456,6 +457,8 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
         case FLIF16_SECONDHEADER:
             ret = flif16_determine_secondheader(avctx);
+            if (ret == AVERROR(EAGAIN))
+                return ret;
             break;
 
         case FLIF16_TRANSFORM:
