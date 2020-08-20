@@ -119,14 +119,14 @@ int ff_flif16_transform_process(FLIF16Context *ctx, FLIF16TransformContext *t_ct
                                 FLIF16RangesContext *src_ctx, FLIF16PixelData *frame);
 
 void ff_flif16_transform_forward(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
-                                FLIF16PixelData *pixel_data);
+                                 FLIF16PixelData *pixel_data);
 
-void ff_flif16_transform_write(FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
-                               FLIF16RangesContext *src_ctx);                                
+int ff_flif16_transform_write(FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
+                              FLIF16RangesContext *src_ctx);                                
 
 void ff_flif16_transform_reverse(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
-                                FLIF16PixelData *frame, uint8_t stride_row,
-                                uint8_t stride_col);
+                                 FLIF16PixelData *frame, uint8_t stride_row,
+                                 uint8_t stride_col);
 
 void ff_flif16_transforms_close(FLIF16TransformContext *t_ctx);
 
