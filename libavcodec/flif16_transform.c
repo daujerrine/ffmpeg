@@ -2252,6 +2252,35 @@ static int transform_palette_process(FLIF16Context *ctx,
     return 1;
 }                                     
 
+static int transform_palette_forward(FLIF16Context *ctx,
+                                     FLIF16TransformContext *t_ctx,
+                                     FLIF16PixelData *pixel_data)
+{
+    TransformPrivPalette *data = t_ctx->priv_data;
+    FLIF16ColorVal colors[3];
+    FLIF16ColorVal P;
+    for (uint32_t r = 0; r < ctx->height; r++) {
+        for (uint32_t c = 0; c < ctx->width; c++) {
+            for (int i = 0; i < 3; i++)
+                colors[i]  = ff_flif16_pixel_get(ctx, pixel_data, i, r, c);
+            
+            P = 0;
+            for (int i = 0; i < data->size; i++) {
+                if (colors[Y] == data->Palette[i][Y] &&
+                    colors[I] == data->Palette[i][I] &&
+                    colors[Q] == data->Palette[i][Q])
+                    break;
+                else 
+                    P++;
+            }
+            // TODO : make these planes(0, 2) constant
+            ff_flif16_pixel_set(ctx, pixel_data, 0, r, c, 0);
+            ff_flif16_pixel_set(ctx, pixel_data, 1, r, c, P);
+            ff_flif16_pixel_set(ctx, pixel_data, 2, r, c, 0);
+        }
+    }
+}                                     
+
 static int transform_palette_reverse(FLIF16Context *ctx,
                                      FLIF16TransformContext *t_ctx,
                                      FLIF16PixelData *frame,
