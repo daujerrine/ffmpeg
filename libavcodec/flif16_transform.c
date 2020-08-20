@@ -1121,7 +1121,7 @@ static int transform_ycocg_process(FLIF16Context *ctx,
     return 1;
 }                                   
 
-static int transform_ycocg_forward(FLIF16Context *ctx,
+static void transform_ycocg_forward(FLIF16Context *ctx,
                                    FLIF16TransformContext *t_ctx,
                                    FLIF16PixelData *pixel_data)
 {
@@ -1142,10 +1142,9 @@ static int transform_ycocg_forward(FLIF16Context *ctx,
             ff_flif16_planes_set(ctx, pixel_data, YCOCG, r, c);
         }
     }
-    return 1;
 }
 
-static int transform_ycocg_reverse(FLIF16Context *ctx,
+static void transform_ycocg_reverse(FLIF16Context *ctx,
                                       FLIF16TransformContext *t_ctx,
                                       FLIF16PixelData *pixel_data,
                                       uint32_t stride_row,
@@ -1173,7 +1172,6 @@ static int transform_ycocg_reverse(FLIF16Context *ctx,
             ff_flif16_planes_set(ctx, pixel_data, RGB, r, c);
         }
     }
-    return 1;
 }
 
 /*
@@ -1284,7 +1282,7 @@ static int transform_permuteplanes_process(FLIF16Context *ctx,
     return 1;
 }
 
-static int transform_permuteplanes_forward(FLIF16Context *ctx,
+static void transform_permuteplanes_forward(FLIF16Context *ctx,
                                            FLIF16TransformContext *t_ctx,
                                            FLIF16PixelData *pixel_data)
 {
@@ -1319,7 +1317,6 @@ static int transform_permuteplanes_forward(FLIF16Context *ctx,
             }
         }
     }
-    return 1;
 }
 
 static void transform_permuteplanes_configure(FLIF16TransformContext *ctx,
@@ -1341,7 +1338,7 @@ static void transform_permuteplanes_write(FLIF16Context *enc_ctx,
     }
 }
 
-static int transform_permuteplanes_reverse(FLIF16Context *ctx,
+static void transform_permuteplanes_reverse(FLIF16Context *ctx,
                                               FLIF16TransformContext *t_ctx,
                                               FLIF16PixelData *frame,
                                               uint32_t stride_row,
@@ -1378,7 +1375,6 @@ static int transform_permuteplanes_reverse(FLIF16Context *ctx,
             }
         }
     }
-    return 1;
 }
 
 /*
@@ -1482,7 +1478,7 @@ static FLIF16RangesContext *transform_channelcompact_meta(FLIF16Context *ctx,
     return r_ctx;
 }
 
-static int transform_channelcompact_reverse(FLIF16Context *ctx,
+static void transform_channelcompact_reverse(FLIF16Context *ctx,
                                             FLIF16TransformContext *t_ctx,
                                             FLIF16PixelData *frame,
                                             uint32_t stride_row,
@@ -1508,7 +1504,6 @@ static int transform_channelcompact_reverse(FLIF16Context *ctx,
             }
         }
     }
-    return 1;
 }
 
 static enum PALETTES {
@@ -2252,7 +2247,7 @@ static int transform_palette_process(FLIF16Context *ctx,
     return 1;
 }                                     
 
-static int transform_palette_forward(FLIF16Context *ctx,
+static void transform_palette_forward(FLIF16Context *ctx,
                                      FLIF16TransformContext *t_ctx,
                                      FLIF16PixelData *pixel_data)
 {
@@ -2279,9 +2274,69 @@ static int transform_palette_forward(FLIF16Context *ctx,
             ff_flif16_pixel_set(ctx, pixel_data, 2, r, c, 0);
         }
     }
-}                                     
+}
 
-static int transform_palette_reverse(FLIF16Context *ctx,
+static void transform_palette_write(FLIF16Context *enc_ctx,
+                                    FLIF16TransformContext *t_ctx,
+                                    FLIF16RangesContext *src_ctx)
+{
+    TransformPrivPalette *data = t_ctx->priv_data;
+    FLIF16ColorVal Y, I, Q;
+    int sorted;
+    FLIF16ColorVal pp[2];
+    RAC_PUT(&enc_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE, data->size, FLIF16_RAC_GNZ_INT);
+
+    sorted = (data->ordered_palette ? 1 : 0);
+    RAC_PUT(&enc_ctx->rc, &data->ctx, 0, 1, sorted, FLIF16_RAC_GNZ_INT);
+
+    if (sorted) {
+        FLIF16ColorVal min[3] = {
+            ff_flif16_ranges_min(src_ctx, 0),
+            ff_flif16_ranges_min(src_ctx, 1),
+            ff_flif16_ranges_min(src_ctx, 2)
+        };
+        FLIF16ColorVal max[3] = {
+            ff_flif16_ranges_max(src_ctx, 0),
+            ff_flif16_ranges_max(src_ctx, 1),
+            ff_flif16_ranges_max(src_ctx, 2)
+        };
+        FLIF16ColorVal prev[3] = {-1, -1, -1};
+        for (int i = 0; i < data->size; i++) {
+            Y = data->Palette[i][Y];
+            RAC_PUT(&enc_ctx->rc, &data->ctxY, min[0], max[0], Y, FLIF16_RAC_GNZ_INT);
+            pp[0] = Y;
+            ff_flif16_ranges_minmax(src_ctx, 1, pp, &min[1], &max[1]);
+            I = data->Palette[i][I];
+            RAC_PUT(&enc_ctx->rc, &data->ctxI, prev[0] == Y ? prev[1] : min[1],
+                    max[1], I, FLIF16_RAC_GNZ_INT);
+            pp[1] = I;
+            ff_flif16_ranges_minmax(src_ctx, 2, pp, &min[2], &max[2]);
+            Q = data->Palette[i][Q];
+            RAC_PUT(&enc_ctx->rc, &data->ctxQ, min[2], max[2], Q, FLIF16_RAC_GNZ_INT);
+            min[0] = Y;
+            prev[0] = Y;
+            prev[1] = I;
+            prev[2] = Q;
+        }
+    } else {
+        FLIF16ColorVal min, max;
+        for (int i = 0; i < data->size; i++) {
+            Y = data->Palette[i][Y];
+            ff_flif16_ranges_minmax(src_ctx, 0, pp, &min, &max);
+            RAC_PUT(&enc_ctx->rc, &data->ctxY, min, max, Y, FLIF16_RAC_GNZ_INT);
+            pp[0] = Y;
+            ff_flif16_ranges_minmax(src_ctx, 1, pp, &min, &max);
+            I = data->Palette[i][I];
+            RAC_PUT(&enc_ctx->rc, &data->ctxI, min, max, I, FLIF16_RAC_GNZ_INT);
+            pp[1] = I;
+            ff_flif16_ranges_minmax(src_ctx, 2, pp, &min, &max);
+            Q = data->Palette[i][Q];
+            RAC_PUT(&enc_ctx->rc, &data->ctxQ, min, max, Q, FLIF16_RAC_GNZ_INT);
+        }
+    }
+}                                    
+
+static void transform_palette_reverse(FLIF16Context *ctx,
                                      FLIF16TransformContext *t_ctx,
                                      FLIF16PixelData *frame,
                                      uint32_t stride_row,
@@ -2304,7 +2359,6 @@ static int transform_palette_reverse(FLIF16Context *ctx,
                 ff_flif16_pixel_set(ctx, frame, i, r, c, (*v)[i]);
         }
     }
-    return 1;
 }
 
 static void transform_palette_close(FLIF16TransformContext *ctx)
@@ -2500,7 +2554,7 @@ static FLIF16RangesContext *transform_palettealpha_meta(FLIF16Context *ctx,
     return r_ctx;
 }
 
-static int transform_palettealpha_reverse(FLIF16Context *ctx,
+static void transform_palettealpha_reverse(FLIF16Context *ctx,
                                           FLIF16TransformContext *t_ctx,
                                           FLIF16PixelData *frame,
                                           uint32_t stride_row,
@@ -2519,7 +2573,6 @@ static int transform_palettealpha_reverse(FLIF16Context *ctx,
             ff_flif16_pixel_set(ctx, frame, 3, r, c, data->Palette[P][0]);
         }
     }
-    return 1;
 }
 
 static void transform_palettealpha_close(FLIF16TransformContext *ctx)
@@ -3122,7 +3175,6 @@ static int transform_framedup_read(FLIF16TransformContext  *ctx,
         return 1;
     }
 
-    end:
     ctx->i = 0;
     return 1;
 
@@ -3341,7 +3393,7 @@ static FLIF16RangesContext *transform_framecombine_meta(FLIF16Context *ctx,
     return ranges;
 }
 
-static int transform_framecombine_reverse(FLIF16Context *ctx,
+static void transform_framecombine_reverse(FLIF16Context *ctx,
                                           FLIF16TransformContext *t_ctx,
                                           FLIF16PixelData *frame,
                                           uint32_t stride_row,
@@ -3349,8 +3401,6 @@ static int transform_framecombine_reverse(FLIF16Context *ctx,
 {
     TransformPrivFramecombine *data = t_ctx->priv_data;
     ctx->num_planes = data->orig_num_planes;
-
-    return 1;
 }
 
 const FLIF16Transform flif16_transform_channelcompact = {
@@ -3407,8 +3457,10 @@ const FLIF16Transform flif16_transform_palette = {
     .init           = &transform_palette_init,
     .read           = &transform_palette_read,
     .meta           = &transform_palette_meta,
+    .process        = &transform_palette_process,
+    .forward        = &transform_palette_forward,
+    .write          = &transform_palette_write,
     .configure      = &transform_palette_configure,
-    .forward        = NULL,
     .reverse        = &transform_palette_reverse,
     .close          = &transform_palette_close
 };
@@ -3556,14 +3608,12 @@ int ff_flif16_transform_process(FLIF16Context *ctx, FLIF16TransformContext *t_ct
         return 1;
 }
 
-int ff_flif16_transform_forward(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
-                                FLIF16PixelData *pixel_data)
+void ff_flif16_transform_forward(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
+                                 FLIF16PixelData *pixel_data)
 {
     const FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
     if (trans->forward != NULL)
-        return trans->forward(ctx, t_ctx, pixel_data);
-    else
-        return 1;
+        trans->forward(ctx, t_ctx, pixel_data);
 }
 
 void ff_flif16_transform_write(FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
@@ -3572,19 +3622,15 @@ void ff_flif16_transform_write(FLIF16Context *enc_ctx, FLIF16TransformContext *t
     const FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
     if (trans->write)
         trans->write(enc_ctx, t_ctx, src_ctx);
-    else
-        return;
 }                               
 
-int ff_flif16_transform_reverse(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
+void ff_flif16_transform_reverse(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
                                 FLIF16PixelData *frame, uint8_t stride_row,
                                 uint8_t stride_col)
 {
     const FLIF16Transform *trans = flif16_transforms[t_ctx->t_no];
     if (trans->reverse != NULL)
-        return trans->reverse(ctx, t_ctx, frame, stride_row, stride_col);
-    else
-        return 1;
+        trans->reverse(ctx, t_ctx, frame, stride_row, stride_col);
 }
 
 void ff_flif16_transforms_close(FLIF16TransformContext *ctx)
