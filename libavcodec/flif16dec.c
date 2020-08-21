@@ -572,33 +572,25 @@ static inline FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s
                                                          uint8_t nobordercases)
 {
     FLIF16ColorVal guess, left, top, topleft, gradientTL;
-    int width = s->width;
     int which = 0;
     int index = 0;
 
-    FLIF16ColorVal *properties = s->properties;
-    FLIF16RangesContext *ranges_ctx = s->range;
-    FLIF16ColorVal *min = &s->min;
-    FLIF16ColorVal *max = &s->max;
-
-    uint32_t c = s->c;
-
     if (p < 3) {
         for (int pp = 0; pp < p; pp++) {
-            properties[index++] = PIXEL_GET(s, fr, pp, r, s->c);
+            s->properties[index++] = PIXEL_GET(s, fr, pp, r, s->c);
         }
-        if (ranges_ctx->num_planes > 3) {
-            properties[index++] = PIXEL_GET(s, fr, 3, r, s->c);
+        if (s->range->num_planes > 3) {
+            s->properties[index++] = PIXEL_GET(s, fr, 3, r, s->c);
         }
     }
 
-    left = (nobordercases || c > 0 ? PIXEL_GET(s, fr, p, r, s->c - 1) :
+    left = (nobordercases || s->c > 0 ? PIXEL_GET(s, fr, p, r, s->c - 1) :
            (r > 0 ? PIXEL_GET(s, fr, p, r - 1, s->c) : fallback));
     top = (nobordercases || r > 0 ? PIXEL_GET(s, fr, p, r - 1, s->c) : left);
-    topleft = (nobordercases || (r > 0 && c > 0) ? PIXEL_GET(s, fr, p, r - 1, s->c - 1) : (r > 0 ? top : left));
+    topleft = (nobordercases || (r > 0 && s->c > 0) ? PIXEL_GET(s, fr, p, r - 1, s->c - 1) : (r > 0 ? top : left));
     gradientTL = left + top - topleft;
     guess = MEDIAN3(gradientTL, left, top);
-    ff_flif16_ranges_snap(ranges_ctx, p, properties, min, max, &guess);
+    ff_flif16_ranges_snap(s->range, p, s->properties, &s->min, &s->max, &guess);
 
     if (guess == gradientTL)
         which = 0;
@@ -607,33 +599,33 @@ static inline FLIF16ColorVal flif16_ni_predict_calcprops(FLIF16DecoderContext *s
     else if (guess == top)
         which = 2;
 
-    properties[index++] = guess;
-    properties[index++] = which;
+    s->properties[index++] = guess;
+    s->properties[index++] = which;
 
     if (nobordercases || (s->c > 0 && r > 0)) {
-        properties[index++] = left - topleft;
-        properties[index++] = topleft - top;
+        s->properties[index++] = left - topleft;
+        s->properties[index++] = topleft - top;
     } else {
-        properties[index++] = 0;
-        properties[index++] = 0;
+        s->properties[index++] = 0;
+        s->properties[index++] = 0;
     }
 
-    if (nobordercases || (c + 1 < width && r > 0)) {
-        properties[index++] = top - PIXEL_GET(s, fr, p, r - 1, c + 1);
+    if (nobordercases || (s->c + 1 < s->width && r > 0)) {
+        s->properties[index++] = top - PIXEL_GET(s, fr, p, r - 1, s->c + 1);
     } else {
-        properties[index++] = 0;
+        s->properties[index++] = 0;
     }
 
     if (nobordercases || r > 1) {
-        properties[index++] = PIXEL_GET(s, fr, p, r - 2, s->c) - top;
+        s->properties[index++] = PIXEL_GET(s, fr, p, r - 2, s->c) - top;
     } else {
-        properties[index++] = 0;
+        s->properties[index++] = 0;
     }
 
-    if (nobordercases || c > 1) {
-        properties[index++] = PIXEL_GET(s, fr, p, r, s->c - 2) - left;
+    if (nobordercases || s->c > 1) {
+        s->properties[index++] = PIXEL_GET(s, fr, p, r, s->c - 2) - left;
     } else {
-        properties[index++] = 0;
+        s->properties[index++] = 0;
     }
 
     return guess;
