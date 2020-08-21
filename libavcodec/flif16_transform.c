@@ -2250,7 +2250,7 @@ static int transform_palette_process(FLIF16Context *ctx,
         }
     }
     return 1;
-}                                     
+}                     
 
 static int transform_palette_forward(FLIF16Context *ctx,
                                      FLIF16TransformContext *t_ctx,
@@ -2279,6 +2279,8 @@ static int transform_palette_forward(FLIF16Context *ctx,
             ff_flif16_pixel_set(ctx, pixel_data, 2, r, c, 0);
         }
     }
+
+    return 1;
 }                                     
 
 static int transform_palette_reverse(FLIF16Context *ctx,

@@ -1716,7 +1716,8 @@ static int flif16_decode_frame(AVCodecContext *avctx,
                     if (s->frames[i].seen_before >= 0)
                         continue;
                     for (int j = s->transform_top - 1; j >= 0; j--) {
-                        ff_flif16_transform_reverse(CTX_CAST(s), s->transforms[j], &s->frames[i], 1, 1);
+                        ff_flif16_transform_reverse(CTX_CAST(s), s->transforms[j],
+                                                    &s->frames[i], 1, 1);
                     }
                 }
             }
@@ -1764,9 +1765,9 @@ AVCodec ff_flif16_decoder = {
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_FLIF16,
     .init           = flif16_decode_init,
+    .decode         = flif16_decode_frame,
     .close          = flif16_decode_end,
     .priv_data_size = sizeof(FLIF16DecoderContext),
-    .decode         = flif16_decode_frame,
     .capabilities   = AV_CODEC_CAP_DELAY,
     .priv_class     = NULL,
 };

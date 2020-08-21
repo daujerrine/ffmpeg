@@ -69,7 +69,7 @@ static int flif16_find_frame(FLIF16ParseContext *f, const uint8_t *buf,
         case FLIF16_PARSE_HEADER:
             if (f->index == 3 + 1) {
                 // See whether image is animated or not
-                f->animated = (((buf[index] >> 4) > 4)?1:0);
+                f->animated = (((buf[index] >> 4) > 4) ? 1 : 0);
             } else if (f->index == (3 + 1 + 1)) {
                 // Start - 1 of the first varint
                 f->varint = 1;

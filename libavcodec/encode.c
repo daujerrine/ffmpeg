@@ -271,32 +271,34 @@ int attribute_align_arg avcodec_encode_video2(AVCodecContext *avctx,
     int needs_realloc = !user_pkt.data;
 
     *got_packet_ptr = 0;
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (!avctx->codec->encode2) {
         av_log(avctx, AV_LOG_ERROR, "This encoder requires using the avcodec_send_frame() API.\n");
         return AVERROR(ENOSYS);
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if(CONFIG_FRAME_THREAD_ENCODER &&
        avctx->internal->frame_thread_encoder && (avctx->active_thread_type&FF_THREAD_FRAME))
         return ff_thread_video_encode_frame(avctx, avpkt, frame, got_packet_ptr);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if ((avctx->flags&AV_CODEC_FLAG_PASS1) && avctx->stats_out)
         avctx->stats_out[0] = '\0';
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (!(avctx->codec->capabilities & AV_CODEC_CAP_DELAY) && !frame) {
+        printf("[%s] %d\n", __func__, __LINE__);
         av_packet_unref(avpkt);
         return 0;
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (av_image_check_size2(avctx->width, avctx->height, avctx->max_pixels, AV_PIX_FMT_NONE, 0, avctx))
         return AVERROR(EINVAL);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (frame && frame->format == AV_PIX_FMT_NONE)
         av_log(avctx, AV_LOG_WARNING, "AVFrame.format is not set\n");
+    printf("[%s] %d\n", __func__, __LINE__);
     if (frame && (frame->width == 0 || frame->height == 0))
         av_log(avctx, AV_LOG_WARNING, "AVFrame.width or height is not set\n");
-
+    printf("[%s] %d\n", __func__, __LINE__);
     av_assert0(avctx->codec->encode2);
 
     ret = avctx->codec->encode2(avctx, avpkt, frame, got_packet_ptr);
@@ -307,6 +309,7 @@ int attribute_align_arg avcodec_encode_video2(AVCodecContext *avctx,
     if (avpkt->data && avpkt->data == avctx->internal->byte_buffer) {
         needs_realloc = 0;
         if (user_pkt.data) {
+            printf("[%s] %d\n", __func__, __LINE__);
             if (user_pkt.size >= avpkt->size) {
                 memcpy(user_pkt.data, avpkt->data, avpkt->size);
             } else {
@@ -317,19 +320,22 @@ int attribute_align_arg avcodec_encode_video2(AVCodecContext *avctx,
             avpkt->buf      = user_pkt.buf;
             avpkt->data     = user_pkt.data;
         } else if (!avpkt->buf) {
+            printf("[%s] %d\n", __func__, __LINE__);
             ret = av_packet_make_refcounted(avpkt);
             if (ret < 0)
                 return ret;
         }
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (!ret) {
+        printf("[%s] %d\n", __func__, __LINE__);
         if (!*got_packet_ptr)
             avpkt->size = 0;
         else if (!(avctx->codec->capabilities & AV_CODEC_CAP_DELAY))
             avpkt->pts = avpkt->dts = frame->pts;
 
         if (needs_realloc && avpkt->data) {
+            printf("[%s] %d\n", __func__, __LINE__);
             ret = av_buffer_realloc(&avpkt->buf, avpkt->size + AV_INPUT_BUFFER_PADDING_SIZE);
             if (ret >= 0)
                 avpkt->data = avpkt->buf->data;
@@ -338,10 +344,10 @@ int attribute_align_arg avcodec_encode_video2(AVCodecContext *avctx,
         if (frame)
             avctx->frame_number++;
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (ret < 0 || !*got_packet_ptr)
         av_packet_unref(avpkt);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     return ret;
 }
 
@@ -366,17 +372,20 @@ static int do_encode(AVCodecContext *avctx, const AVFrame *frame, int *got_packe
 
     av_packet_unref(avctx->internal->buffer_pkt);
     avctx->internal->buffer_pkt_valid = 0;
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
+        printf("[%s] %d\n", __func__, __LINE__);
         ret = avcodec_encode_video2(avctx, avctx->internal->buffer_pkt,
                                     frame, got_packet);
     } else if (avctx->codec_type == AVMEDIA_TYPE_AUDIO) {
+        printf("[%s] %d\n", __func__, __LINE__);
         ret = avcodec_encode_audio2(avctx, avctx->internal->buffer_pkt,
                                     frame, got_packet);
     } else {
+        printf("[%s] %d\n", __func__, __LINE__);
         ret = AVERROR(EINVAL);
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (ret >= 0 && *got_packet) {
         // Encoders must always return ref-counted buffers.
         // Side-data only packets have no data and can be not ref-counted.
@@ -384,6 +393,7 @@ static int do_encode(AVCodecContext *avctx, const AVFrame *frame, int *got_packe
         avctx->internal->buffer_pkt_valid = 1;
         ret = 0;
     } else {
+        printf("[%s] %d\n", __func__, __LINE__);
         av_packet_unref(avctx->internal->buffer_pkt);
     }
 
@@ -394,20 +404,20 @@ int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame 
 {
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))
         return AVERROR(EINVAL);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (avctx->internal->draining)
         return AVERROR_EOF;
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (!frame) {
         avctx->internal->draining = 1;
 
         if (!(avctx->codec->capabilities & AV_CODEC_CAP_DELAY))
             return 0;
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (avctx->codec->send_frame)
         return avctx->codec->send_frame(avctx, frame);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     // Emulation via old API. Do it here instead of avcodec_receive_packet, because:
     // 1. if the AVFrame is not refcounted, the copying will be much more
     //    expensive than copying the packet data
@@ -416,18 +426,19 @@ int attribute_align_arg avcodec_send_frame(AVCodecContext *avctx, const AVFrame 
 
     if (avctx->internal->buffer_pkt_valid)
         return AVERROR(EAGAIN);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     return do_encode(avctx, frame, &(int){0});
 }
 
 int attribute_align_arg avcodec_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
 {
     av_packet_unref(avpkt);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (!avcodec_is_open(avctx) || !av_codec_is_encoder(avctx->codec))
         return AVERROR(EINVAL);
-
+    printf("[%s] %d\n", __func__, __LINE__);
     if (avctx->codec->receive_packet) {
+        
         int ret;
         if (avctx->internal->draining && !(avctx->codec->capabilities & AV_CODEC_CAP_DELAY))
             return AVERROR_EOF;
@@ -438,21 +449,28 @@ int attribute_align_arg avcodec_receive_packet(AVCodecContext *avctx, AVPacket *
             av_assert0(!avpkt->data || avpkt->buf);
         return ret;
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     // Emulation via old API.
 
     if (!avctx->internal->buffer_pkt_valid) {
+        printf("[%s] %d\n", __func__, __LINE__);
         int got_packet;
         int ret;
-        if (!avctx->internal->draining)
+        if (!avctx->internal->draining) {
+            printf("[%s] %d\n", __func__, __LINE__);
             return AVERROR(EAGAIN);
+        }
         ret = do_encode(avctx, NULL, &got_packet);
-        if (ret < 0)
+        if (ret < 0) {
+            printf("[%s] %d\n", __func__, __LINE__);
             return ret;
-        if (ret >= 0 && !got_packet)
+        }
+        if (ret >= 0 && !got_packet) {
+            printf("[%s] %d\n", __func__, __LINE__);
             return AVERROR_EOF;
+        }
     }
-
+    printf("[%s] %d\n", __func__, __LINE__);
     av_packet_move_ref(avpkt, avctx->internal->buffer_pkt);
     avctx->internal->buffer_pkt_valid = 0;
     return 0;

@@ -193,12 +193,13 @@ typedef struct FLIF16RangeCoder {
 
     // uni_int state management
     int32_t min;
-    int32_t max;
     int32_t len;
-    int32_t val;
+    int32_t max; // Encoder
+    int32_t val; // Encoder
 
     // nz_int state management
-    int amin, amax, emax, e, have, left, minabs1, maxabs0, pos, i, bit;
+    int amin, amax, emax, e, have, left, minabs1, maxabs0, pos;
+    int i, bit; // Encoder
 
     // maniac_int state management
     int oldmin, oldmax;

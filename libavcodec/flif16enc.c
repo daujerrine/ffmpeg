@@ -41,6 +41,8 @@
 #include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 
+#include <signal.h>
+
 #define PRINT_LINE printf("At: %s, %s %d\n", __func__, __FILE__, __LINE__);
 
 /**
@@ -216,6 +218,7 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     }
     ff_flif16_planes_init(CTX_CAST(s), &s->frames[s->num_frames],
                           const_plane_value);
+    /*
     switch (avctx->pix_fmt) {
     case AV_PIX_FMT_GRAY8:
         for (uint32_t i = 0; i < s->height; i++) {
@@ -281,6 +284,7 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
         av_log(avctx, AV_LOG_FATAL, "Pixel format %d out of bounds?\n", avctx->pix_fmt);
         return AVERROR_PATCHWELCOME;
     }
+    */
     PRINT_LINE
     s->num_frames++;
     return AVERROR(EAGAIN);
@@ -429,6 +433,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
             goto need_more_buffer;
     }
 
+    s->segment = 0;
     s->state = FLIF16_EOS;
     return 0;
 
@@ -442,12 +447,14 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int ret = 0;
     FLIF16EncoderContext *s = avctx->priv_data;
     PRINT_LINE
-    if ((ret = ff_alloc_packet2(avctx, pkt, 10000 + AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
-        return ret;
-    
-    s->in_frame = (AVFrame *) frame;
+    if (frame)
+        av_frame_ref(s->in_frame, frame);
+    else {
+        av_frame_unref(s->in_frame);
+        av_frame_free(&s->in_frame);
+    }
     printf("bs init %d\n", pkt->size);
-    bytestream2_init_writer(&s->pb, pkt->data, pkt->size);
+    bytestream2_init_writer(&s->pb, pkt->data, pkt->size); 
 
     do {
         switch (s->state) {
@@ -457,8 +464,16 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
         case FLIF16_SECONDHEADER:
             ret = flif16_determine_secondheader(avctx);
-            if (ret == AVERROR(EAGAIN))
-                return ret;
+            if (ret < 0 && ret == AVERROR(EAGAIN)) {
+                PRINT_LINE
+                raise(SIGINT);
+                if ((ret = ff_alloc_packet2(avctx, pkt, AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
+                    return ret;
+                return 0;
+            } else {
+                if ((ret = ff_alloc_packet2(avctx, pkt, 10000 + AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
+                    return ret;
+            }
             break;
 
         case FLIF16_TRANSFORM:
@@ -470,6 +485,7 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             break;
 
         case FLIF16_OUTPUT:
+            PRINT_LINE
             ret = flif16_write_stream(avctx);
             if (!ret) {
                 *got_packet = 1;
@@ -489,6 +505,15 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     return ret;
 }
 
+static int flif16_encode_init(AVCodecContext *avctx)
+{
+    FLIF16EncoderContext *s = avctx->priv_data;
+    s->in_frame = av_frame_alloc();
+    if (!s->in_frame)
+        return AVERROR(ENOMEM);
+    return 0;
+}
+
 static int flif16_encode_end(AVCodecContext *avctx)
 {
     return 0;
@@ -497,10 +522,11 @@ static int flif16_encode_end(AVCodecContext *avctx)
 
 AVCodec ff_flif16_encoder = {
     .name           = "flif16",
-    .long_name      = NULL_IF_CONFIG_SMALL("FLIF (Free Lossless Imange Format)"),
+    .long_name      = NULL_IF_CONFIG_SMALL("FLIF (Free Lossless Image Format)"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_FLIF16,
     .priv_data_size = sizeof(FLIF16EncoderContext),
+    .init           = flif16_encode_init,
     .close          = flif16_encode_end,
     .encode2        = flif16_encode_frame,
     .capabilities   = AV_CODEC_CAP_DELAY,
