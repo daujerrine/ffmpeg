@@ -4,23 +4,28 @@
  */
 
 #include "flif16_rangecoder_enc.h"
+#define PRINT_LINE printf("At: %s, %s %d\n", __func__, __FILE__, __LINE__);
 
 /**
  * Initializes the range encoder.
  */
 void ff_flif16_rac_enc_init(FLIF16RangeCoder *rc, PutByteContext *pb)
 {
-    rc->range          = FLIF16_RAC_MIN_RANGE;
+    rc->range          = FLIF16_RAC_MAX_RANGE;
     rc->low            = 0;
     rc->straddle_byte  = -1;
     rc->straddle_count = 0;
     rc->bytestream     = pb;
+    printf("range = %d low = %d sb = %d sc = %d\n",
+           rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
 }
 
 int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
 {
     int byte;
     while (rc->range <= FLIF16_RAC_MIN_RANGE) {
+        printf("init range = %d low = %d sb = %d sc = %d\n",
+           rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
         byte = rc->low >> FLIF16_RAC_MIN_RANGE_BITS;
         if (!bytestream2_get_bytes_left_p(rc->bytestream))
             return 0;
@@ -52,7 +57,7 @@ int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
 
 int ff_flif16_rac_enc_flush(FLIF16RangeCoder *rc)
 {
-    rc->low += (FLIF16_RAC_MIN_RANGE - 1);
+    rc->low += FLIF16_RAC_MIN_RANGE - 1;
 
     rc->segment = 0;
     switch (rc->segment) {

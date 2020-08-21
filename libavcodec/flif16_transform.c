@@ -533,10 +533,7 @@ static void ff_bounds_snap(FLIF16RangesContext *r_ctx, int p,
             *maxv = data->bounds[p][1];
         }
     }
-    if (*v > *maxv)
-        *v = *maxv;
-    if (*v < *minv)
-        *v = *minv;
+    *v = av_clip(*v, *minv, *maxv);
 }
 
 static void ff_bounds_close(FLIF16RangesContext *r_ctx)
@@ -640,17 +637,14 @@ static void ff_palettealpha_minmax(FLIF16RangesContext *r_ctx, int p,
     RangesPrivPalette *data = r_ctx->priv_data;
     if (p == FLIF16_PLANE_CO) {
         *minv = 0;
-        *maxv = data->nb_colors-1;
-    }
-    else if (p < FLIF16_PLANE_ALPHA) {
+        *maxv = data->nb_colors - 1;
+    } else if (p < FLIF16_PLANE_ALPHA) {
         *minv = 0;
         *maxv = 0;
-    }
-    else if (p == FLIF16_PLANE_ALPHA) {
+    } else if (p == FLIF16_PLANE_ALPHA) {
         *minv = 1;
         *maxv = 1;
-    }
-    else
+    } else
         ff_flif16_ranges_minmax(data->r_ctx, p, prev_planes, minv, maxv);
 }
 

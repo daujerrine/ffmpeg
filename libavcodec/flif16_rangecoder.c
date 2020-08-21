@@ -693,18 +693,15 @@ void ff_flif16_maniac_close(FLIF16MANIACContext *m, uint8_t num_planes,
     for (int i = 0; i < (lookback ? MAX_PLANES : num_planes); i++) {
         if (!m->forest[i])
             continue;
-        if (m->forest[i]->data)
-            av_freep(&m->forest[i]->data);
-        if (m->forest[i]->leaves)
-            av_freep(&m->forest[i]->leaves);
+        av_freep(&m->forest[i]->data);
+        av_freep(&m->forest[i]->leaves);
         av_freep(&m->forest[i]);
     }
 
     av_freep(&m->forest);
 
-    /* Should be already freed in MANIAC reading, but checking anyway. */
-    if(m->stack)
-        av_freep(&m->stack);
+    // Should be already freed in MANIAC reading, but checking anyway.
+    av_freep(&m->stack);
 }
 
 

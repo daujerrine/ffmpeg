@@ -1743,8 +1743,7 @@ static int flif16_decode_frame(AVCodecContext *avctx,
 static av_cold int flif16_decode_end(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
-    if (s->framedelay)
-        av_freep(&s->framedelay);
+    av_freep(&s->framedelay);
     if (s->frames)
         ff_flif16_frames_free(&s->frames, s->num_frames, s->num_planes, s->framelookback);
 
