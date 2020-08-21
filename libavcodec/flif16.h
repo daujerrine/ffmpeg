@@ -148,11 +148,11 @@ typedef struct FLIF16Transform {
                                   FLIF16RangesContext *r_ctx);
     int (*process) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
                     FLIF16RangesContext *src_ctx, FLIF16PixelData *frame);
-    int (*forward) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
-    void (*write) (FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
-                   FLIF16RangesContext *src_ctx);
-    int (*reverse) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
-                    uint32_t stride_row, uint32_t stride_col);
+    void (*forward) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
+    int (*write) (FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
+                  FLIF16RangesContext *src_ctx);
+    void (*reverse) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
+                     uint32_t stride_row, uint32_t stride_col);
     void (*configure) (FLIF16TransformContext *ctx, const int setting);
     void (*close) (FLIF16TransformContext *t_ctx);
 } FLIF16Transform;
