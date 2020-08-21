@@ -198,7 +198,7 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
         printf("Encoder draining mode\n");
         ff_flif16_rac_enc_init(&s->rc, &s->pb);
         s->state = FLIF16_OUTPUT;
-        return 1;
+        return 0;
     }
     PRINT_LINE
     if (s->num_frames > 1) {
@@ -438,6 +438,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
     return 0;
 
     need_more_buffer:
+    printf("Need more buffer\n");
     return AVERROR(EAGAIN);
 }
 
@@ -447,14 +448,14 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int ret = 0;
     FLIF16EncoderContext *s = avctx->priv_data;
     PRINT_LINE
-    if (frame)
+    if (frame) {
         av_frame_ref(s->in_frame, frame);
-    else {
+    } else {
+        printf("Entering encoder draining mode\n");
         av_frame_unref(s->in_frame);
         av_frame_free(&s->in_frame);
+        s->in_frame = NULL;
     }
-    printf("bs init %d\n", pkt->size);
-    bytestream2_init_writer(&s->pb, pkt->data, pkt->size); 
 
     do {
         switch (s->state) {
@@ -466,13 +467,8 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             ret = flif16_determine_secondheader(avctx);
             if (ret < 0 && ret == AVERROR(EAGAIN)) {
                 PRINT_LINE
-                raise(SIGINT);
-                if ((ret = ff_alloc_packet2(avctx, pkt, AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
-                    return ret;
+                av_packet_unref(pkt);
                 return 0;
-            } else {
-                if ((ret = ff_alloc_packet2(avctx, pkt, 10000 + AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
-                    return ret;
             }
             break;
 
@@ -486,6 +482,10 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
         case FLIF16_OUTPUT:
             PRINT_LINE
+            if ((ret = ff_alloc_packet2(avctx, pkt, 10000 + AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
+                return ret;
+            bytestream2_init_writer(&s->pb, pkt->data, pkt->size);
+            printf("bs init %d\n", pkt->size);
             ret = flif16_write_stream(avctx);
             if (!ret) {
                 *got_packet = 1;
