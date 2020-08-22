@@ -251,8 +251,7 @@ static void ff_static_snap(FLIF16RangesContext *src_ctx , const int p,
                            FLIF16ColorVal *v)
 {
     ff_flif16_ranges_minmax(src_ctx, p, prev_planes, minv, maxv);
-    if (*minv > *maxv)
-        *maxv = *minv;
+    *maxv = FFMAX(*minv, *maxv);
     *v = av_clip(*v, *minv, *maxv);
 }
 
@@ -502,10 +501,8 @@ static void ff_bounds_minmax(FLIF16RangesContext *r_ctx, int p,
         return;
     }
     ranges->minmax(data->r_ctx, p, prev_planes, minv, maxv);
-    if (*minv < data->bounds[p][0])
-        *minv = data->bounds[p][0];
-    if (*maxv > data->bounds[p][1])
-        *maxv = data->bounds[p][1];
+    *minv = FFMAX(*minv, data->bounds[p][0]);
+    *maxv = FFMIN(*maxv, data->bounds[p][1]);
     if (*minv > *maxv) {
         *minv = data->bounds[p][0];
         *maxv = data->bounds[p][1];
@@ -524,10 +521,8 @@ static void ff_bounds_snap(FLIF16RangesContext *r_ctx, int p,
         *maxv = data->bounds[p][1];
     } else {
         ranges->snap(data->r_ctx, p, prev_planes, minv, maxv, v);
-        if (*minv < data->bounds[p][0])
-            *minv = data->bounds[p][0];
-        if (*maxv > data->bounds[p][1])
-            *maxv = data->bounds[p][1];
+        *minv = FFMAX(*minv, data->bounds[p][0]);
+        *maxv = FFMIN(*maxv, data->bounds[p][1]);
         if (*minv > *maxv) {
             *minv = data->bounds[p][0];
             *maxv = data->bounds[p][1];
@@ -2238,20 +2233,16 @@ static void transform_colorbuckets_minmax(FLIF16RangesContext *src_ctx, int p,
     else if (p == FLIF16_PLANE_CO) {
         for (pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++) {
             ff_flif16_ranges_minmax(src_ctx, p, pixel, &rmin, &rmax);
-            if (rmin < *smin)
-                *smin = rmin;
-            if (rmax > *smax)
-                *smax = rmax;
+            *smin = FFMIN(*smin, rmin);
+            *smax = FFMAX(*smax, rmax);
         }
     }
     else if (p == FLIF16_PLANE_CG) {
         for (pixel[0] = lower[0]; pixel[0] <= upper[0]; pixel[0]++) {
             for (pixel[1] = lower[1]; pixel[1] <= upper[1]; pixel[1]++) {
                 ff_flif16_ranges_minmax(src_ctx, p, pixel, &rmin, &rmax);
-                if (rmin < *smin)
-                    *smin = rmin;
-                if (rmax > *smax)
-                    *smax = rmax;
+                *smin = FFMIN(*smin, rmin);
+                *smax = FFMAX(*smax, rmax);
             }
         }
     }
@@ -3137,10 +3128,8 @@ static int transform_bounds_process(FLIF16Context *ctx,
                     continue;
 
                 v = ff_flif16_pixel_get(ctx, frame, p, r, c);;
-                if (v < min)
-                    min = v;
-                if (v > max)
-                    max = v;
+                min = FFMIN(min, v);
+                max = FFMAX(max, v);
                 av_assert1(v <= ff_flif16_ranges_max(src_ctx, p));
                 av_assert1(v >= ff_flif16_ranges_min(src_ctx, p));
             }
