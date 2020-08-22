@@ -1287,24 +1287,18 @@ static void do_video_out(OutputFile *of,
         ost->frames_encoded++;
 
         ret = avcodec_send_frame(enc, in_picture);
-        if (ret < 0) {
-            printf("[%s] %d .. %d\n", __func__, __LINE__, ret);
+        if (ret < 0)
             goto error;
-        }
         // Make sure Closed Captions will not be duplicated
         av_frame_remove_side_data(in_picture, AV_FRAME_DATA_A53_CC);
 
         while (1) {
             ret = avcodec_receive_packet(enc, &pkt);
             update_benchmark("encode_video %d.%d", ost->file_index, ost->index);
-            if (ret == AVERROR(EAGAIN)) {
-                printf("[%s] %d .. %d\n", __func__, __LINE__, ret);
+            if (ret == AVERROR(EAGAIN))
                 break;
-            }
-            if (ret < 0) {
-                printf("[%s] %d\n", __func__, __LINE__);
+            if (ret < 0)
                 goto error;
-            }
 
             if (debug_ts) {
                 av_log(NULL, AV_LOG_INFO, "encoder -> type:video "
@@ -1352,7 +1346,7 @@ static void do_video_out(OutputFile *of,
         av_frame_ref(ost->last_frame, next_picture);
     else
         av_frame_free(&ost->last_frame);
-    printf("[%s] %d\n", __func__, __LINE__);
+
     return;
 error:
     av_log(NULL, AV_LOG_FATAL, "Video encoding failed\n");
@@ -4580,7 +4574,6 @@ static int transcode_step(void)
     int ret;
 
     ost = choose_output();
-    printf("[%s] %d\n", __func__, __LINE__);
     if (!ost) {
         if (got_eagain()) {
             reset_eagain();
@@ -4590,7 +4583,7 @@ static int transcode_step(void)
         av_log(NULL, AV_LOG_VERBOSE, "No more inputs to read from, finishing.\n");
         return AVERROR_EOF;
     }
-    printf("[%s] %d\n", __func__, __LINE__);
+
     if (ost->filter && !ost->filter->graph->graph) {
         if (ifilter_has_all_input_formats(ost->filter->graph)) {
             ret = configure_filtergraph(ost->filter->graph);
@@ -4600,7 +4593,7 @@ static int transcode_step(void)
             }
         }
     }
-    printf("[%s] %d\n", __func__, __LINE__);
+
     if (ost->filter && ost->filter->graph->graph) {
         if (!ost->initialized) {
             char error[1024] = {0};
@@ -4611,7 +4604,6 @@ static int transcode_step(void)
                 exit_program(1);
             }
         }
-        printf("[%s] %d\n", __func__, __LINE__);
         if ((ret = transcode_from_filter(ost->filter->graph, &ist)) < 0)
             return ret;
         if (!ist)
@@ -4633,17 +4625,17 @@ static int transcode_step(void)
         av_assert0(ost->source_index >= 0);
         ist = input_streams[ost->source_index];
     }
-    printf("[%s] %d\n", __func__, __LINE__);
+
     ret = process_input(ist->file_index);
     if (ret == AVERROR(EAGAIN)) {
         if (input_files[ist->file_index]->eagain)
             ost->unavailable = 1;
         return 0;
     }
-    printf("[%s] %d\n", __func__, __LINE__);
+
     if (ret < 0)
         return ret == AVERROR_EOF ? 0 : ret;
-    printf("[%s] %d\n", __func__, __LINE__);
+
     return reap_filters(0);
 }
 

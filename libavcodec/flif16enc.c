@@ -195,9 +195,6 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     PRINT_LINE
     if (!s->in_frame) {
         // We have processed all the frames
-        printf("Encoder draining mode\n");
-        ff_flif16_rac_enc_init(&s->rc, &s->pb);
-        s->state = FLIF16_OUTPUT;
         return 0;
     }
     PRINT_LINE
@@ -303,6 +300,7 @@ static int flif16_determine_secondheader(AVCodecContext *avctx)
     }
 
     ff_flif16_rac_enc_init(&s->rc, &s->pb);
+    s->state = FLIF16_OUTPUT;
     s->frames = ff_flif16_frames_resize(s->frames, s->frames_size,
                                         s->num_frames);
     if (s->num_frames > 1)

@@ -16,7 +16,7 @@ void ff_flif16_rac_enc_init(FLIF16RangeCoder *rc, PutByteContext *pb)
     rc->straddle_byte  = -1;
     rc->straddle_count = 0;
     rc->bytestream     = pb;
-    printf("range = %d low = %d sb = %d sc = %d\n",
+    printf("init range = %d low = %d sb = %d sc = %d\n",
            rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
 }
 
@@ -24,7 +24,7 @@ int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
 {
     int byte;
     while (rc->range <= FLIF16_RAC_MIN_RANGE) {
-        printf("init range = %d low = %d sb = %d sc = %d\n",
+        printf("range = %d low = %d sb = %d sc = %d\n",
            rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
         byte = rc->low >> FLIF16_RAC_MIN_RANGE_BITS;
         if (!bytestream2_get_bytes_left_p(rc->bytestream))
@@ -78,6 +78,9 @@ int ff_flif16_rac_enc_flush(FLIF16RangeCoder *rc)
 int ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
                           uint8_t bit)
 {
+    printf("put range = %d low = %d sb = %d sc = %d\n",
+           rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
+    printf("bit = %d, chance = %d\n", bit, chance);
     if (bit) {
         rc->low += rc->range - chance;
         rc->range = chance;
@@ -97,19 +100,23 @@ int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
                                     int max, int val, int type)
 {
     int med;
-
     if (!rc->active) {
         rc->active = 1;
         rc->min    = min;
         rc->max    = max;
+        rc->val    = val;
     }
+    printf("min: %d max: %d, val: %d type: %d\n",
+           rc->min, rc->max, rc->val, type);
 
-    if (rc->min) {
+    if (rc->min != 0) {
+        printf("a\n");
         rc->max -= rc->min;
         rc->val -= rc->min;
     }
 
-    if (!rc->max) {
+    if (rc->max == 0) {
+        printf("b\n");
         rc->active = 0;
         return 1;
     }
@@ -117,9 +124,11 @@ int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
     med = rc->max / 2;
 
     if (rc->val > med) {
+        printf("c\n");
         ff_flif16_rac_enc_write_bit(rc, 1);
         rc->min = med + 1;
     } else {
+        printf("d\n");
         ff_flif16_rac_enc_write_bit(rc, 0);
         rc->min = 0;
         rc->max = med;
