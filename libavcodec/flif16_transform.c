@@ -1449,17 +1449,22 @@ static FLIF16RangesContext *transform_bounds_meta(FLIF16Context *ctx,
     RangesPrivStatic *data;
     RangesPrivBounds *dataB;
 
-    if (flif16_ranges[src_ctx->r_no]->is_static &&
-        src_ctx->r_no == FLIF16_RANGES_STATIC) {
-        data = src_ctx->priv_data;
-        av_freep(&data->bounds);
+    r_ctx = av_mallocz(sizeof(*r_ctx));	
+    if (!r_ctx)	
+        return NULL;	
+    r_ctx->num_planes = src_ctx->num_planes;
+    
+    if (flif16_ranges[src_ctx->r_no]->is_static) {
+        r_ctx->r_no = FLIF16_RANGES_STATIC;
+        r_ctx->priv_data = av_mallocz(sizeof(*data));
+        if (!r_ctx->priv_data) {	
+            av_free(r_ctx);	
+            return NULL;	
+        }	
+        data = r_ctx->priv_data;
         data->bounds = trans_data->bounds;
-        return src_ctx;
+        ff_flif16_ranges_close(src_ctx);
     } else {
-        r_ctx = av_mallocz(sizeof(*r_ctx));
-        if (!r_ctx)
-            return NULL;
-        r_ctx->num_planes = src_ctx->num_planes;
         r_ctx->r_no = FLIF16_RANGES_BOUNDS;
         r_ctx->priv_data = av_mallocz(sizeof(*dataB));
         if (!r_ctx->priv_data) {
@@ -1469,8 +1474,8 @@ static FLIF16RangesContext *transform_bounds_meta(FLIF16Context *ctx,
         dataB = r_ctx->priv_data;
         dataB->bounds = trans_data->bounds;
         dataB->r_ctx = src_ctx;
-        return r_ctx;
     }
+    return r_ctx;
 }
 
 /*
