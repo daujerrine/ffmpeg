@@ -225,14 +225,14 @@ typedef struct RangesPrivStatic {
 static FLIF16ColorVal ff_static_min(FLIF16RangesContext *r_ctx, int p)
 {
     RangesPrivStatic *data = r_ctx->priv_data;
-    av_assert0(p < r_ctx->num_planes);
+    av_assert1(p < r_ctx->num_planes);
     return data->bounds[p][0];
 }
 
 static FLIF16ColorVal ff_static_max(FLIF16RangesContext *r_ctx, int p)
 {
     RangesPrivStatic *data = r_ctx->priv_data;
-    av_assert0(p < r_ctx->num_planes);
+    av_assert1(p < r_ctx->num_planes);
     return data->bounds[p][1];
 }
 
@@ -476,7 +476,7 @@ static FLIF16ColorVal ff_bounds_min(FLIF16RangesContext *r_ctx, int p)
 {
     RangesPrivBounds *data = r_ctx->priv_data;
     const FLIF16Ranges *ranges = flif16_ranges[data->r_ctx->r_no];
-    av_assert0(p < r_ctx->num_planes);
+    av_assert1(p < r_ctx->num_planes);
     return FFMAX(ranges->min(data->r_ctx, p), data->bounds[p][0]);
 }
 
@@ -484,7 +484,7 @@ static FLIF16ColorVal ff_bounds_max(FLIF16RangesContext *r_ctx, int p)
 {
     RangesPrivBounds *data = r_ctx->priv_data;
     const FLIF16Ranges *ranges = flif16_ranges[data->r_ctx->r_no];
-    av_assert0(p < r_ctx->num_planes);
+    av_assert1(p < r_ctx->num_planes);
     return FFMIN(ranges->max(data->r_ctx, p), data->bounds[p][1]);
 }
 
@@ -494,7 +494,7 @@ static void ff_bounds_minmax(FLIF16RangesContext *r_ctx, int p,
 {
     RangesPrivBounds *data = r_ctx->priv_data;
     const FLIF16Ranges *ranges = flif16_ranges[data->r_ctx->r_no];
-    av_assert0(p < r_ctx->num_planes);
+    av_assert1(p < r_ctx->num_planes);
     if (p == 0 || p == 3) {
         *minv = data->bounds[p][0];
         *maxv = data->bounds[p][1];
@@ -507,7 +507,7 @@ static void ff_bounds_minmax(FLIF16RangesContext *r_ctx, int p,
         *minv = data->bounds[p][0];
         *maxv = data->bounds[p][1];
     }
-    av_assert0(*minv <= *maxv);
+    av_assert1(*minv <= *maxv);
 }
 
 static void ff_bounds_snap(FLIF16RangesContext *r_ctx, int p,
@@ -718,7 +718,7 @@ static FLIF16ColorVal ff_snap_color_bucket(ColorBucket *bucket, FLIF16ColorVal c
         return bucket->max;
     }
     if (bucket->discrete) {
-        av_assert0((FLIF16ColorVal)bucket->snapvalues_size > (c - bucket->min));
+        av_assert1((FLIF16ColorVal)bucket->snapvalues_size > (c - bucket->min));
         return bucket->snapvalues[c - bucket->min];
     }
     return c;
@@ -1057,8 +1057,6 @@ static int transform_ycocg_init(FLIF16TransformContext *ctx, FLIF16RangesContext
     TransformPrivYCoCg *data = ctx->priv_data;
     const FLIF16Ranges *src_ranges = flif16_ranges[r_ctx->r_no];
 
-    av_assert0(data);
-
     if (r_ctx->num_planes < 3                                  ||
         src_ranges->min(r_ctx, 0) == src_ranges->max(r_ctx, 0) ||
         src_ranges->min(r_ctx, 1) == src_ranges->max(r_ctx, 1) ||
@@ -1383,7 +1381,7 @@ static void transform_channelcompact_reverse(FLIF16Context *ctx,
                 P = ff_flif16_pixel_get(ctx, frame, p, r, c);
                 if (P < 0 || P >= (int) palette_size)
                     P = 0;
-                av_assert0(P < (int) palette_size);
+                av_assert1(P < (int) palette_size);
                 ff_flif16_pixel_set(ctx, frame, p, r, c, palette[P]);
             }
         }
@@ -1674,8 +1672,8 @@ static void transform_palette_reverse(FLIF16Context *ctx,
             P = ff_flif16_pixel_get(ctx, frame, 1, r, c);
             if (P < 0 || P >= data->size)
                 P = 0;
-            av_assert0(P < data->size);
-            av_assert0(P >= 0);
+            av_assert1(P < data->size);
+            av_assert1(P >= 0);
 
             v = &data->Palette[P];
             for (unsigned int i = 0; i < 3; i++)
@@ -1889,7 +1887,7 @@ static void transform_palettealpha_reverse(FLIF16Context *ctx,
     for (r = 0; r < ctx->height; r += stride_row) {
         for (c = 0; c < ctx->width; c += stride_col) {
             P = ff_flif16_pixel_get(ctx, frame, 1, r, c);
-            av_assert0(P < data->size);
+            av_assert1(P < data->size);
             ff_flif16_pixel_set(ctx, frame, 0, r, c, data->Palette[P][1]);
             ff_flif16_pixel_set(ctx, frame, 1, r, c, data->Palette[P][2]);
             ff_flif16_pixel_set(ctx, frame, 2, r, c, data->Palette[P][3]);
@@ -1937,7 +1935,7 @@ static int ff_remove_color(ColorBucket *cb, const FLIF16ColorVal c)
             cb->max = -10000;
             return 1;
         }
-        av_assert0(cb->values_size > 0);
+        av_assert1(cb->values_size > 0);
         if (c == cb->min)
             cb->min = cb->values->data;
         if (c == cb->max)
