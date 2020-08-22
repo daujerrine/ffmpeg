@@ -67,7 +67,7 @@ typedef struct TransformPrivPalette {
     FLIF16ChanceContext ctxY;
     FLIF16ChanceContext ctxI;
     FLIF16ChanceContext ctxQ;
-    FLIF16ColorVal (*Palette)[3];
+    FLIF16ColorVal (*palette)[3];
     FLIF16ColorVal min[3], max[3];
     FLIF16ColorVal *prev;
     FLIF16ColorVal pp[2];
@@ -86,7 +86,7 @@ typedef struct TransformPrivPalettealpha {
     FLIF16ChanceContext ctxI;
     FLIF16ChanceContext ctxQ;
     FLIF16ChanceContext ctxA;
-    FLIF16ColorVal (*Palette)[4];
+    FLIF16ColorVal (*palette)[4];
     FLIF16ColorVal min[4], max[4];
     FLIF16ColorVal *prev;
     FLIF16ColorVal pp[2];
@@ -204,7 +204,7 @@ typedef struct RangesPrivColorbuckets {
 
 typedef struct RangesPrivFramecombine {
     FLIF16RangesContext *ranges;
-    FLIF16ColorVal numPrevFrames;
+    FLIF16ColorVal num_prev_frames;
     FLIF16ColorVal alpha_min;
     FLIF16ColorVal alpha_max;
 } RangesPrivFramecombine;
@@ -827,7 +827,7 @@ static FLIF16ColorVal ff_framecombine_max(FLIF16RangesContext *r_ctx, int p)
     else if (p == FLIF16_PLANE_ALPHA)
         return data->alpha_max;
     else
-        return data->numPrevFrames;
+        return data->num_prev_frames;
 }
 
 static void ff_framecombine_minmax(FLIF16RangesContext *r_ctx,
@@ -1010,10 +1010,8 @@ FLIF16RangesContext *ff_flif16_ranges_static_init(uint8_t num_planes,
 
 void ff_flif16_ranges_close(FLIF16RangesContext* r_ctx) {
     const FLIF16Ranges* ranges = flif16_ranges[r_ctx->r_no];
-    if (ranges->close) {
-        printf("called %d\n", r_ctx->r_no);
+    if (ranges->close)
         ranges->close(r_ctx);
-    }
     if (ranges->priv_data_size)
         av_free(r_ctx->priv_data);
     av_free(r_ctx);
@@ -1451,7 +1449,8 @@ static FLIF16RangesContext *transform_bounds_meta(FLIF16Context *ctx,
     RangesPrivStatic *data;
     RangesPrivBounds *dataB;
 
-    if (flif16_ranges[src_ctx->r_no]->is_static) {
+    if (flif16_ranges[src_ctx->r_no]->is_static &&
+        src_ctx->r_no == FLIF16_RANGES_STATIC) {
         data = src_ctx->priv_data;
         av_freep(&data->bounds);
         data->bounds = trans_data->bounds;
@@ -1521,8 +1520,8 @@ static int transform_palette_read(FLIF16TransformContext *ctx,
     case 0:
         RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
                 &data->size, FLIF16_RAC_GNZ_INT);
-        data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
-        if (!data->Palette)
+        data->palette = av_malloc_array(data->size, sizeof(*data->palette));
+        if (!data->palette)
             return AVERROR(ENOMEM);
         ctx->i = 1;
 
@@ -1534,9 +1533,9 @@ static int transform_palette_read(FLIF16TransformContext *ctx,
             for (int i = 0; i < 3; i++) {
                 data->min[i] = ff_flif16_ranges_min(src_ctx, i);
                 data->max[i] = ff_flif16_ranges_max(src_ctx, i);
-                data->Palette[0][i] = -1;
+                data->palette[0][i] = -1;
             }
-            data->prev = data->Palette[0];
+            data->prev = data->palette[0];
         } else {
             ctx->i = 5;
         }
@@ -1563,11 +1562,11 @@ static int transform_palette_read(FLIF16TransformContext *ctx,
         case 4:
             RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[2], data->max[2],
                     &data->Q, FLIF16_RAC_GNZ_INT);
-            data->Palette[data->p][0] = data->Y;
-            data->Palette[data->p][1] = data->I;
-            data->Palette[data->p][2] = data->Q;
+            data->palette[data->p][0] = data->Y;
+            data->palette[data->p][1] = data->I;
+            data->palette[data->p][2] = data->Q;
             data->min[0] = data->Y;
-            data->prev = data->Palette[data->p];
+            data->prev = data->palette[data->p];
             ctx->i = 2;
         }
     }
@@ -1592,9 +1591,9 @@ static int transform_palette_read(FLIF16TransformContext *ctx,
             ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[0], &data->max[0]);
             RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[0], data->max[0],
                     &data->Q, FLIF16_RAC_GNZ_INT);
-            data->Palette[data->p][0] = data->Y;
-            data->Palette[data->p][1] = data->I;
-            data->Palette[data->p][2] = data->Q;
+            data->palette[data->p][0] = data->Y;
+            data->palette[data->p][1] = data->I;
+            data->palette[data->p][2] = data->Q;
             ctx->i = 5;
         }
     }
@@ -1654,7 +1653,7 @@ static void transform_palette_reverse(FLIF16Context *ctx,
             av_assert1(P < data->size);
             av_assert1(P >= 0);
 
-            v = &data->Palette[P];
+            v = &data->palette[P];
             for (unsigned int i = 0; i < 3; i++)
                 ff_flif16_pixel_set(ctx, frame, i, r, c, (*v)[i]);
         }
@@ -1664,7 +1663,7 @@ static void transform_palette_reverse(FLIF16Context *ctx,
 static void transform_palette_close(FLIF16TransformContext *ctx)
 {
     TransformPrivPalette *data = ctx->priv_data;
-    av_freep(&data->Palette);
+    av_freep(&data->palette);
 }
 
 /*
@@ -1700,8 +1699,8 @@ static int transform_palettealpha_read(FLIF16TransformContext *ctx,
     case 0:
         RAC_GET(&dec_ctx->rc, &data->ctx, 1, MAX_PALETTE_SIZE,
                 &data->size, FLIF16_RAC_GNZ_INT);
-        data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
-        if (!data->Palette)
+        data->palette = av_malloc_array(data->size, sizeof(*data->palette));
+        if (!data->palette)
             return 0;
         ctx->i++;
 
@@ -1715,9 +1714,9 @@ static int transform_palettealpha_read(FLIF16TransformContext *ctx,
             for (int i = 1; i < 4; i++) {
                 data->min[i] = ff_flif16_ranges_min(src_ctx, i-1);
                 data->max[i] = ff_flif16_ranges_max(src_ctx, i-1);
-                data->Palette[0][i] = -1;
+                data->palette[0][i] = -1;
             }
-            data->prev = data->Palette[0];
+            data->prev = data->palette[0];
         } else {
             ctx->i = 6;
         }
@@ -1730,7 +1729,7 @@ static int transform_palettealpha_read(FLIF16TransformContext *ctx,
                     &data->A, FLIF16_RAC_GNZ_INT);
             if (data->alpha_zero_special && data->A == 0) {
                 for (int i = 0; i < 4; i++)
-                    data->Palette[data->p][i] = 0;
+                    data->palette[data->p][i] = 0;
                 break;
             }
             ctx->i = 3;
@@ -1755,12 +1754,12 @@ static int transform_palettealpha_read(FLIF16TransformContext *ctx,
         case 5:
             RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[3], data->max[3],
                     &data->Q, FLIF16_RAC_GNZ_INT);
-            data->Palette[data->p][0] = data->A;
-            data->Palette[data->p][1] = data->Y;
-            data->Palette[data->p][2] = data->I;
-            data->Palette[data->p][3] = data->Q;
+            data->palette[data->p][0] = data->A;
+            data->palette[data->p][1] = data->Y;
+            data->palette[data->p][2] = data->I;
+            data->palette[data->p][3] = data->Q;
             data->min[0] = data->A;
-            data->prev = data->Palette[data->p];
+            data->prev = data->palette[data->p];
             ctx->i = 2;
         }
     }
@@ -1773,7 +1772,7 @@ static int transform_palettealpha_read(FLIF16TransformContext *ctx,
             &data->A, FLIF16_RAC_GNZ_INT);
             if (data->alpha_zero_special && data->A == 0) {
                 for (int i = 0; i < 4; i++)
-                    data->Palette[data->p][i] = 0;
+                    data->palette[data->p][i] = 0;
                 data->p++;
             }
             ctx->i = 7;
@@ -1796,10 +1795,10 @@ static int transform_palettealpha_read(FLIF16TransformContext *ctx,
             ff_flif16_ranges_minmax(src_ctx, 2, data->pp, &data->min[0], &data->max[0]);
             RAC_GET(&dec_ctx->rc, &data->ctxQ, data->min[0], data->max[0],
                     &data->Q, FLIF16_RAC_GNZ_INT);
-            data->Palette[data->p][0] = data->A;
-            data->Palette[data->p][1] = data->Y;
-            data->Palette[data->p][2] = data->I;
-            data->Palette[data->p][3] = data->Q;
+            data->palette[data->p][0] = data->A;
+            data->palette[data->p][1] = data->Y;
+            data->palette[data->p][2] = data->I;
+            data->palette[data->p][3] = data->Q;
             ctx->i = 6;
         }
     }
@@ -1867,10 +1866,10 @@ static void transform_palettealpha_reverse(FLIF16Context *ctx,
         for (c = 0; c < ctx->width; c += stride_col) {
             P = ff_flif16_pixel_get(ctx, frame, 1, r, c);
             av_assert1(P < data->size);
-            ff_flif16_pixel_set(ctx, frame, 0, r, c, data->Palette[P][1]);
-            ff_flif16_pixel_set(ctx, frame, 1, r, c, data->Palette[P][2]);
-            ff_flif16_pixel_set(ctx, frame, 2, r, c, data->Palette[P][3]);
-            ff_flif16_pixel_set(ctx, frame, 3, r, c, data->Palette[P][0]);
+            ff_flif16_pixel_set(ctx, frame, 0, r, c, data->palette[P][1]);
+            ff_flif16_pixel_set(ctx, frame, 1, r, c, data->palette[P][2]);
+            ff_flif16_pixel_set(ctx, frame, 2, r, c, data->palette[P][3]);
+            ff_flif16_pixel_set(ctx, frame, 3, r, c, data->palette[P][0]);
         }
     }
 }
@@ -1878,7 +1877,7 @@ static void transform_palettealpha_reverse(FLIF16Context *ctx,
 static void transform_palettealpha_close(FLIF16TransformContext *ctx)
 {
     TransformPrivPalettealpha *data = ctx->priv_data;
-    av_freep(&data->Palette);
+    av_freep(&data->palette);
 }
 
 /*
@@ -2681,7 +2680,7 @@ static FLIF16RangesContext *transform_framecombine_meta(FLIF16Context *ctx,
     ranges->num_planes = 5;
     ranges->priv_data = rdata;
 
-    rdata->numPrevFrames = lookback;
+    rdata->num_prev_frames = lookback;
     rdata->alpha_min = (src_ctx->num_planes == 4 ? ff_flif16_ranges_min(src_ctx, 3) : 1);
     rdata->alpha_max = (src_ctx->num_planes == 4 ? ff_flif16_ranges_max(src_ctx, 3) : 1);
     rdata->ranges = src_ctx;
@@ -3185,7 +3184,7 @@ static int ff_palette_traversal(PaletteNode *root, TransformPrivPalette *data,
         s.top--;
 
         for (int j = 0; j < 3; j++) {
-            data->Palette[i][j] = curr->color[j];
+            data->palette[i][j] = curr->color[j];
             i++;
         }
 
@@ -3215,7 +3214,7 @@ static int transform_palette_process(FLIF16Context *ctx,
     // channelcompact process.
 
     if (data->ordered_palette) {
-        PaletteNode *Palette = NULL;
+        PaletteNode *palette = NULL;
         for (uint32_t r = 0; r < ctx->height; r++) {
             for (uint32_t c = 0; c < ctx->width; c++) {
                 colors[P_Y] = ff_flif16_pixel_get(ctx, frame, 0, r, c);
@@ -3224,16 +3223,16 @@ static int transform_palette_process(FLIF16Context *ctx,
                 if (/* ctx->alphazero && */ ctx->num_planes > 3 &&
                     ff_flif16_pixel_get(ctx, frame, 3, r, c) == 0)
                     continue;
-                ff_insert_palette_node(Palette, colors, 3, 0, &data->size);
+                ff_insert_palette_node(palette, colors, 3, 0, &data->size);
                 if (data->size > data->max_palette_size)
                     return 0;
             }
         }
-        data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
-        if (!ff_palette_traversal(Palette, data, data->size))
+        data->palette = av_malloc_array(data->size, sizeof(*data->palette));
+        if (!ff_palette_traversal(palette, data, data->size))
             return AVERROR(ENOMEM);
     } else {
-        PaletteLinkedList *Palette = NULL, *last_elem = NULL;
+        PaletteLinkedList *palette = NULL, *last_elem = NULL;
         PaletteLinkedList *temp;
         uint8_t found;
         for (uint32_t r = 0; r < ctx->height; r++) {
@@ -3245,7 +3244,7 @@ static int transform_palette_process(FLIF16Context *ctx,
                     ff_flif16_pixel_get(ctx, frame, 3, r, c) == 0)
                     continue;
                 found = 0;
-                temp = Palette;
+                temp = palette;
                 for (int i = 0; i < data->size; i++, temp = temp->next) {
                     if (colors[P_Y] == temp->colors[P_Y] &&
                         colors[P_I] == temp->colors[P_I] &&
@@ -3254,11 +3253,11 @@ static int transform_palette_process(FLIF16Context *ctx,
                     break;
                 }
                 if (!found) {
-                    if (!Palette) {
-                        Palette = av_mallocz(sizeof(*last_elem));
-                        if (!Palette)
+                    if (!palette) {
+                        palette = av_mallocz(sizeof(*last_elem));
+                        if (!palette)
                             return AVERROR(ENOMEM);
-                        last_elem = Palette;
+                        last_elem = palette;
                     } else {
                         last_elem->next = av_mallocz(sizeof(*last_elem));
                         if (!last_elem->next)
@@ -3275,11 +3274,11 @@ static int transform_palette_process(FLIF16Context *ctx,
                 }
             }
         }
-        temp = Palette;
-        data->Palette = av_malloc_array(data->size, sizeof(*data->Palette));
+        temp = palette;
+        data->palette = av_malloc_array(data->size, sizeof(*data->palette));
         for (int i = 0; i < data->size; i++) {
             for (PALETTECHANNELS j = P_Y; j < P_Q; j++)
-                data->Palette[i][j] = temp->colors[j];
+                data->palette[i][j] = temp->colors[j];
             list = temp;
             temp = temp->next;
             av_free(list);
@@ -3302,9 +3301,9 @@ static void transform_palette_forward(FLIF16Context *ctx,
             
             P = 0;
             for (int i = 0; i < data->size; i++) {
-                if (colors[P_Y] == data->Palette[i][P_Y] &&
-                    colors[P_I] == data->Palette[i][P_I] &&
-                    colors[P_Q] == data->Palette[i][P_Q])
+                if (colors[P_Y] == data->palette[i][P_Y] &&
+                    colors[P_I] == data->palette[i][P_I] &&
+                    colors[P_Q] == data->palette[i][P_Q])
                     break;
                 else 
                     P++;
@@ -3343,16 +3342,16 @@ static int transform_palette_write(FLIF16Context *enc_ctx,
         };
         FLIF16ColorVal prev[3] = {-1, -1, -1};
         for (int i = 0; i < data->size; i++) {
-            Y = data->Palette[i][Y];
+            Y = data->palette[i][Y];
             RAC_PUT(&enc_ctx->rc, &data->ctxY, min[0], max[0], Y, FLIF16_RAC_GNZ_INT);
             pp[0] = Y;
             ff_flif16_ranges_minmax(src_ctx, 1, pp, &min[1], &max[1]);
-            I = data->Palette[i][I];
+            I = data->palette[i][I];
             RAC_PUT(&enc_ctx->rc, &data->ctxI, prev[0] == Y ? prev[1] : min[1],
                     max[1], I, FLIF16_RAC_GNZ_INT);
             pp[1] = I;
             ff_flif16_ranges_minmax(src_ctx, 2, pp, &min[2], &max[2]);
-            Q = data->Palette[i][Q];
+            Q = data->palette[i][Q];
             RAC_PUT(&enc_ctx->rc, &data->ctxQ, min[2], max[2], Q, FLIF16_RAC_GNZ_INT);
             min[0] = Y;
             prev[0] = Y;
@@ -3362,16 +3361,16 @@ static int transform_palette_write(FLIF16Context *enc_ctx,
     } else {
         FLIF16ColorVal min, max;
         for (int i = 0; i < data->size; i++) {
-            Y = data->Palette[i][Y];
+            Y = data->palette[i][Y];
             ff_flif16_ranges_minmax(src_ctx, 0, pp, &min, &max);
             RAC_PUT(&enc_ctx->rc, &data->ctxY, min, max, Y, FLIF16_RAC_GNZ_INT);
             pp[0] = Y;
             ff_flif16_ranges_minmax(src_ctx, 1, pp, &min, &max);
-            I = data->Palette[i][I];
+            I = data->palette[i][I];
             RAC_PUT(&enc_ctx->rc, &data->ctxI, min, max, I, FLIF16_RAC_GNZ_INT);
             pp[1] = I;
             ff_flif16_ranges_minmax(src_ctx, 2, pp, &min, &max);
-            Q = data->Palette[i][Q];
+            Q = data->palette[i][Q];
             RAC_PUT(&enc_ctx->rc, &data->ctxQ, min, max, Q, FLIF16_RAC_GNZ_INT);
         }
     }
