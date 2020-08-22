@@ -211,7 +211,7 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
                                                   s->frames_size * 2);
             s->frames_size *= 2;
         }
-        s->framepts[s->num_frames] = s->in_frame->pts;
+        s->framepts[s->num_frames] = 90;
     }
     ff_flif16_planes_init(CTX_CAST(s), &s->frames[s->num_frames],
                           const_plane_value);
@@ -363,7 +363,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
         // We don't write the custom bpc segment.
 
         // Alphazero flag
-        if (s->num_planes > 3)
+        if (0)
             RAC_PUT(&s->rc, NULL, 0, 1, s->alphazero, FLIF16_RAC_UNI_INT8);
 
         if (s->num_frames > 1) {
@@ -374,10 +374,6 @@ static int flif16_write_stream(AVCodecContext * avctx)
             for (int i = 0; i < s->num_frames - 1; i++)
                 RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[i], FLIF16_RAC_UNI_INT16);
         }
-        
-        // Custom Alpha
-        RAC_PUT(&s->rc, NULL, 0, 1, 0, FLIF16_RAC_UNI_INT8);
-
         // Custom bitchance may be present if custom alpha is present.
         s->segment++;
 

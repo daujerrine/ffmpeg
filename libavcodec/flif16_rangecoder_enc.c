@@ -80,7 +80,7 @@ int ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
 {
     printf("put range = %d low = %d sb = %d sc = %d\n",
            rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
-    printf("bit = %d, chance = %d\n", bit, chance);
+    printf("bit = %d chance = %d\n", bit, chance);
     if (bit) {
         rc->low += rc->range - chance;
         rc->range = chance;
@@ -106,8 +106,8 @@ int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
         rc->max    = max;
         rc->val    = val;
     }
-    printf("min: %d max: %d, val: %d type: %d\n",
-           rc->min, rc->max, rc->val, type);
+    printf("min: %d max: %d, val: %d\n",
+           rc->min, rc->max, rc->val);
 
     if (rc->min != 0) {
         printf("a\n");
