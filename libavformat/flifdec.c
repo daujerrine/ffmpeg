@@ -202,10 +202,10 @@ static int flif16_read_header(AVFormatContext *s)
 {
     FLIFDemuxContext *dc = s->priv_data;
     GetByteContext gb;
-    FLIF16RangeCoder rc = (FLIF16RangeCoder) {0};
+    FLIF16RangeCoder rc  = (FLIF16RangeCoder) {0};
 
-    AVIOContext     *pb  = s->pb;
-    AVStream        *st;
+    AVIOContext *pb = s->pb;
+    AVStream    *st;
 
     int64_t duration = 0;
     uint32_t vlist[3] = {0};

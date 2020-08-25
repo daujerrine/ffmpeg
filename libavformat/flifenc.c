@@ -30,7 +30,6 @@
 
 #define PRINT_LINE printf("At: %s, %s %d\n", __func__, __FILE__, __LINE__);
 
-
 static int flif16_write_header(AVFormatContext *s)
 {
     if (s->nb_streams != 1 ||
@@ -43,14 +42,13 @@ static int flif16_write_header(AVFormatContext *s)
     }
     PRINT_LINE
     avpriv_set_pts_info(s->streams[0], 64, 1, 1000);
-
     return 0;
 }
 
 static int flif16_write_packet(AVFormatContext *s, AVPacket *pkt)
 {
     AVIOContext *pb = s->pb;
-    printf("Writing %d\n", pkt->size);
+    printf("Duration: %ld Writing %d\n", s->streams[0]->duration, pkt->size);
     avio_write(pb, pkt->data, pkt->size);
     PRINT_LINE
     return 0;

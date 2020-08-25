@@ -43,8 +43,8 @@
 
 #include <signal.h>
 
-#define PRINT_LINE printf("At: %s, %s %d\n", __func__, __FILE__, __LINE__);
-
+//#define PRINT_LINE printf("At: %s, %s %d\n", __func__, __FILE__, __LINE__);
+#define PRINT_LINE 
 /**
  * The size that the frame/pixeldata array will be initialized with
  */
@@ -91,6 +91,8 @@ typedef struct FLIF16EncoderContext {
     AVFrame *in_frame;
     AVPacket *out_packet;
     FLIF16PixelData *frames;
+    AVRational relative_timebase;
+    int64_t final_frame_duration;
 
     FLIF16EncodeStates state;
     uint16_t *framepts;
@@ -211,7 +213,16 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
                                                   s->frames_size * 2);
             s->frames_size *= 2;
         }
-        s->framepts[s->num_frames] = 90;
+        s->framepts[s->num_frames] = s->in_frame->pts;
+        s->final_frame_duration = s->in_frame->pkt_duration;
+
+        // This will allow for conversion between frame durations
+        // This is done mostly to accomodate for the last frame's duration
+        // without having to do convoluted demuxer stuff like copy pasting the
+        // whole of the rangecoder state to the packet and sending it over to
+        // add in the time stamp. Even then it wouldn't be possible I think.
+        s->relative_timebase.num = s->in_frame->pts;
+        s->relative_timebase.den = s->in_frame->best_effort_timestamp;
     }
     ff_flif16_planes_init(CTX_CAST(s), &s->frames[s->num_frames],
                           const_plane_value);
@@ -370,9 +381,25 @@ static int flif16_write_stream(AVCodecContext * avctx)
             // Loops
             RAC_PUT(&s->rc, NULL, 0, 100, 0, FLIF16_RAC_UNI_INT8);
 
-            // Frame delay TODO handle duration from demuxer
-            for (int i = 0; i < s->num_frames - 1; i++)
-                RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[i], FLIF16_RAC_UNI_INT16);
+            for (int i = 1; i < s->num_frames - 1; i++)
+                RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[i] -
+                s->framepts[i - 1], FLIF16_RAC_UNI_INT16);
+
+            if (s->final_frame_duration &&
+                s->relative_timebase.num &&
+                s->relative_timebase.den) {
+                // Now handle duration of final frame from given input frame
+                // duration
+                RAC_PUT(&s->rc, NULL, 0, 60000, s->final_frame_duration  *
+                                                s->relative_timebase.num /
+                                                s->relative_timebase.den,
+                                                FLIF16_RAC_UNI_INT16);
+            } else {
+                // Input frame duration has not been set, Take duration from
+                // previous frame and copy it over
+                RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[s->num_frames - 1] -
+                s->framepts[s->num_frames - 2], FLIF16_RAC_UNI_INT16);
+            }
         }
         // Custom bitchance may be present if custom alpha is present.
         s->segment++;
@@ -444,13 +471,23 @@ static int flif16_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     PRINT_LINE
     if (frame) {
         av_frame_ref(s->in_frame, frame);
+        printf("pts: %lu "
+               "pkt_duration: %lu "
+               "keyframe: %d "
+               "pkt_dts: %lu "
+               "DPN: %d "
+               "pkt_pos: %lu "
+               "beTS: %lu\n",
+               frame->pts, frame->pkt_duration, frame->key_frame, frame->pkt_dts,
+               frame->display_picture_number, frame->pkt_pos, frame->best_effort_timestamp);
     } else {
         printf("Entering encoder draining mode\n");
+        printf("pkt_timebase %d/%d\n", avctx->pkt_timebase.num, avctx->pkt_timebase.den);
         av_frame_unref(s->in_frame);
         av_frame_free(&s->in_frame);
         s->in_frame = NULL;
     }
-
+    
     do {
         switch (s->state) {
         case FLIF16_HEADER:
@@ -503,6 +540,8 @@ static int flif16_encode_init(AVCodecContext *avctx)
 {
     FLIF16EncoderContext *s = avctx->priv_data;
     s->in_frame = av_frame_alloc();
+    avctx->time_base.num = 1;
+    avctx->time_base.den = 1000;
     if (!s->in_frame)
         return AVERROR(ENOMEM);
     return 0;
