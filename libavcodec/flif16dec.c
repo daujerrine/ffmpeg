@@ -61,16 +61,16 @@ typedef struct FLIF16DecoderContext {
     // Dimensions
     uint32_t width;
     uint32_t height;
-    uint32_t num_frames;
     uint32_t meta;       ///< Size of a meta chunk
+    uint32_t num_frames;
 
     // Primary Header
-    uint32_t bpc;         ///< 2 ^ Bytes per channel
     uint16_t *framedelay; ///< Frame delay for each frame
+    uint32_t bpc;         ///< 2 ^ Bits per channel - 1
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint8_t  num_planes;  ///< Number of planes
     uint8_t  loops;       ///< Number of times animation loops
-    FLIF16PlaneMode plane_mode[MAX_PLANES];
+    FLIF16PlaneMode  plane_mode[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;
@@ -338,10 +338,8 @@ static int flif16_read_second_header(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_ERROR, "custom bitchances not implemented\n");
             return AVERROR_PATCHWELCOME;
         }
-        goto end;
     }
 
-    end:
     s->state   = FLIF16_TRANSFORM;
     s->segment = 0;
 
@@ -354,7 +352,7 @@ static int flif16_read_second_header(AVCodecContext *avctx)
 
     return 0;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
@@ -487,7 +485,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
     s->segment = 0;
     return 0;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
@@ -555,7 +553,7 @@ static int flif16_read_maniac_forest(AVCodecContext *avctx)
     s->segment = 0;
     return 0;
 
-    error:
+error:
     return ret;
 }
 
@@ -775,7 +773,7 @@ static int flif16_read_ni_plane_row(FLIF16DecoderContext *s, uint8_t p, uint32_t
     s->segment2 = 0;
     return 0;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
@@ -820,7 +818,7 @@ static int flif16_read_ni_image(AVCodecContext *avctx)
     s->state = FLIF16_OUTPUT;
     return 0;
 
-    error:
+error:
     return ret;
 }
 
@@ -1176,7 +1174,7 @@ static int flif_read_plane_zl_horiz(FLIF16DecoderContext *s,
     s->segment2 = 0;
     return 0;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
@@ -1310,7 +1308,7 @@ static int flif16_read_plane_zl_vert(FLIF16DecoderContext *s,
     s->segment2 = 0;
     return 0;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 
 }
@@ -1505,10 +1503,10 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
     s->segment2 = 0;
     return ret;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 
-    error:
+error:
     return ret;
 }
 

@@ -94,7 +94,7 @@ void ff_flif16_maniac_prop_ranges_init(FLIF16MinMax *prop_ranges,
     prop_ranges[top].min = 0;
     prop_ranges[top++].max = 2;
 
-    if (plane == 1 || plane == 2){
+    if (plane == 1 || plane == 2) {
         prop_ranges[top].min = ff_flif16_ranges_min(ranges, 0) - ff_flif16_ranges_max(ranges, 0);
         prop_ranges[top++].max = ff_flif16_ranges_max(ranges, 0) - ff_flif16_ranges_min(ranges, 0); // luma prediction miss
     }
@@ -108,10 +108,10 @@ void ff_flif16_maniac_prop_ranges_init(FLIF16MinMax *prop_ranges,
     prop_ranges[top++].max = max;
 
     if (plane != 2) {
-      prop_ranges[top].min = mind;
-      prop_ranges[top++].max = maxd;
-      prop_ranges[top].min = mind;
-      prop_ranges[top++].max = maxd;
+        prop_ranges[top].min = mind;
+        prop_ranges[top++].max = maxd;
+        prop_ranges[top].min = mind;
+        prop_ranges[top++].max = maxd;
     }
 }
 
@@ -156,9 +156,9 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frame,
 
 
 static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes,
-                                uint8_t lookback)
+                                  uint8_t lookback)
 {
-    for(uint8_t i = 0; i < (lookback ? MAX_PLANES : num_planes); i++) {
+    for (uint8_t i = 0; i < (lookback ? MAX_PLANES : num_planes); i++) {
         av_free(frame->data[i]);
     }
 }
@@ -187,8 +187,8 @@ FLIF16PixelData *ff_flif16_frames_resize(FLIF16PixelData *frames,
     return new_frames;
 }
 
-void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
-                           uint32_t num_planes, uint8_t lookback)
+void ff_flif16_frames_free(FLIF16PixelData **frames, uint16_t num_frames,
+                           uint8_t num_planes, uint8_t lookback)
 {
     for (int i = 0; i < num_frames; i++) {
         if ((*frames)[i].seen_before >= 0)

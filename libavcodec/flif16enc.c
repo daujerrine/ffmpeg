@@ -69,16 +69,16 @@ typedef struct FLIF16EncoderContext {
     // Dimensions
     uint32_t width;
     uint32_t height;
-    uint32_t num_frames;
     uint32_t meta;       ///< Size of a meta chunk
+    uint32_t num_frames;
 
     // Primary Header
-    uint32_t bpc;         ///< 2 ^ Bits per channel - 1
     uint16_t *framedelay; ///< Frame delay for each frame
+    uint32_t bpc;         ///< 2 ^ Bits per channel - 1
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint8_t  num_planes;  ///< Number of planes
     uint8_t  loops;       ///< Number of times animation loops
-    FLIF16PlaneMode plane_mode[MAX_PLANES];
+    FLIF16PlaneMode  plane_mode[MAX_PLANES];
 
     // Transform flags
     uint8_t framedup;
@@ -381,24 +381,31 @@ static int flif16_write_stream(AVCodecContext * avctx)
             // Loops
             RAC_PUT(&s->rc, NULL, 0, 100, 0, FLIF16_RAC_UNI_INT8);
 
-            for (int i = 1; i < s->num_frames - 1; i++)
+            for (int i = 1; i < s->num_frames - 1; i++) {
                 RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[i] -
                 s->framepts[i - 1], FLIF16_RAC_UNI_INT16);
+                printf("fr: %d %d\n", i + 1, s->framepts[i] - s->framepts[i - 1]);
+            }
 
             if (s->final_frame_duration &&
                 s->relative_timebase.num &&
                 s->relative_timebase.den) {
                 // Now handle duration of final frame from given input frame
-                // duration
+                // duration.
                 RAC_PUT(&s->rc, NULL, 0, 60000, s->final_frame_duration  *
                                                 s->relative_timebase.num /
                                                 s->relative_timebase.den,
                                                 FLIF16_RAC_UNI_INT16);
+                printf("fr: %d %d\n", s->num_frames, s->final_frame_duration  *
+                                                     s->relative_timebase.num /
+                                                     s->relative_timebase.den);
             } else {
                 // Input frame duration has not been set, Take duration from
-                // previous frame and copy it over
+                // previous frame and copy it over. This is a compromise.
                 RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[s->num_frames - 1] -
                 s->framepts[s->num_frames - 2], FLIF16_RAC_UNI_INT16);
+                printf("fr: %d %d\n", s->num_frames, s->framepts[s->num_frames - 1] -
+                                                     s->framepts[s->num_frames - 2]);
             }
         }
         // Custom bitchance may be present if custom alpha is present.
@@ -458,7 +465,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
     s->state = FLIF16_EOS;
     return 0;
 
-    need_more_buffer:
+need_more_buffer:
     printf("Need more buffer\n");
     return AVERROR(EAGAIN);
 }

@@ -39,7 +39,7 @@ int ff_flif16_rac_init(FLIF16RangeCoder *rc, GetByteContext *gb)
 {
     int ret = 0;
 
-    if(bytestream2_get_bytes_left(gb) < FLIF16_RAC_MAX_RANGE_BYTES)
+    if (bytestream2_get_bytes_left(gb) < FLIF16_RAC_MAX_RANGE_BYTES)
         ret = AVERROR(EAGAIN);
 
     // This is used to check whether the function is being run for the first
@@ -84,7 +84,7 @@ uint8_t ff_flif16_rac_read_bit(FLIF16RangeCoder *rc,
 uint32_t ff_flif16_rac_read_chance(FLIF16RangeCoder *rc,
                                    uint64_t b12, uint8_t *target)
 {
-    uint32_t ret = ((rc->range) * b12 + 0x800) >> 12;
+    uint32_t ret = (rc->range * b12 + 0x800) >> 12;
     return ff_flif16_rac_get(rc, ret, target);
 }
 
@@ -150,7 +150,7 @@ static inline int ff_flif16_rac_nz_read_internal(FLIF16RangeCoder *rc,
                                                  FLIF16ChanceContext *ctx,
                                                  uint16_t type, uint8_t *target)
 {
-    if(!ff_flif16_rac_renorm(rc))
+    if (!ff_flif16_rac_renorm(rc))
         return 0; // EAGAIN condition
     ff_flif16_rac_read_chance(rc, ctx->data[type], target);
     ctx->data[type] = (!*target) ? rc->ct.zero_state[ctx->data[type]]
@@ -239,11 +239,12 @@ int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
             }
         }
     }
+
     *target = (rc->sign ? rc->have : -rc->have);
     rc->active = 0;
     return 1;
 
-    need_more_data:
+need_more_data:
     return 0;
 }
 
@@ -310,7 +311,7 @@ static inline int ff_flif16_rac_nz_read_multiscale_internal(FLIF16RangeCoder *rc
                                                             FLIF16MultiscaleChanceContext *ctx,
                                                             uint16_t type, uint8_t *target)
 {
-    if(!ff_flif16_rac_renorm(rc))
+    if (!ff_flif16_rac_renorm(rc))
         return 0; // EAGAIN condition
     ff_flif16_rac_read_multiscale_symbol(rc, ctx, type, target);
     return 1;
@@ -403,7 +404,7 @@ int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
     rc->active = 0;
     return 1;
 
-    need_more_data:
+need_more_data:
     return 0;
 }
 
@@ -412,6 +413,7 @@ int ff_flif16_rac_read_gnz_multiscale_int(FLIF16RangeCoder *rc,
                                           int min, int max, int *target)
 {
     int ret;
+
     if (min > 0) {
         ret = ff_flif16_rac_read_nz_multiscale_int(rc, ctx, 0, max - min, target);
         if (ret)
@@ -422,8 +424,8 @@ int ff_flif16_rac_read_gnz_multiscale_int(FLIF16RangeCoder *rc,
             *target += max;
     } else
         ret = ff_flif16_rac_read_nz_multiscale_int(rc, ctx, min, max, target);
-    return ret;
 
+    return ret;
 }
 #endif
 
@@ -683,7 +685,7 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
     rc->segment2 = 0;
     return 0;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
@@ -719,7 +721,7 @@ static FLIF16MANIACChanceContext *ff_flif16_maniac_findleaf(FLIF16MANIACContext 
         m->forest[channel]->leaves = av_mallocz_array(MANIAC_TREE_BASE_SIZE,
                                                       sizeof(*m->forest[channel]->leaves));
         m->forest[channel]->leaves_size = MANIAC_TREE_BASE_SIZE;
-        if(!m->forest[channel]->leaves)
+        if (!m->forest[channel]->leaves)
             return NULL;
 #ifdef MULTISCALE_CHANCES_ENABLED
         ff_flif16_multiscale_chancecontext_init(&m->forest[channel]->leaves[0]);
@@ -790,11 +792,11 @@ int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
         RAC_GET(rc, rc->curr_leaf, min, max, target, FLIF16_RAC_MANIAC_NZ_INT);
     }
 
-    end:
+end:
     rc->curr_leaf = NULL;
     rc->segment2  = 0;
     return 1;
 
-    need_more_data:
+need_more_data:
     return 0;
 }

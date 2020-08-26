@@ -46,7 +46,7 @@
 /*
  * Enabling this option will make the decoder assume that the MANIAC tree
  * (and subsequent pixeldata) has been encoded using the multiscale chance
- * probability model. The other (simpler) model and this model ane non
+ * probability model. The other (simpler) model and this model are non
  * interchangable.
  */
 

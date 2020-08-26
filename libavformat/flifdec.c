@@ -177,7 +177,7 @@ static int flif16_probe(const AVProbeData *p)
         return 0;
     }
 
-    for(int i = 0; i < 2 + (((p->buf[4] >> 4) > 4) ? 1 : 0); i++) {
+    for (int i = 0; i < 2 + (((p->buf[4] >> 4) > 4) ? 1 : 0); i++) {
         while (p->buf[5 + pos] > 127) {
             if (!(count--)) {
                 return 0;

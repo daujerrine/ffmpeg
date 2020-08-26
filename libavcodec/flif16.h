@@ -93,12 +93,12 @@ typedef struct FLIF16Context {
     // Dimensions
     uint32_t width;
     uint32_t height;
-    uint32_t num_frames;
     uint32_t meta;       ///< Size of a meta chunk
+    uint32_t num_frames;
 
     // Primary Header
-    uint32_t bpc;         ///< 2 ^ Bits per channel - 1
     uint16_t *framedelay; ///< Frame delay for each frame
+    uint32_t bpc;         ///< 2 ^ Bits per channel - 1
     uint8_t  ia;          ///< Is image interlaced or/and animated or not
     uint8_t  num_planes;  ///< Number of planes
     uint8_t  loops;       ///< Number of times animation loops
@@ -178,13 +178,13 @@ FLIF16PixelData *ff_flif16_frames_resize(FLIF16PixelData *frames,
                                          uint16_t curr_num_frames,
                                          uint16_t new_num_frames);
 
-void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
-                           uint32_t num_planes, uint8_t lookback);
+void ff_flif16_frames_free(FLIF16PixelData **frames, uint16_t num_frames,
+                           uint8_t num_planes, uint8_t lookback);
 
 
 
 /*
- * All constant plane pixel setting should be illegal in theory.
+ * All constant plane pixel settings should be illegal in theory.
  */
 
 static inline void ff_flif16_pixel_set(FLIF16Context *s, FLIF16PixelData *frame,
@@ -245,7 +245,6 @@ static inline FLIF16ColorVal ff_flif16_pixel_get_fast(FLIF16Context *s,
         return ((FLIF16ColorVal *) frame->data[plane])[row * frame->s_r[plane] + col * frame->s_c[plane]];
     } else
         return ((FLIF16ColorVal *) frame->data[plane])[0];
-    return 0;
 }
 
 static inline void ff_flif16_pixel_set_fast(FLIF16Context *s,
