@@ -202,8 +202,9 @@ static int flif16_read_header(AVFormatContext *s)
 {
     FLIFDemuxContext *dc = s->priv_data;
     GetByteContext gb;
+#if CONFIG_ZLIB
     FLIF16RangeCoder rc  = (FLIF16RangeCoder) {0};
-
+#endif
     AVIOContext *pb = s->pb;
     AVStream    *st;
 
@@ -323,7 +324,7 @@ static int flif16_read_header(AVFormatContext *s)
 
         continue;
 
-        metadata_skip:
+metadata_skip:
         avio_skip(pb, metadata_size);
     }
 
@@ -378,13 +379,13 @@ static int flif16_read_header(AVFormatContext *s)
             goto end;
         }
 
-        need_more_data:
+need_more_data:
         if ((ret = avio_read_partial(pb, buf, BUF_SIZE)) < 0)
             return ret;
         bytestream2_init(&gb, buf, ret);
     }
 
-    end:
+end:
     if (bpc > 65535) {
         av_log(s, AV_LOG_ERROR, "depth per channel greater than 16 bits not supported\n");
         return AVERROR_PATCHWELCOME;
