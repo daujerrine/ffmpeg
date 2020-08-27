@@ -1434,7 +1434,7 @@ static int transform_bounds_read(FLIF16TransformContext *ctx,
     ctx->segment = 0;
     return 1;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
@@ -1607,7 +1607,7 @@ static int transform_palette_read(FLIF16TransformContext *ctx,
     data->p = 0;
     return 1;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
@@ -2479,7 +2479,7 @@ static int transform_framedup_read(FLIF16TransformContext  *ctx,
     ctx->i = 0;
     return 1;
 
-    need_more_data:
+need_more_data:
     return AVERROR(EAGAIN);
 }
 
