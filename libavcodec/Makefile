@@ -330,6 +330,8 @@ OBJS-$(CONFIG_FLASHSV_ENCODER)         += flashsvenc.o
 OBJS-$(CONFIG_FLASHSV2_ENCODER)        += flashsv2enc.o
 OBJS-$(CONFIG_FLASHSV2_DECODER)        += flashsv.o
 OBJS-$(CONFIG_FLIC_DECODER)            += flicvideo.o
+OBJS-$(CONFIG_FLIF16_DECODER)          += flif16dec.o flif16_rangecoder.o \
+                                          flif16.o flif16_transform.o
 OBJS-$(CONFIG_FMVC_DECODER)            += fmvc.o
 OBJS-$(CONFIG_FOURXM_DECODER)          += 4xm.o
 OBJS-$(CONFIG_FRAPS_DECODER)           += fraps.o
@@ -1073,6 +1075,7 @@ OBJS-$(CONFIG_DVD_NAV_PARSER)          += dvd_nav_parser.o
 OBJS-$(CONFIG_DVDSUB_PARSER)           += dvdsub_parser.o
 OBJS-$(CONFIG_FLAC_PARSER)             += flac_parser.o flacdata.o flac.o \
                                           vorbis_data.o
+OBJS-$(CONFIG_FLIF16_PARSER)           += flif16_parser.o
 OBJS-$(CONFIG_G723_1_PARSER)           += g723_1_parser.o
 OBJS-$(CONFIG_G729_PARSER)             += g729_parser.o
 OBJS-$(CONFIG_GIF_PARSER)              += gif_parser.o
