@@ -1409,8 +1409,6 @@ static int transform_bounds_read(FLIF16TransformContext *ctx,
     for (; ctx->i < dec_ctx->num_planes; ctx->i++) {
         switch (ctx->segment) {
         case 0:
-            ff_flif16_ranges_min(src_ctx, ctx->i);
-            ff_flif16_ranges_max(src_ctx, ctx->i);
             RAC_GET(&dec_ctx->rc, &data->ctx_a, ff_flif16_ranges_min(src_ctx, ctx->i),
                     ff_flif16_ranges_max(src_ctx, ctx->i), &data->min, FLIF16_RAC_GNZ_INT);
             ctx->segment = 1;
