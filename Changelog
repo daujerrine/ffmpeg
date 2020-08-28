@@ -15,6 +15,8 @@ version <next>:
 - Argonaut Games ASF muxer
 - AV1 Low overhead bitstream format demuxer
 - RPZA video encoder
+- FLIF16 decoder
+- FLIF demuxer
 
 
 version 4.3:
