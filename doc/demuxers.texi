@@ -243,6 +243,15 @@ which streams to actually receive.
 Each stream mirrors the @code{id} and @code{bandwidth} properties from the
 @code{<Representation>} as metadata keys named "id" and "variant_bitrate" respectively.
 
+@section flif
+
+FLIF non-animated/animated image demuxer.
+
+This decoder allows libavformat to demux non-animated and animated FLIF images
+as per the current FLIF16 Specification.
+The entirety of the file is attempted to be read at once. No timestamps are set
+for the format due to its nature.
+
 @section flv, live_flv
 
 Adobe Flash Video Format demuxer.

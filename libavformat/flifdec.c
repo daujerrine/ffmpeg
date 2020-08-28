@@ -438,6 +438,7 @@ AVInputFormat ff_flif_demuxer = {
     .long_name      = NULL_IF_CONFIG_SMALL("Free Lossless Image Format (FLIF)"),
     .priv_data_size = sizeof(FLIFDemuxContext),
     .extensions     = "flif",
+    .flags          = AVFMT_GENERIC_INDEX|AVFMT_NOTIMESTAMPS,
     .read_probe     = flif16_probe,
     .read_header    = flif16_read_header,
     .read_packet    = flif16_read_packet,
