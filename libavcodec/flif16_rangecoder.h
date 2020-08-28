@@ -261,6 +261,7 @@ static av_always_inline int ff_flif16_rac_renorm(FLIF16RangeCoder *rc)
         rc->range <<= 8;
         rc->low |= bytestream2_get_byte(rc->bytestream);
     }
+
     return 1;
 }
 

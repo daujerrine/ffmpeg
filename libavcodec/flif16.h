@@ -93,7 +93,7 @@ typedef struct FLIF16Context {
     // Dimensions
     uint32_t width;
     uint32_t height;
-    uint32_t meta;       ///< Size of a meta chunk
+    uint32_t meta;        ///< Size of a meta chunk
     uint32_t num_frames;
 
     // Primary Header
@@ -139,22 +139,21 @@ typedef struct FLIF16TransformContext {
 
 typedef struct FLIF16Transform {
     int16_t priv_data_size;
-    //Functions
-    int (*init) (FLIF16TransformContext *t_ctx, FLIF16RangesContext *r_ctx);
-    int (*read) (FLIF16TransformContext *t_ctx, FLIF16Context *ctx,
-                 FLIF16RangesContext *r_ctx);
-    FLIF16RangesContext *(*meta) (FLIF16Context *ctx, FLIF16PixelData *frame,
-                                  uint32_t frame_count, FLIF16TransformContext *t_ctx,
-                                  FLIF16RangesContext *r_ctx);
-    int (*process) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
-                    FLIF16RangesContext *src_ctx, FLIF16PixelData *frame);
-    void (*forward) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
-    int (*write) (FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
-                  FLIF16RangesContext *src_ctx);
-    void (*reverse) (FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
-                     uint32_t stride_row, uint32_t stride_col);
-    void (*configure) (FLIF16TransformContext *ctx, const int setting);
-    void (*close) (FLIF16TransformContext *t_ctx);
+    int (*init)(FLIF16TransformContext *t_ctx, FLIF16RangesContext *r_ctx);
+    int (*read)(FLIF16TransformContext *t_ctx, FLIF16Context *ctx,
+                FLIF16RangesContext *r_ctx);
+    FLIF16RangesContext *(*meta)(FLIF16Context *ctx, FLIF16PixelData *frame,
+                                 uint32_t frame_count, FLIF16TransformContext *t_ctx,
+                                 FLIF16RangesContext *r_ctx);
+    int (*process)(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
+                   FLIF16RangesContext *src_ctx, FLIF16PixelData *frame);
+    void (*forward)(FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame);
+    int (*write)(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
+                 FLIF16RangesContext *src_ctx);
+    void (*reverse)(FLIF16Context *ctx, FLIF16TransformContext *t_ctx, FLIF16PixelData *frame,
+                    uint32_t stride_row, uint32_t stride_col);
+    void (*configure)(FLIF16TransformContext *ctx, const int setting);
+    void (*close)(FLIF16TransformContext *t_ctx);
 } FLIF16Transform;
 
 void ff_flif16_maniac_ni_prop_ranges_init(FLIF16MinMax *prop_ranges,
@@ -172,13 +171,13 @@ void ff_flif16_maniac_prop_ranges_init(FLIF16MinMax *prop_ranges,
 int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frame,
                           int32_t *const_plane_value);
 
-FLIF16PixelData *ff_flif16_frames_init(uint16_t num_frames);
+FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames);
 
 FLIF16PixelData *ff_flif16_frames_resize(FLIF16PixelData *frames,
-                                         uint16_t curr_num_frames,
-                                         uint16_t new_num_frames);
+                                         uint32_t curr_num_frames,
+                                         uint32_t new_num_frames);
 
-void ff_flif16_frames_free(FLIF16PixelData **frames, uint16_t num_frames,
+void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
                            uint8_t num_planes, uint8_t lookback);
 
 

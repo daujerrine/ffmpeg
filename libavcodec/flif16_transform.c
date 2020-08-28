@@ -297,11 +297,11 @@ static inline FLIF16ColorVal ff_get_max_y(int origmax4)
 static inline int ff_get_min_co(int origmax4, int yval)
 {
     if (yval < origmax4 - 1)
-        return (- 3) - (4 * yval);
+        return (-3) - (4 * yval);
     else if (yval >= 3 * origmax4)
         return 4 * (1 + yval - (4 * origmax4));
     else
-        return (- 4) * origmax4 + 1;
+        return (-4) * origmax4 + 1;
 }
 
 static inline int ff_get_max_co(int origmax4, int yval)
@@ -562,12 +562,10 @@ static void ff_palette_minmax(FLIF16RangesContext *r_ctx, int p,
     if (p == FLIF16_PLANE_CO) {
         *minv = 0;
         *maxv = data->nb_colors-1;
-    }
-    else if (p < FLIF16_PLANE_ALPHA) {
+    } else if (p < FLIF16_PLANE_ALPHA) {
         *minv = 0;
         *maxv = 0;
-    }
-    else
+    } else
         ff_flif16_ranges_minmax(data->r_ctx, p, prev_planes, minv, maxv);
 }
 
@@ -1118,7 +1116,7 @@ static void transform_ycocg_reverse(FLIF16Context *ctx,
  */
 
 static int transform_permuteplanes_init(FLIF16TransformContext *ctx,
-                                           FLIF16RangesContext *r_ctx)
+                                        FLIF16RangesContext *r_ctx)
 {
     TransformPrivPermuteplanes *data = ctx->priv_data;
     ff_flif16_chancecontext_init(&data->ctx_a);
@@ -1134,8 +1132,8 @@ static int transform_permuteplanes_init(FLIF16TransformContext *ctx,
 }
 
 static int transform_permuteplanes_read(FLIF16TransformContext *ctx,
-                                           FLIF16Context *dec_ctx,
-                                           FLIF16RangesContext *r_ctx)
+                                        FLIF16Context *dec_ctx,
+                                        FLIF16RangesContext *r_ctx)
 {
     int p;
     TransformPrivPermuteplanes *data = ctx->priv_data;
@@ -1153,7 +1151,7 @@ static int transform_permuteplanes_read(FLIF16TransformContext *ctx,
 
     case 1:
         for (; ctx->i < dec_ctx->num_planes; ++ctx->i) {
-            RAC_GET(&dec_ctx->rc, &data->ctx_a, 0, dec_ctx->num_planes-1,
+            RAC_GET(&dec_ctx->rc, &data->ctx_a, 0, dec_ctx->num_planes - 1,
                     &data->permutation[ctx->i],
                     FLIF16_RAC_NZ_INT);
             data->from[ctx->i] = 1;
@@ -1206,10 +1204,10 @@ static FLIF16RangesContext *transform_permuteplanes_meta(FLIF16Context *ctx,
 }
 
 static void transform_permuteplanes_reverse(FLIF16Context *ctx,
-                                              FLIF16TransformContext *t_ctx,
-                                              FLIF16PixelData *frame,
-                                              uint32_t stride_row,
-                                              uint32_t stride_col)
+                                            FLIF16TransformContext *t_ctx,
+                                            FLIF16PixelData *frame,
+                                            uint32_t stride_row,
+                                            uint32_t stride_col)
 {
     int p, r, c;
     FLIF16ColorVal pixel[5];
@@ -1485,7 +1483,7 @@ static FLIF16RangesContext *transform_bounds_meta(FLIF16Context *ctx,
 #define MAX_PALETTE_SIZE 30000
 
 static int transform_palette_init(FLIF16TransformContext *ctx,
-                                     FLIF16RangesContext *src_ctx)
+                                  FLIF16RangesContext *src_ctx)
 {
     TransformPrivPalette *data = ctx->priv_data;
 
@@ -2826,8 +2824,7 @@ static PaletteNode *ff_insert_palette_node(PaletteNode *node, FLIF16ColorVal *co
     else if (balance > 1 && color[i] > node->left->color[i]) {
         node->left = ff_left_rotate(node->left);
         return ff_right_rotate(node);
-    }
-    else if (balance < -1 && color[i] < node->right->color[i]) {
+    } else if (balance < -1 && color[i] < node->right->color[i]) {
         node->right = ff_right_rotate(node->right);
         return ff_left_rotate(node);
     }
@@ -2927,7 +2924,7 @@ static int transform_channelcompact_process(FLIF16Context *ctx,
             }
         }
 
-        if ((int)cpalette_size * 10 <=
+        if ((int) cpalette_size * 10 <=
             9 * (ff_flif16_ranges_max(src_ctx, p) - ff_flif16_ranges_min(src_ctx, p)))
             nontrivial = 1;
 

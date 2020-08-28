@@ -163,7 +163,7 @@ static void ff_flif16_planes_free(FLIF16PixelData *frame, uint8_t num_planes,
     }
 }
 
-FLIF16PixelData *ff_flif16_frames_init(uint16_t num_frames)
+FLIF16PixelData *ff_flif16_frames_init(uint32_t num_frames)
 {
     FLIF16PixelData *frames = av_mallocz_array(num_frames, sizeof(*frames));
     if (!frames)
@@ -174,8 +174,8 @@ FLIF16PixelData *ff_flif16_frames_init(uint16_t num_frames)
 }
 
 FLIF16PixelData *ff_flif16_frames_resize(FLIF16PixelData *frames,
-                                         uint16_t curr_num_frames,
-                                         uint16_t new_num_frames)
+                                         uint32_t curr_num_frames,
+                                         uint32_t new_num_frames)
 {
     FLIF16PixelData *new_frames = av_realloc_f(frames, new_num_frames,
                                                sizeof(*frames));
@@ -187,7 +187,7 @@ FLIF16PixelData *ff_flif16_frames_resize(FLIF16PixelData *frames,
     return new_frames;
 }
 
-void ff_flif16_frames_free(FLIF16PixelData **frames, uint16_t num_frames,
+void ff_flif16_frames_free(FLIF16PixelData **frames, uint32_t num_frames,
                            uint8_t num_planes, uint8_t lookback)
 {
     for (int i = 0; i < num_frames; i++) {

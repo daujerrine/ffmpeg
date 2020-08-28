@@ -61,7 +61,7 @@ typedef enum FLIF16TransformsTypes {
 } FLIF16TransformsTypes;
 
 extern const FLIF16Ranges *flif16_ranges[14];
-extern const FLIF16Transform *flif16_transforms[13];
+extern const FLIF16Transform *flif16_transforms[MAX_TRANSFORMS];
 
 FLIF16RangesContext *ff_flif16_ranges_static_init(uint8_t num_planes,
                                                   uint32_t bpc);
