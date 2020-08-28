@@ -163,6 +163,337 @@ void ff_flif16_multiscale_chancecontext_init(FLIF16MultiscaleChanceContext *ctx)
 
 #endif
 
+/**
+ * Reads a Uniform Symbol Coded Integer.
+ */
+int ff_flif16_rac_read_uni_int(FLIF16RangeCoder *rc,
+                               int min, int len,
+                               void *target, int type)
+{
+    int med;
+    uint8_t bit;
+
+    if (!rc->active) {
+        rc->min = min;
+        rc->len = len;
+        rc->active = 1;
+    }
+
+    if (rc->len > 0) {
+        ff_flif16_rac_read_bit(rc, &bit);
+        med = (rc->len) / 2;
+        if (bit) {
+            rc->min += med + 1;
+            rc->len -= med + 1;
+        } else {
+            rc->len = med;
+        }
+        return 0;
+    } else {
+        switch (type) {
+        case FLIF16_RAC_UNI_INT8:
+            *((int8_t *) target) = rc->min;
+            break;
+
+        case FLIF16_RAC_UNI_INT16:
+            *((int16_t *) target) = rc->min;
+            break;
+
+        case FLIF16_RAC_UNI_INT32:
+            *((int32_t *) target) = rc->min;
+            break;
+        }
+        rc->active = 0;
+        return 1;
+    }
+}
+
+// NearZero Integer Coder
+
+static av_always_inline int ff_flif16_rac_nz_read_internal(FLIF16RangeCoder *rc,
+                                                           FLIF16ChanceContext *ctx,
+                                                           uint16_t type, uint8_t *target)
+{
+    if (!ff_flif16_rac_renorm(rc))
+        return 0; // EAGAIN condition
+    ff_flif16_rac_read_chance(rc, ctx->data[type], target);
+    ctx->data[type] = (!*target) ? rc->ct.zero_state[ctx->data[type]]
+                                 : rc->ct.one_state[ctx->data[type]];
+    return 1;
+}
+
+#define RAC_NZ_GET(rc, ctx, chance, target) \
+    if (!ff_flif16_rac_nz_read_internal((rc), (ctx), (chance), \
+                                        (uint8_t *) (target))) { \
+        goto need_more_data; \
+    }
+
+
+/**
+ * Reads a near zero coded integer.
+ */
+int ff_flif16_rac_read_nz_int(FLIF16RangeCoder *rc,
+                              FLIF16ChanceContext *ctx,
+                              int min, int max, int *target)
+{
+    uint8_t temp = 0;
+    if (min == max) {
+        *target = min;
+        rc->active = 0;
+        return 1;
+    }
+
+    if (!rc->active) {
+        rc->segment = 0;
+        rc->amin    = 1;
+        rc->active  = 1;
+        rc->sign    = 0;
+        rc->pos     = 0;
+    }
+
+    switch (rc->segment) {
+    case 0:
+        RAC_NZ_GET(rc, ctx, NZ_INT_ZERO, &temp);
+        if (temp) {
+            *target = 0;
+            rc->active = 0;
+            return 1;
+        }
+        rc->segment++;
+
+    case 1:
+        if (min < 0) {
+            if (max > 0) {
+                RAC_NZ_GET(rc, ctx, NZ_INT_SIGN, &rc->sign);
+            } else {
+                rc->sign = 0;
+            }
+        } else {
+            rc->sign = 1;
+        }
+        rc->amax = (rc->sign ? max : -min);
+        rc->emax = ff_log2(rc->amax);
+        rc->e    = ff_log2(rc->amin);
+        rc->segment++;
+
+    case 2:
+        for (; rc->e < rc->emax; rc->e++) {
+            RAC_NZ_GET(rc, ctx, NZ_INT_EXP(((rc->e << 1) + rc->sign)), &temp);
+            if (temp)
+                break;
+            temp = 0;
+        }
+        rc->have = (1 << rc->e);
+        rc->left = rc->have - 1;
+        rc->pos  = rc->e;
+        rc->segment++;
+
+        while (rc->pos > 0) {
+            rc->pos--;
+            rc->left >>= 1;
+            rc->minabs1 = rc->have | (1 << rc->pos);
+            rc->maxabs0 = rc->have | rc->left;
+
+            if (rc->minabs1 > rc->amax) {
+                continue;
+            } else if (rc->maxabs0 >= rc->amin) {
+    case 3:
+                RAC_NZ_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
+                if (temp)
+                    rc->have = rc->minabs1;
+                temp = 0;
+            } else {
+                rc->have = rc->minabs1;
+            }
+        }
+    }
+
+    *target = (rc->sign ? rc->have : -rc->have);
+    rc->active = 0;
+    return 1;
+
+need_more_data:
+    return 0;
+}
+
+/**
+ * Reads a generalized near zero coded integer.
+ */
+int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc,
+                               FLIF16ChanceContext *ctx,
+                               int min, int max, int *target)
+{
+    int ret;
+    if (min > 0) {
+        ret = ff_flif16_rac_read_nz_int(rc, ctx, 0, max - min, target);
+        if (ret)
+            *target += min;
+    } else if (max < 0) {
+        ret =  ff_flif16_rac_read_nz_int(rc, ctx, min - max, 0, target);
+        if (ret)
+            *target += max;
+    } else
+        ret = ff_flif16_rac_read_nz_int(rc, ctx, min, max, target);
+    return ret;
+
+}
+
+#ifdef MULTISCALE_CHANCES_ENABLED
+// Multiscale chance definitions
+
+static av_always_inline void ff_flif16_multiscale_chance_set(FLIF16MultiscaleChance *c,
+                                                             uint16_t chance)
+{
+    for (int i = 0; i < MULTISCALE_CHANCETABLE_DEFAULT_SIZE; i++) {
+        c->chances[i] = chance;
+        c->quality[i] = 0;
+    }
+    c->best = 0;
+}
+
+static av_always_inline void ff_flif16_multiscale_chancetable_put(FLIF16RangeCoder *rc,
+                                                                  FLIF16MultiscaleChanceContext *ctx,
+                                                                  uint16_t type, uint8_t bit)
+{
+    FLIF16MultiscaleChance *c = &ctx->data[type];
+    uint64_t sbits, oqual;
+    for (int i = 0; i < MULTISCALE_CHANCETABLE_DEFAULT_SIZE; i++) {
+        sbits = 0;
+        sbits += rc->log4k.table[bit ? c->chances[i] : 4096 - c->chances[i]];
+        oqual = c->quality[i];
+        c->quality[i] = (oqual * 255 + sbits * 4097 + 128) >> 8;
+        c->chances[i] = (bit) ? rc->mct->sub_table[i].one_state[c->chances[i]]
+                              : rc->mct->sub_table[i].zero_state[c->chances[i]];
+    }
+    for (int i = 0; i < MULTISCALE_CHANCETABLE_DEFAULT_SIZE; i++)
+        if (c->quality[i] < c->quality[c->best])
+            c->best = i;
+}
+
+static av_always_inline int ff_flif16_rac_nz_read_multiscale_internal(FLIF16RangeCoder *rc,
+                                                                      FLIF16MultiscaleChanceContext *ctx,
+                                                                      uint16_t type, uint8_t *target)
+{
+    if (!ff_flif16_rac_renorm(rc))
+        return 0; // EAGAIN condition
+    ff_flif16_rac_read_chance(rc, ctx->data[type].chances[ctx->data[type].best], target);
+    ff_flif16_multiscale_chancetable_put(rc, ctx, type, *target);
+    return 1;
+}
+
+#define RAC_NZ_MULTISCALE_GET(rc, ctx, chance, target) \
+    if (!ff_flif16_rac_nz_read_multiscale_internal((rc), (ctx), (chance) \
+                                                   (uint8_t *) (target))) { \
+        goto need_more_data; \
+    }
+
+int ff_flif16_rac_read_nz_multiscale_int(FLIF16RangeCoder *rc,
+                                         FLIF16MultiscaleChanceContext *ctx,
+                                         int min, int max, int *target)
+{
+    uint8_t temp = 0;
+
+    if (min == max) {
+        *target = min;
+        rc->active = 0;
+        return 1;
+    }
+
+    if (!rc->active) {
+        rc->segment = 0;
+        rc->amin    = 1;
+        rc->active  = 1;
+        rc->sign    = 0;
+        rc->have    = 0;
+    }
+
+    switch (rc->segment) {
+    case 0:
+        RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_ZERO, &temp);
+        if (temp) {
+            *target = 0;
+            rc->active = 0;
+            return 1;
+        }
+        rc->segment++;
+
+    case 1:
+        if (min < 0) {
+            if (max > 0) {
+                RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_SIGN, &rc->sign);
+            } else {
+                rc->sign = 0;
+            }
+        } else {
+            rc->sign = 1;
+        }
+        rc->amax = (rc->sign ? max : -min);
+        rc->emax = ff_log2(rc->amax);
+        rc->e    = ff_log2(rc->amin);
+        rc->segment++;
+
+    case 2:
+        for (; rc->e < rc->emax; rc->e++) {
+            RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_EXP(((rc->e << 1) + rc->sign)),
+                       &temp);
+            if (temp)
+                break;
+            temp = 0;
+        }
+        rc->have = (1 << rc->e);
+        rc->left = rc->have - 1;
+        rc->pos  = rc->e;
+        rc->segment++;
+
+        while (rc->pos > 0) {
+            rc->pos--;
+            rc->left >>= 1;
+            rc->minabs1 = rc->have | (1 << rc->pos);
+            rc->maxabs0 = rc->have | rc->left;
+
+            if (rc->minabs1 > rc->amax) {
+                continue;
+            } else if (rc->maxabs0 >= rc->amin) {
+    case 3:
+                RAC_NZ_MULTISCALE_GET(rc, ctx, NZ_INT_MANT(rc->pos), &temp);
+                if (temp)
+                    rc->have = rc->minabs1;
+                temp = 0;
+            } else
+                rc->have = rc->minabs1;
+        }
+    }
+
+    *target = (rc->sign ? rc->have : -rc->have);
+    rc->active = 0;
+    return 1;
+
+need_more_data:
+    return 0;
+}
+
+int ff_flif16_rac_read_gnz_multiscale_int(FLIF16RangeCoder *rc,
+                                          FLIF16MultiscaleChanceContext *ctx,
+                                          int min, int max, int *target)
+{
+    int ret;
+
+    if (min > 0) {
+        ret = ff_flif16_rac_read_nz_multiscale_int(rc, ctx, 0, max - min, target);
+        if (ret)
+            *target += min;
+    } else if (max < 0) {
+        ret =  ff_flif16_rac_read_nz_multiscale_int(rc, ctx, min - max, 0, target);
+        if (ret)
+            *target += max;
+    } else
+        ret = ff_flif16_rac_read_nz_multiscale_int(rc, ctx, min, max, target);
+
+    return ret;
+}
+#endif
+
+
 int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                                FLIF16MinMax *prop_ranges,
                                unsigned int prop_ranges_size,
@@ -265,14 +596,14 @@ int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                 m->forest[channel]->data = av_realloc_f(m->forest[channel]->data,
                                                         m->forest[channel]->size * 2,
                                                         sizeof(*(m->forest[channel]->data)));
-                if(!(m->forest[channel]->data))
+                if (!(m->forest[channel]->data))
                     return AVERROR(ENOMEM);
                 m->forest[channel]->size *= 2;
             }
 
             if ((m->stack_top + 2) >= m->stack_size) {
                 m->stack = av_realloc_f(m->stack, m->stack_size * 2, sizeof(*(m->stack)));
-                if(!(m->stack))
+                if (!(m->stack))
                     return AVERROR(ENOMEM);
                 m->stack_size *= 2;
             }
@@ -407,14 +738,14 @@ int ff_flif16_maniac_read_int(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
     if (!rc->curr_leaf)
         rc->segment2 = 0;
 
-    switch(rc->segment2) {
+    switch (rc->segment2) {
     case 0:
         if (min == max) {
             *target = min;
             goto end;
         }
         rc->curr_leaf = ff_flif16_maniac_findleaf(m, channel, properties);
-        if(!rc->curr_leaf)
+        if (!rc->curr_leaf)
             return AVERROR(ENOMEM);
         rc->segment2++;
 

@@ -213,18 +213,23 @@ static int flif16_read_header(AVFormatContext *s)
     uint32_t flag, animated, temp;
     uint32_t bpc = 0;
     uint32_t metadata_size = 0;
+#if CONFIG_ZLIB
     int out_buf_size = 0;
     int buf_size = 0;
+#endif
     unsigned int count = 4;
     int ret;
     int format;
     int segment = 0, i = 0;
+    uint32_t num_frames;
+    uint8_t num_planes;
     uint8_t tag[5] = {0};
     uint8_t buf[BUF_SIZE];
     uint8_t *out_buf = NULL;
     uint8_t loops = 0;
-    uint8_t num_planes;
-    uint8_t num_frames;
+
+    // Suppress unused variable compiler warning if zlib is not present.
+    (void) tag;
 
 #if !CONFIG_ZLIB
     av_log(s, AV_LOG_WARNING, "ffmpeg has not been compiled with Zlib. Metadata may not be decoded.\n");
@@ -258,6 +263,7 @@ static int flif16_read_header(AVFormatContext *s)
 
     vlist[0]++;
     vlist[1]++;
+
     if (animated)
         vlist[2] += 2;
     else

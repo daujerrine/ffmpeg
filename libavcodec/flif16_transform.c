@@ -1449,18 +1449,18 @@ static FLIF16RangesContext *transform_bounds_meta(FLIF16Context *ctx,
     RangesPrivStatic *data;
     RangesPrivBounds *dataB;
 
-    r_ctx = av_mallocz(sizeof(*r_ctx));	
-    if (!r_ctx)	
-        return NULL;	
+    r_ctx = av_mallocz(sizeof(*r_ctx));
+    if (!r_ctx)
+        return NULL;
     r_ctx->num_planes = src_ctx->num_planes;
-    
+
     if (flif16_ranges[src_ctx->r_no]->is_static) {
         r_ctx->r_no = FLIF16_RANGES_STATIC;
         r_ctx->priv_data = av_mallocz(sizeof(*data));
-        if (!r_ctx->priv_data) {	
-            av_free(r_ctx);	
-            return NULL;	
-        }	
+        if (!r_ctx->priv_data) {
+            av_free(r_ctx);
+            return NULL;
+        }
         data = r_ctx->priv_data;
         data->bounds = trans_data->bounds;
         ff_flif16_ranges_close(src_ctx);

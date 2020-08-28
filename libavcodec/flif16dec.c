@@ -211,7 +211,7 @@ static int flif16_read_header(AVCodecContext *avctx)
 
 
     // Handle dimensions and frames
-    for(int i = 0; i < 2 + ((s->ia > 4) ? 1 : 0); i++) {
+    for (int i = 0; i < 2 + ((s->ia > 4) ? 1 : 0); i++) {
         while ((temp = bytestream2_get_byte(&s->gb)) > 127) {
             VARINT_APPEND(*vlist[i], temp);
             if (!(count--)) {
@@ -370,7 +370,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
         while (1) {
     case 0:
             RAC_GET(&s->rc, NULL, 0, 0, &temp, FLIF16_RAC_BIT);
-            if(!temp)
+            if (!temp)
                 break;
             s->segment++;
 
@@ -404,7 +404,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
             case FLIF16_TRANSFORM_DUPLICATEFRAME:
                 s->framedup = 1;
-                if(s->num_frames < 2)
+                if (s->num_frames < 2)
                      return AVERROR_INVALIDDATA;
                 ff_flif16_transform_configure(s->transforms[s->transform_top],
                                               s->num_frames);
@@ -416,7 +416,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                     return AVERROR_INVALIDDATA;
                 unique_frames = s->num_frames - 1;
                 for (unsigned int i = 0; i < s->num_frames; i++) {
-                    if(s->frames[i].seen_before >= 0)
+                    if (s->frames[i].seen_before >= 0)
                         unique_frames--;
                 }
                 if (unique_frames < 1)
@@ -428,7 +428,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 break;
 
             case FLIF16_TRANSFORM_FRAMELOOKBACK:
-                if(s->num_frames < 2)
+                if (s->num_frames < 2)
                     return AVERROR_INVALIDDATA;
                 s->framelookback = 1;
 
@@ -439,14 +439,14 @@ static int flif16_read_transforms(AVCodecContext *avctx)
             s->segment++;
 
     case 2:
-            if(ff_flif16_transform_read(CTX_CAST(s), s->transforms[s->transform_top],
+            if (ff_flif16_transform_read(CTX_CAST(s), s->transforms[s->transform_top],
                                         s->range) <= 0)
                 goto need_more_data;
             prev_range = s->range;
             s->range = ff_flif16_transform_meta(CTX_CAST(s), s->frames, s->num_frames,
                                                 s->transforms[s->transform_top],
                                                 prev_range);
-            if(!s->range)
+            if (!s->range)
                 return AVERROR(ENOMEM);
             s->segment = 0;
             s->transform_top++;
@@ -472,7 +472,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
 
     s->plane_mode[FLIF16_PLANE_LOOKBACK] = FLIF16_PLANEMODE_FILL;
     const_plane_value[FLIF16_PLANE_LOOKBACK] = 0;
-    for (int i = 0; i < s->num_frames; i++) 
+    for (int i = 0; i < s->num_frames; i++)
         if ((ret = ff_flif16_planes_init(CTX_CAST(s), &s->frames[i],
             const_plane_value)) < 0) {
             return ret;
@@ -763,7 +763,7 @@ static int flif16_read_ni_plane_row(FLIF16DecoderContext *s, uint8_t p, uint32_t
                     } else {
                         PIXEL_SET(s, fr, p, r, s->c, PIXEL_GET(s, PREV_FRAMENUM(s->frames, fr), p, r, s->c));
                     }
-            } else if(p != 4) {
+            } else if (p != 4) {
                 ff_flif16_copy_cols(CTX_CAST(s), &s->frames[fr],
                 PREV_FRAME(s->frames, fr), p, r, s->end, s->width);
             }
@@ -1458,7 +1458,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                 }
                 s->segment++;
 
-                for(int fr = 0; fr < s->num_frames; fr++) {
+                for (int fr = 0; fr < s->num_frames; fr++) {
                     ff_flif16_prepare_zoomlevel(CTX_CAST(s), &s->frames[fr],
                                                 s->curr_plane, s->curr_zoom);
                     if (s->curr_plane > 0)
@@ -1474,7 +1474,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     for (s->i2 = 1; s->i2 < ZOOM_HEIGHT(s->height, s->curr_zoom); s->i2 += 2) {
                         for (s->i3 = 0; s->i3 < s->num_frames; s->i3++) {
     case 9:
-                            if(ret = flif_read_plane_zl_horiz(s, alpha_plane,
+                            if (ret = flif_read_plane_zl_horiz(s, alpha_plane,
                                s->curr_plane, s->curr_zoom, s->i3, s->i2))
                                 goto error;
                         }
@@ -1484,7 +1484,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
                     for (s->i2 = 0; s->i2 < ZOOM_HEIGHT(s->height, s->curr_zoom); s->i2++) {
                         for (s->i3 = 0; s->i3 < s->num_frames; s->i3++) {
     case 10:
-                            if(ret = flif16_read_plane_zl_vert(s, alpha_plane,
+                            if (ret = flif16_read_plane_zl_vert(s, alpha_plane,
                                s->curr_plane, s->curr_zoom, s->i3, s->i2))
                                 goto error;
                         }
@@ -1514,13 +1514,13 @@ static int flif16_read_pixeldata(AVCodecContext *avctx)
 {
     FLIF16DecoderContext *s = avctx->priv_data;
     int ret;
-    if((s->ia % 2))
+    if ((s->ia % 2))
         ret = flif16_read_ni_image(avctx);
     else {
         ret = flif16_read_image(avctx, (s->state == FLIF16_ROUGH_PIXELDATA));
     }
 
-    if(!ret)
+    if (!ret)
         s->state = FLIF16_OUTPUT;
 
     return ret;

@@ -122,7 +122,7 @@ void ff_flif16_transform_forward(FLIF16Context *ctx, FLIF16TransformContext *t_c
                                  FLIF16PixelData *pixel_data);
 
 int ff_flif16_transform_write(FLIF16Context *enc_ctx, FLIF16TransformContext *t_ctx,
-                              FLIF16RangesContext *src_ctx);                                
+                              FLIF16RangesContext *src_ctx);
 
 void ff_flif16_transform_reverse(FLIF16Context *ctx, FLIF16TransformContext *t_ctx,
                                  FLIF16PixelData *frame, uint8_t stride_row,
