@@ -396,7 +396,7 @@ static int flif16_write_stream(AVCodecContext * avctx)
                                                 s->relative_timebase.num /
                                                 s->relative_timebase.den,
                                                 FLIF16_RAC_UNI_INT16);
-                printf("fr: %d %d\n", s->num_frames, s->final_frame_duration  *
+                printf("fr: %d %ld\n", s->num_frames, s->final_frame_duration  *
                                                      s->relative_timebase.num /
                                                      s->relative_timebase.den);
             } else {

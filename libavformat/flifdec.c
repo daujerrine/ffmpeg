@@ -38,7 +38,7 @@
 #include "config.h"
 
 #if CONFIG_ZLIB
-#include <zlib.h>
+#   include <zlib.h>
 #endif
 
 /*
@@ -120,7 +120,7 @@ static int flif_inflate(FLIFDemuxContext *s, uint8_t *buf, int buf_size,
 }
 #endif
 
-#if CONFIG_EXIF
+#if CONFIG_ZLIB && CONFIG_EXIF
 static int flif_read_exif(void *logctx, uint8_t *buf, int buf_size, AVDictionary **d)
 {
     uint8_t le;
@@ -200,11 +200,11 @@ static int flif16_probe(const AVProbeData *p)
 
 static int flif16_read_header(AVFormatContext *s)
 {
-    FLIFDemuxContext *dc = s->priv_data;
-    GetByteContext gb;
 #if CONFIG_ZLIB
-    FLIF16RangeCoder rc  = (FLIF16RangeCoder) {0};
+    FLIFDemuxContext *dc = s->priv_data;
 #endif
+    GetByteContext gb;
+    FLIF16RangeCoder rc  = (FLIF16RangeCoder) {0};
     AVIOContext *pb = s->pb;
     AVStream    *st;
 
@@ -223,13 +223,17 @@ static int flif16_read_header(AVFormatContext *s)
     int segment = 0, i = 0;
     uint32_t num_frames;
     uint8_t num_planes;
+
+    // Suppress unused variable compiler warning if Zlib is not present.
+#if !CONFIG_ZLIB
+    av_unused uint8_t tag[5] = {0};
+#else
     uint8_t tag[5] = {0};
+#endif
+
     uint8_t buf[BUF_SIZE];
     uint8_t *out_buf = NULL;
     uint8_t loops = 0;
-
-    // Suppress unused variable compiler warning if zlib is not present.
-    (void) tag;
 
 #if !CONFIG_ZLIB
     av_log(s, AV_LOG_WARNING, "ffmpeg has not been compiled with Zlib. Metadata may not be decoded.\n");
@@ -330,8 +334,10 @@ static int flif16_read_header(AVFormatContext *s)
 
         continue;
 
+#if CONFIG_ZLIB
 metadata_skip:
         avio_skip(pb, metadata_size);
+#endif
     }
 
     av_freep(&out_buf);
@@ -421,7 +427,7 @@ end:
 
 static int flif16_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
-    AVIOContext *pb  = s->pb;
+    AVIOContext *pb = s->pb;
     int ret;
     ret = av_get_packet(pb, pkt, avio_size(pb));
     return ret;

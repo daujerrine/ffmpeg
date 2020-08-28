@@ -450,7 +450,7 @@ static int flif16_read_transforms(AVCodecContext *avctx)
                 return AVERROR(ENOMEM);
             s->segment = 0;
             s->transform_top++;
-        }
+        } // End While
 
     case 3:
         s->segment = 3;

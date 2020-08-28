@@ -387,6 +387,7 @@ static av_always_inline int ff_flif16_rac_process(FLIF16RangeCoder *rc,
 #endif
         }
     }
+
     return 1;
 }
 

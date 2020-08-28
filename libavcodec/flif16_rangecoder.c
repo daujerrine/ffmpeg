@@ -115,6 +115,7 @@ static av_always_inline uint32_t log4k_compute(int32_t x, uint32_t base)
             res -= add;
             y >>= 1;
         }
+
     return res;
 }
 
@@ -144,11 +145,13 @@ FLIF16MultiscaleChanceTable *ff_flif16_multiscale_chancetable_init(void)
     FLIF16MultiscaleChanceTable *ct = av_malloc(sizeof(*ct));
     if (!ct)
         return NULL;
+
     for (int i = 0; i < len; i++) {
         ff_flif16_chancetable_init(&ct->sub_table[i],
                                    flif16_multiscale_alphas[i],
                                    MULTISCALE_CHANCETABLE_DEFAULT_CUT);
     }
+
     return ct;
 }
 
@@ -334,8 +337,8 @@ int ff_flif16_rac_read_gnz_int(FLIF16RangeCoder *rc,
             *target += max;
     } else
         ret = ff_flif16_rac_read_nz_int(rc, ctx, min, max, target);
-    return ret;
 
+    return ret;
 }
 
 #ifdef MULTISCALE_CHANCES_ENABLED
@@ -348,6 +351,7 @@ static av_always_inline void ff_flif16_multiscale_chance_set(FLIF16MultiscaleCha
         c->chances[i] = chance;
         c->quality[i] = 0;
     }
+
     c->best = 0;
 }
 
@@ -357,6 +361,7 @@ static av_always_inline void ff_flif16_multiscale_chancetable_put(FLIF16RangeCod
 {
     FLIF16MultiscaleChance *c = &ctx->data[type];
     uint64_t sbits, oqual;
+
     for (int i = 0; i < MULTISCALE_CHANCETABLE_DEFAULT_SIZE; i++) {
         sbits = 0;
         sbits += rc->log4k.table[bit ? c->chances[i] : 4096 - c->chances[i]];
@@ -365,6 +370,7 @@ static av_always_inline void ff_flif16_multiscale_chancetable_put(FLIF16RangeCod
         c->chances[i] = (bit) ? rc->mct->sub_table[i].one_state[c->chances[i]]
                               : rc->mct->sub_table[i].zero_state[c->chances[i]];
     }
+
     for (int i = 0; i < MULTISCALE_CHANCETABLE_DEFAULT_SIZE; i++)
         if (c->quality[i] < c->quality[c->best])
             c->best = i;
@@ -378,6 +384,7 @@ static av_always_inline int ff_flif16_rac_nz_read_multiscale_internal(FLIF16Rang
         return 0; // EAGAIN condition
     ff_flif16_rac_read_chance(rc, ctx->data[type].chances[ctx->data[type].best], target);
     ff_flif16_multiscale_chancetable_put(rc, ctx, type, *target);
+
     return 1;
 }
 

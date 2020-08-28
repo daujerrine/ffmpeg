@@ -16,7 +16,7 @@ void ff_flif16_rac_enc_init(FLIF16RangeCoder *rc, PutByteContext *pb)
     rc->straddle_byte  = -1;
     rc->straddle_count = 0;
     rc->bytestream     = pb;
-    printf("init range = %d low = %d sb = %d sc = %d\n",
+    printf("init range = %ld low = %ld sb = %d sc = %d\n",
            rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
 }
 
@@ -24,7 +24,7 @@ int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
 {
     int byte;
     while (rc->range <= FLIF16_RAC_MIN_RANGE) {
-        printf("range = %d low = %d sb = %d sc = %d\n",
+        printf("range = %ld low = %ld sb = %d sc = %d\n",
            rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
         byte = rc->low >> FLIF16_RAC_MIN_RANGE_BITS;
         if (!bytestream2_get_bytes_left_p(rc->bytestream))
@@ -78,7 +78,7 @@ int ff_flif16_rac_enc_flush(FLIF16RangeCoder *rc)
 int ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
                           uint8_t bit)
 {
-    printf("put range = %d low = %d sb = %d sc = %d\n",
+    printf("put range = %ld low = %ld sb = %d sc = %d\n",
            rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
     printf("bit = %d chance = %d\n", bit, chance);
     if (bit) {
