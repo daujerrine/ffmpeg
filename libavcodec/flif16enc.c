@@ -327,6 +327,24 @@ static int flif16_determine_transforms(AVCodecContext * avctx)
     return AVERROR_EOF;
 }
 
+
+/*
+ * Here's how the rest of the data (non interlaced) is coded.
+ * 1. We first perform an encoding pass. In this phase we do not write rangecoder
+ *    output to the file. We use a symbol coder which is made to generate the
+ *    maniac tree (PropertySymbolCoder used).
+ * 2. We repeat this process REPEAT number of times. More REPEAT, more quality.
+ * 3. We then simply the MANIAC tree that has been generated.
+ * 4. We then write the MANIAC tree to the file.
+ * 5. We now encode the actual pixel data with the second pass.
+ *    FinalPropertySymbolCoder is used in this case.
+ *
+ * The process is similar for interlaced images, except that we use interlacing
+ * offsets for pixels, stop at rough_zl, encode rough pixeldata with the empty
+ * tree, then perform the second encoding pass, generate the MANIAC tree,
+ * and finally do the the third pass where we encode rough_zl to 0.
+ */
+
 static int flif16_determine_maniac_forest(AVCodecContext * avctx)
 {
     // This involves a single pass pixel encoding for making the MANIAC tree
