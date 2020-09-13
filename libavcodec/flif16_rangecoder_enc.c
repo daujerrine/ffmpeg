@@ -254,6 +254,83 @@ int ff_flif16_rac_enc_write_gnz_int(FLIF16RangeCoder *rc,
     return ret;
 }
 
+int ff_flif16_rac_enc_code_maniac_tree(FLIF16MANIACContext *mctx, int min,
+                                 int max, int value)
+{
+    //...
+    /*
+     find_leaf(const Properties &properties)
+    {
+        uint32_t pos = 0;
+        Ranges current_ranges = range;
+        while(inner_node[pos].property != -1) {
+//        e_printf("Checking property %i (val=%i, splitval=%i)\n",inner_node[pos].property,properties[inner_node[pos].property],inner_node[pos].splitval);
+            if (properties[inner_node[pos].property] > inner_node[pos].splitval) {
+                current_ranges[inner_node[pos].property].first = inner_node[pos].splitval + 1;
+                pos = inner_node[pos].childID;
+            } else {
+                current_ranges[inner_node[pos].property].second = inner_node[pos].splitval;
+                pos = inner_node[pos].childID+1;
+            }
+        }
+//    fprintf(stdout,"Returning leaf node %i\n", inner_node[pos].childID);
+        CompoundSymbolChances<BitChance,bits> &result = leaf_node[inner_node[pos].leafID];
+
+        // split leaf node if some virtual context is performing (significantly) better
+        if(result.best_property != -1
+                && result.realSize > result.virtSize[result.best_property] + split_threshold
+                && current_ranges[result.best_property].first < current_ranges[result.best_property].second) {
+
+            int8_t p = result.best_property;
+            PropertyVal splitval = div_down(result.virtPropSum[p],result.count);
+            if (splitval >= current_ranges[result.best_property].second)
+                splitval = current_ranges[result.best_property].second-1; // == does happen because of rounding and running average
+
+            uint32_t new_inner = inner_node.size();
+            inner_node.push_back(inner_node[pos]);
+            inner_node.push_back(inner_node[pos]);
+            inner_node[pos].splitval = splitval;
+//            fprintf(stdout,"Splitting on property %i, splitval=%i (count=%i)\n",p,inner_node[pos].splitval, (int)result.count);
+            inner_node[pos].property = p;
+            if (result.count < INT16_MAX) inner_node[pos].count = result.count;
+            else inner_node[pos].count = INT16_MAX;
+            uint32_t new_leaf = leaf_node.size();
+            result.resetCounters();
+            leaf_node.push_back(CompoundSymbolChances<BitChance,bits>(result));
+            uint32_t old_leaf = inner_node[pos].leafID;
+            inner_node[pos].childID = new_inner;
+            inner_node[new_inner].leafID = old_leaf;
+            inner_node[new_inner+1].leafID = new_leaf;
+            if (properties[p] > inner_node[pos].splitval) {
+                return leaf_node[old_leaf];
+            } else {
+                return leaf_node[new_leaf];
+            }
+        }
+        return result;
+    }
+    */
+}
+
+int ff_flif16_rac_enc_simplify_maniac_tree(FLIF16MANIACContext *mctx, int min,
+                                   int max, int value)
+{
+    //...
+}
+
+int ff_flif16_rac_enc_write_maniac_tree(FLIF16RangeCoder *rc,
+                                FLIF16MANIACContext *mctx,
+                                int min, int max, int value)
+{
+    //...
+}
+
+int ff_flif16_rac_enc_write_maniac_int(FLIF16RangeCoder *rc,
+                               FLIF16MANIACContext *mctx,
+                               int min, int max, int value)
+{
+    //...
+}
 
 
 /*
