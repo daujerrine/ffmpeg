@@ -200,11 +200,12 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
         return 0;
     }
     PRINT_LINE
-    if (s->num_frames > 1) {
+    if (s->num_frames > 0) {
         if (!s->framepts) {
             s->framepts = av_malloc_array(FRAMES_BASE_SIZE, sizeof(*s->framepts));
             s->frames   = ff_flif16_frames_resize(s->frames, s->frames_size, FRAMES_BASE_SIZE);
             s->frames_size = FRAMES_BASE_SIZE;
+            s->framepts[0] = 0;
         }
         if (s->num_frames + 1 >= s->frames_size) {
             s->framepts = av_realloc_f(s->framepts, s->frames_size * 2,
@@ -213,8 +214,9 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
                                                   s->frames_size * 2);
             s->frames_size *= 2;
         }
-        s->framepts[s->num_frames] = s->in_frame->pts;
         s->final_frame_duration = s->in_frame->pkt_duration;
+        s->framepts[s->num_frames] = s->in_frame->pts;
+        printf(">>>> %d\n", s->in_frame->pts);
 
         // This will allow for conversion between frame durations
         // This is done mostly to accomodate for the last frame's duration
@@ -224,6 +226,7 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
         s->relative_timebase.num = s->in_frame->pts;
         s->relative_timebase.den = s->in_frame->best_effort_timestamp;
     }
+ 
     ff_flif16_planes_init(CTX_CAST(s), &s->frames[s->num_frames],
                           const_plane_value);
     /*
@@ -291,8 +294,8 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     default:
         av_log(avctx, AV_LOG_FATAL, "Pixel format %d out of bounds?\n", avctx->pix_fmt);
         return AVERROR_PATCHWELCOME;
-    }
-    */
+    }*/
+
     PRINT_LINE
     s->num_frames++;
     return AVERROR(EAGAIN);
@@ -399,10 +402,10 @@ static int flif16_write_stream(AVCodecContext * avctx)
             // Loops
             RAC_PUT(&s->rc, NULL, 0, 100, 0, FLIF16_RAC_UNI_INT8);
 
-            for (int i = 1; i < s->num_frames - 1; i++) {
-                RAC_PUT(&s->rc, NULL, 0, 60000, s->framepts[i] -
-                s->framepts[i - 1], FLIF16_RAC_UNI_INT16);
-                printf("fr: %d %d\n", i + 1, s->framepts[i] - s->framepts[i - 1]);
+            for (int i = 0; i < s->num_frames - 1; i++) {
+                RAC_PUT(&s->rc, NULL, 0, 60000,  s->framepts[i+1] -
+                        s->framepts[i], FLIF16_RAC_UNI_INT16);
+                printf("fr: %d %d %d\n", i + 1, s->framepts[i + 1] - s->framepts[i], s->framepts[i]);
             }
 
             if (s->final_frame_duration &&

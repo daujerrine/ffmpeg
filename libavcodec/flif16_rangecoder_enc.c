@@ -16,16 +16,16 @@ void ff_flif16_rac_enc_init(FLIF16RangeCoder *rc, PutByteContext *pb)
     rc->straddle_byte  = -1;
     rc->straddle_count = 0;
     rc->bytestream     = pb;
-    printf("init range = %ld low = %ld sb = %d sc = %d\n",
-           rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
+    // printf("init range = %ld low = %ld sb = %d sc = %d\n",
+    //       rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
 }
 
 int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
 {
     int byte;
     while (rc->range <= FLIF16_RAC_MIN_RANGE) {
-        printf("range = %ld low = %ld sb = %d sc = %d\n",
-           rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
+        // printf("range = %ld low = %ld sb = %d sc = %d\n",
+        //    rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
         byte = rc->low >> FLIF16_RAC_MIN_RANGE_BITS;
         if (!bytestream2_get_bytes_left_p(rc->bytestream))
             return 0;
@@ -78,9 +78,9 @@ int ff_flif16_rac_enc_flush(FLIF16RangeCoder *rc)
 int ff_flif16_rac_enc_put(FLIF16RangeCoder *rc, uint32_t chance,
                           uint8_t bit)
 {
-    printf("put range = %ld low = %ld sb = %d sc = %d\n",
-           rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
-    printf("bit = %d chance = %d\n", bit, chance);
+    // printf("put range = %ld low = %ld sb = %d sc = %d\n",
+    // rc->range, rc->low, rc->straddle_byte, rc->straddle_count);
+    // printf("bit = %d chance = %d\n", bit, chance);
     if (bit) {
         rc->low += rc->range - chance;
         rc->range = chance;
@@ -106,17 +106,17 @@ int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
         rc->max    = max;
         rc->val    = val;
     }
-    printf("min: %d max: %d, val: %d\n",
-           rc->min, rc->max, rc->val);
+    // printf("min: %d max: %d, val: %d\n",
+    //        rc->min, rc->max, rc->val);
 
     if (rc->min != 0) {
-        printf("a\n");
+    //    printf("a\n");
         rc->max -= rc->min;
         rc->val -= rc->min;
     }
 
     if (rc->max == 0) {
-        printf("b\n");
+    //    printf("b\n");
         rc->active = 0;
         return 1;
     }
@@ -124,11 +124,11 @@ int ff_flif16_rac_enc_write_uni_int(FLIF16RangeCoder *rc, int min,
     med = rc->max / 2;
 
     if (rc->val > med) {
-        printf("c\n");
+    //  printf("c\n");
         ff_flif16_rac_enc_write_bit(rc, 1);
         rc->min = med + 1;
     } else {
-        printf("d\n");
+    //    printf("d\n");
         ff_flif16_rac_enc_write_bit(rc, 0);
         rc->min = 0;
         rc->max = med;
@@ -254,7 +254,7 @@ int ff_flif16_rac_enc_write_gnz_int(FLIF16RangeCoder *rc,
     return ret;
 }
 
-int ff_flif16_rac_enc_code_maniac_tree(FLIF16MANIACContext *mctx, int min,
+static int ff_flif16_rac_enc_code_maniac_tree(FLIF16MANIACContext *mctx, int min,
                                  int max, int value)
 {
     //...
@@ -310,26 +310,30 @@ int ff_flif16_rac_enc_code_maniac_tree(FLIF16MANIACContext *mctx, int min,
         return result;
     }
     */
+    return -1;
 }
 
-int ff_flif16_rac_enc_simplify_maniac_tree(FLIF16MANIACContext *mctx, int min,
+static int ff_flif16_rac_enc_simplify_maniac_tree(FLIF16MANIACContext *mctx, int min,
                                    int max, int value)
 {
     //...
+    return -1;
 }
 
-int ff_flif16_rac_enc_write_maniac_tree(FLIF16RangeCoder *rc,
+static int ff_flif16_rac_enc_write_maniac_tree(FLIF16RangeCoder *rc,
                                 FLIF16MANIACContext *mctx,
                                 int min, int max, int value)
 {
     //...
+    return -1;
 }
 
-int ff_flif16_rac_enc_write_maniac_int(FLIF16RangeCoder *rc,
+static int ff_flif16_rac_enc_write_maniac_int(FLIF16RangeCoder *rc,
                                FLIF16MANIACContext *mctx,
                                int min, int max, int value)
 {
     //...
+    return -1;
 }
 
 
