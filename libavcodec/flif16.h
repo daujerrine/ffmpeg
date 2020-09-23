@@ -190,6 +190,7 @@ static inline void ff_flif16_pixel_set(FLIF16Context *s, FLIF16PixelData *frame,
                                        uint8_t plane, uint32_t row, uint32_t col,
                                        FLIF16ColorVal value)
 {
+    //printf("p: %d r: %d c: %d\n", plane, row, col);
     ((FLIF16ColorVal *) frame->data[plane])[s->width * row + col] = value;
 }
 

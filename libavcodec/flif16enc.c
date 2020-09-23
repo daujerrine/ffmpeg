@@ -113,21 +113,31 @@ typedef struct FLIF16EncoderContext {
 // Cast values to FLIF16Context for some functions.
 #define CTX_CAST(x) ((FLIF16Context *) (x))
 
-#define PIXEL_SET(ctx, fr, p, r, c, val)     ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
-#define PIXEL_GET(ctx, fr, p, r, c)          ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
-#define PIXEL_SETZ(ctx, fr, p, z, r, c, val) ff_flif16_pixel_setz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c, val)
-#define PIXEL_GETZ(ctx, fr, p, z, r, c)      ff_flif16_pixel_getz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c)
-#define PIXEL_GETFAST(ctx, fr, p, r, c)      ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
-#define PIXEL_SETFAST(ctx, fr, p, r, c, val) ff_flif16_pixel_set_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
+#define PIXEL_SET(ctx, fr, p, r, c, val) \
+    ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
+#define PIXEL_GET(ctx, fr, p, r, c) \
+    ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
+#define PIXEL_SETZ(ctx, fr, p, z, r, c, val) \
+    ff_flif16_pixel_setz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c, val)
+#define PIXEL_GETZ(ctx, fr, p, z, r, c) \
+    ff_flif16_pixel_getz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c)
+#define PIXEL_GETFAST(ctx, fr, p, r, c) \
+    ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
+#define PIXEL_SETFAST(ctx, fr, p, r, c, val) \
+    ff_flif16_pixel_set_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
 
-#define PREV_FRAME(frames, f_no)    (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
-#define PREV_FRAMENUM(frames, f_no) (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
-#define LOOKBACK_FRAMENUM(ctx, frames, f_no, r, c) (((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before >= 0) ? \
-                                                    ((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before) : \
-                                                    ((f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))))
-#define LOOKBACK_FRAMENUMZ(ctx, frames, f_no, z, r, c) (((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before >= 0) ? \
-                                                       ((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before) : \
-                                                       ((f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))))
+#define PREV_FRAME(frames, f_no) \
+    (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
+#define PREV_FRAMENUM(frames, f_no) \
+    (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
+#define LOOKBACK_FRAMENUM(ctx, frames, f_no, r, c) \
+    (((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before >= 0) ? \
+    ((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before) : \
+    ((f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))))
+#define LOOKBACK_FRAMENUMZ(ctx, frames, f_no, z, r, c) \
+    (((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before >= 0) ? \
+    ((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before) : \
+    ((f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))))
 
 #define IS_CONSTANT(ranges, plane) (ff_flif16_ranges_min((ranges), (plane)) >= \
                                     ff_flif16_ranges_max((ranges), (plane)))
@@ -139,6 +149,7 @@ static int flif16_determine_header(AVCodecContext *avctx)
     s->plane_mode[0] = FLIF16_PLANEMODE_NORMAL;
     s->plane_mode[1] = FLIF16_PLANEMODE_NORMAL;
     s->plane_mode[2] = FLIF16_PLANEMODE_NORMAL;
+    s->plane_mode[3] = FLIF16_PLANEMODE_NORMAL;
     s->plane_mode[4] = FLIF16_PLANEMODE_NORMAL;
     
     s->bpc = 0xFF;
@@ -165,6 +176,12 @@ static int flif16_determine_header(AVCodecContext *avctx)
         s->num_planes = 4;
         break;
     }
+
+    /*
+     * TODO determine planes from the given pixfmt.
+     */
+     
+    s->num_planes = MAX_PLANES;
 
     // Check for multiplication overflow
     if ((ret = av_image_check_size2(s->width, s->height, avctx->max_pixels,
@@ -201,35 +218,52 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     }
     PRINT_LINE
     if (s->num_frames > 0) {
+
         if (!s->framepts) {
             s->framepts = av_malloc_array(FRAMES_BASE_SIZE, sizeof(*s->framepts));
-            s->frames   = ff_flif16_frames_resize(s->frames, s->frames_size, FRAMES_BASE_SIZE);
+            if (!s->framepts)
+                return AVERROR(ENOMEM);
+            s->frames = ff_flif16_frames_resize(s->frames, s->frames_size, FRAMES_BASE_SIZE);
+            if (!s->frames)
+                return AVERROR(ENOMEM);
             s->frames_size = FRAMES_BASE_SIZE;
             s->framepts[0] = 0;
         }
+
         if (s->num_frames + 1 >= s->frames_size) {
+            printf("REALLOCATING %d -> %d\n", s->frames_size, s->frames_size * 2);
             s->framepts = av_realloc_f(s->framepts, s->frames_size * 2,
                                        sizeof(*s->framepts));
-            s->frames   = ff_flif16_frames_resize(s->frames, s->frames_size,
+            if (!s->framepts)
+                return AVERROR(ENOMEM);
+            s->frames = ff_flif16_frames_resize(s->frames, s->frames_size,
                                                   s->frames_size * 2);
+            if (!s->frames)
+                return AVERROR(ENOMEM);
             s->frames_size *= 2;
         }
+
+        // raise(SIGINT);
+
         s->final_frame_duration = s->in_frame->pkt_duration;
         s->framepts[s->num_frames] = s->in_frame->pts;
         printf(">>>> %d\n", s->in_frame->pts);
 
-        // This will allow for conversion between frame durations
-        // This is done mostly to accomodate for the last frame's duration
-        // without having to do convoluted demuxer stuff like copy pasting the
-        // whole of the rangecoder state to the packet and sending it over to
-        // add in the time stamp. Even then it wouldn't be possible I think.
+        /*
+         * This will allow for conversion between frame durations
+         * This is done mostly to accomodate for the last frame's duration
+         * without having to do convoluted demuxer stuff like copy pasting the
+         * whole of the rangecoder state to the packet and sending it over to
+         * add in the time stamp. Even then it wouldn't be possible I think.
+         */
+
         s->relative_timebase.num = s->in_frame->pts;
         s->relative_timebase.den = s->in_frame->best_effort_timestamp;
     }
  
     ff_flif16_planes_init(CTX_CAST(s), &s->frames[s->num_frames],
                           const_plane_value);
-    /*
+
     switch (avctx->pix_fmt) {
     case AV_PIX_FMT_GRAY8:
         for (uint32_t i = 0; i < s->height; i++) {
@@ -294,7 +328,7 @@ static int flif16_copy_pixeldata(AVCodecContext *avctx)
     default:
         av_log(avctx, AV_LOG_FATAL, "Pixel format %d out of bounds?\n", avctx->pix_fmt);
         return AVERROR_PATCHWELCOME;
-    }*/
+    }
 
     PRINT_LINE
     s->num_frames++;

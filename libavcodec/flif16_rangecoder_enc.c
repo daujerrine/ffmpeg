@@ -254,8 +254,9 @@ int ff_flif16_rac_enc_write_gnz_int(FLIF16RangeCoder *rc,
     return ret;
 }
 
-static int ff_flif16_rac_enc_code_maniac_tree(FLIF16MANIACContext *mctx, int min,
-                                 int max, int value)
+static int ff_flif16_rac_enc_code_maniac_tree(FLIF16MANIACContext *mctx,
+                                              uint8_t plane, int min, int max,
+                                              int value)
 {
     //...
     /*

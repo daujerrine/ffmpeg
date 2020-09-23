@@ -126,6 +126,7 @@ int ff_flif16_planes_init(FLIF16Context *s, FLIF16PixelData *frame,
     for (int i = 0; i < s->num_planes; i++) {
         switch (s->plane_mode[i]) {
         case FLIF16_PLANEMODE_NORMAL:
+            printf("ALLOCATING NORMAL PLANE\n");
             frame->data[i] = av_malloc_array(s->width * s->height, sizeof(int32_t));
             if (!frame->data[i])
                 return AVERROR(ENOMEM);
