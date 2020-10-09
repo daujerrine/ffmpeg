@@ -499,29 +499,6 @@ need_more_data:
     return AVERROR(EAGAIN);
 }
 
-/**
- * Used for decoding rough pixeldata
- */
-static int flif16_blank_maniac_forest_init(AVCodecContext *avctx)
-{
-    FLIF16DecoderContext *s = avctx->priv_data;
-    s->maniac_ctx.forest = av_mallocz((s->num_planes) * sizeof(*(s->maniac_ctx.forest)));
-    if (!s->maniac_ctx.forest)
-        return AVERROR(ENOMEM);
-
-    for (int i = 0; i < s->num_planes; i++) {
-        s->maniac_ctx.forest[i] = av_mallocz(sizeof(*(s->maniac_ctx.forest[i])));
-        if (!s->maniac_ctx.forest[i])
-            return AVERROR(ENOMEM);
-        s->maniac_ctx.forest[i]->data = av_mallocz(sizeof(*(s->maniac_ctx.forest[i]->data)));
-        if (!s->maniac_ctx.forest[i]->data)
-            return AVERROR(ENOMEM);
-        s->maniac_ctx.forest[i]->data[0].property = -1;
-    }
-
-    return 0;
-}
-
 static int flif16_read_maniac_forest(AVCodecContext *avctx)
 {
     int ret;
@@ -1395,7 +1372,7 @@ static int flif16_read_image(AVCodecContext *avctx, uint8_t rough) {
 
     switch (s->segment) {
     case 0:
-        flif16_blank_maniac_forest_init(avctx);
+        ff_flif16_blank_maniac_forest_init(&s->maniac_ctx, s->num_planes);
         s->segment++;
 
     case 1:

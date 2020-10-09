@@ -59,7 +59,7 @@ int ff_flif16_rac_enc_renorm(FLIF16RangeCoder *rc)
 /**
  * Used in MANIAC Tree determination, where RAC output is not valid.
  */
-int ff_flif16_rac_enc_renorm_nowrite(FLIF16RangeCoder *rc)
+static int ff_flif16_rac_enc_renorm_nowrite(FLIF16RangeCoder *rc)
 {
     int byte;
     while (rc->range <= FLIF16_RAC_MIN_RANGE) {
@@ -310,8 +310,8 @@ int ff_flif16_rac_enc_write_gnz_int(FLIF16RangeCoder *rc,
 /*
  * No state management is needed here since we never access the output buffer
  */
-int ff_flif16_rac_enc_code_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
-                                  int min, int max, int value)
+static int ff_flif16_rac_enc_code_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx,
+                                         int min, int max, int value)
 {
     if (min == max)
         return 1;
@@ -380,9 +380,9 @@ int ff_flif16_rac_enc_code_nz_int(FLIF16RangeCoder *rc, FLIF16ChanceContext *ctx
     return 0;
 }
 
-int ff_flif16_rac_enc_code_gnz_int(FLIF16RangeCoder *rc,
-                                    FLIF16ChanceContext *ctx,
-                                    int min, int max, int value)
+static int ff_flif16_rac_enc_code_gnz_int(FLIF16RangeCoder *rc,
+                                          FLIF16ChanceContext *ctx,
+                                          int min, int max, int value)
 {
     int ret;
     if (min > 0) {

@@ -179,9 +179,11 @@ static int flif16_determine_header(AVCodecContext *avctx)
 
     /*
      * TODO determine planes from the given pixfmt.
+     * Seems there is no other way to do this other than heuristically.
      */
-     
-    s->num_planes = MAX_PLANES;
+
+    // We set it to MAX_PLANES if lookback plane is required
+    s->num_planes = 4;
 
     // Check for multiplication overflow
     if ((ret = av_image_check_size2(s->width, s->height, avctx->max_pixels,
@@ -484,9 +486,12 @@ static int flif16_write_stream(AVCodecContext * avctx)
     case 3:
         // Rough pixeldata
         /*
+         *
          * if (s->interlaced)
          *     flif16_write_rough_pixeldata()
          */
+
+         // ff_flif16_
          s->segment++;
 
     case 4:

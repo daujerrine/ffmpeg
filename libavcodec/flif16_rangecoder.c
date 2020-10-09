@@ -500,6 +500,27 @@ int ff_flif16_rac_read_gnz_multiscale_int(FLIF16RangeCoder *rc,
 }
 #endif
 
+/**
+ * Used for decoding rough pixeldata.
+ */
+int ff_flif16_blank_maniac_forest_init(FLIF16MANIACContext *m, uint8_t num_planes)
+{
+    m->forest = av_mallocz((num_planes) * sizeof(*(m->forest)));
+    if (!m->forest)
+        return AVERROR(ENOMEM);
+
+    for (int i = 0; i < num_planes; i++) {
+        m->forest[i] = av_mallocz(sizeof(*(m->forest[i])));
+        if (!m->forest[i])
+            return AVERROR(ENOMEM);
+        m->forest[i]->data = av_mallocz(sizeof(*(m->forest[i]->data)));
+        if (!m->forest[i]->data)
+            return AVERROR(ENOMEM);
+        m->forest[i]->data[0].property = -1;
+    }
+
+    return 0;
+}
 
 int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                                FLIF16MinMax *prop_ranges,

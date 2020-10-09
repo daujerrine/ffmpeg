@@ -311,6 +311,8 @@ void ff_flif16_chancetable_init(FLIF16ChanceTable *ct, int alpha, int cut);
 
 void ff_flif16_build_log4k_table(FLIF16Log4kTable *log4k);
 
+int ff_flif16_blank_maniac_forest_init(FLIF16MANIACContext *m, uint8_t num_planes);
+
 int ff_flif16_read_maniac_tree(FLIF16RangeCoder *rc, FLIF16MANIACContext *m,
                                FLIF16MinMax *prop_ranges,
                                unsigned int prop_ranges_size,
