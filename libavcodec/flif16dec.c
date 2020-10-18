@@ -132,38 +132,6 @@ typedef struct FLIF16DecoderContext {
     int predictor;
 } FLIF16DecoderContext;
 
-// Cast values to FLIF16Context for some functions.
-#define CTX_CAST(x) ((FLIF16Context *) (x))
-
-#define PIXEL_SET(ctx, fr, p, r, c, val) \
-    ff_flif16_pixel_set(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
-#define PIXEL_GET(ctx, fr, p, r, c) \
-    ff_flif16_pixel_get(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
-#define PIXEL_SETZ(ctx, fr, p, z, r, c, val) \
-    ff_flif16_pixel_setz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c, val)
-#define PIXEL_GETZ(ctx, fr, p, z, r, c) \
-    ff_flif16_pixel_getz(CTX_CAST(ctx), &(ctx)->frames[fr], p, z, r, c)
-#define PIXEL_GETFAST(ctx, fr, p, r, c) \
-    ff_flif16_pixel_get_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c)
-#define PIXEL_SETFAST(ctx, fr, p, r, c, val) \
-    ff_flif16_pixel_set_fast(CTX_CAST(ctx), &(ctx)->frames[fr], p, r, c, val)
-
-#define PREV_FRAME(frames, f_no) \
-    (((frames)[(f_no) - 1].seen_before >= 0) ? &(frames)[(frames)[(f_no) - 1].seen_before] : &(frames)[(f_no) - 1])
-#define PREV_FRAMENUM(frames, f_no) \
-    (((frames)[(f_no) - 1].seen_before >= 0) ? (frames)[(f_no) - 1].seen_before : (f_no) - 1)
-#define LOOKBACK_FRAMENUM(ctx, frames, f_no, r, c) \
-    (((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before >= 0) ? \
-    ((frames)[(f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))].seen_before) : \
-    ((f_no) - PIXEL_GET((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (r), (c))))
-#define LOOKBACK_FRAMENUMZ(ctx, frames, f_no, z, r, c) \
-    (((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before >= 0) ? \
-    ((frames)[(f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))].seen_before) : \
-    ((f_no) - PIXEL_GETZ((ctx), (f_no), FLIF16_PLANE_LOOKBACK, (z), (r), (c))))
-
-#define IS_CONSTANT(ranges, plane) (ff_flif16_ranges_min((ranges), (plane)) >= \
-                                    ff_flif16_ranges_max((ranges), (plane)))
-
 /*
  * From reference decoder:
  *
